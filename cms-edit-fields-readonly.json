@@ -1,0 +1,1704 @@
+[
+  {
+    "id": 1,
+    "status": 200,
+    "title": "MODX",
+    "headings": [
+      "Редактировать ресурс (1)",
+      "Общие",
+      "Содержимое ресурса",
+      "Параметры (TV)",
+      "Настройка страницы"
+    ],
+    "fields": [
+      {
+        "name": "a",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "id",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "mode",
+        "type": "hidden",
+        "value": "27",
+        "checked": false
+      },
+      {
+        "name": "MAX_FILE_SIZE",
+        "type": "hidden",
+        "value": "10485760",
+        "checked": false
+      },
+      {
+        "name": "refresh_preview",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "newtemplate",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "dir",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "sort",
+        "type": "hidden",
+        "value": "createdon",
+        "checked": false
+      },
+      {
+        "name": "page",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "stay",
+        "type": "select-one",
+        "value": "",
+        "checked": false,
+        "selected": [
+          "Закрыть"
+        ]
+      },
+      {
+        "name": "pagetitle",
+        "type": "text",
+        "value": "Главная",
+        "checked": false
+      },
+      {
+        "name": "longtitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "alias",
+        "type": "text",
+        "value": "index",
+        "checked": false
+      },
+      {
+        "name": "link_attributes",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "introtext",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "template",
+        "type": "select-one",
+        "value": "5",
+        "checked": false,
+        "selected": [
+          "Главная"
+        ]
+      },
+      {
+        "name": "menutitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "menuindex",
+        "type": "text",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "hidemenucheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": false
+      },
+      {
+        "name": "hidemenu",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "parent",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "ta",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "which_editor",
+        "type": "select-one",
+        "value": "TinyMCE",
+        "checked": false,
+        "selected": [
+          "TinyMCE"
+        ]
+      },
+      {
+        "name": "tv1",
+        "type": "text",
+        "value": "храм иннокентия московского бескудникове дудко",
+        "checked": false
+      },
+      {
+        "name": "tv6",
+        "type": "textarea",
+        "value": "{\"fieldValue\":[{\"file\":\"http://vk.com/club37731945\",\"image\":\"\",\"thumb\":\"\"},{\"file\":\"https://www.facebook.com/innokentymos\",\"image\":\"\",\"thumb\":\"\"},{\"file\":\"https://t.me/sv_innokenty\",\"image\":\"assets/images/telegram_cvet-d23c11fa.png\",\"thumb\":\"\"}],\"fieldSettings\":{\"autoincrement\":1}}",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "word",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "google",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "csv",
+        "checked": false
+      },
+      {
+        "name": "tv6file_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv6image_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv10",
+        "type": "textarea",
+        "value": "(c) Храм святителя Иннокентия, митрополита Московского,<br/>в Бескудникове",
+        "checked": false
+      },
+      {
+        "name": "tv11",
+        "type": "textarea",
+        "value": "{\"fieldValue\":[{\"image\":\"assets/images/_2024/%D0%B1%D0%B5%D1%81%D0%B5%D0%B4%D1%8B-%D1%81-%D0%B1%D0%B0%D1%82%D1%8E%D1%88%D0%BA%D0%BE%D0%B929122024.jpg\",\"thumb\":\"\",\"text\":\"Беседы с батюшкой. Протоиерей Михаил Дудко. 29 декабря 2024 \\n Нажмите для просмотра\",\"link\":\"\"},{\"image\":\"assets/images/_2024/%D1%81%D0%B1%D0%BE%D1%80-%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D1%8B_%D0%BC%D0%BE%D1%81%D0%BA%D0%B2%D0%B0_2024-2.jpg\",\"thumb\":\"\",\"text\":\"\",\"link\":\"\"},{\"image\":\"assets/images/_2024/%D0%BD%D0%B0-%D1%81%D0%B0%D0%B9%D1%82.jpg\",\"thumb\":\"\",\"text\":\"\",\"link\":\"\"},{\"image\":\"assets/images/_2024/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D1%8B-%D0%B7%D0%B0-%D0%B6%D0%B8%D0%B7%D0%BD%D1%8C.jpg\",\"thumb\":\"\",\"text\":\"\",\"link\":\"\"},{\"image\":\"assets/images/_2024/00000000.jpg\",\"thumb\":\"\",\"text\":\"\",\"link\":\"\"}],\"fieldSettin",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "word",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "google",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "csv",
+        "checked": false
+      },
+      {
+        "name": "tv11image_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv11text_mtv",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv11link_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv18",
+        "type": "textarea",
+        "value": "no-reply@sv-innokenty.ru",
+        "checked": false
+      },
+      {
+        "name": "publishedcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "published",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "pub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "unpub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "type",
+        "type": "select-one",
+        "value": "document",
+        "checked": false,
+        "selected": [
+          "Веб-страница"
+        ]
+      },
+      {
+        "name": "contentType",
+        "type": "select-one",
+        "value": "text/html",
+        "checked": false,
+        "selected": [
+          "text/html"
+        ]
+      },
+      {
+        "name": "content_dispo",
+        "type": "select-one",
+        "value": "0",
+        "checked": false,
+        "selected": [
+          "Отображаемое"
+        ]
+      },
+      {
+        "name": "isfoldercheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "isfolder",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "alias_visible_check",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "alias_visible",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "richtextcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "richtext",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "donthitcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "donthit",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "searchablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "searchable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "cacheablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "cacheable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "syncsitecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "syncsite",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "save",
+        "type": "submit",
+        "value": "",
+        "checked": false
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "status": 200,
+    "title": "MODX",
+    "headings": [
+      "Редактировать ресурс (14)",
+      "Общие",
+      "Содержимое ресурса",
+      "Параметры (TV)",
+      "Настройка страницы"
+    ],
+    "fields": [
+      {
+        "name": "a",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "id",
+        "type": "hidden",
+        "value": "14",
+        "checked": false
+      },
+      {
+        "name": "mode",
+        "type": "hidden",
+        "value": "27",
+        "checked": false
+      },
+      {
+        "name": "MAX_FILE_SIZE",
+        "type": "hidden",
+        "value": "10485760",
+        "checked": false
+      },
+      {
+        "name": "refresh_preview",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "newtemplate",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "dir",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "sort",
+        "type": "hidden",
+        "value": "createdon",
+        "checked": false
+      },
+      {
+        "name": "page",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "stay",
+        "type": "select-one",
+        "value": "",
+        "checked": false,
+        "selected": [
+          "Закрыть"
+        ]
+      },
+      {
+        "name": "pagetitle",
+        "type": "text",
+        "value": "Расписание богослужений",
+        "checked": false
+      },
+      {
+        "name": "longtitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "alias",
+        "type": "text",
+        "value": "raspisanie-bogosluzheniy",
+        "checked": false
+      },
+      {
+        "name": "link_attributes",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "introtext",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "template",
+        "type": "select-one",
+        "value": "6",
+        "checked": false,
+        "selected": [
+          "Внутренняя"
+        ]
+      },
+      {
+        "name": "menutitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "menuindex",
+        "type": "text",
+        "value": "7",
+        "checked": false
+      },
+      {
+        "name": "hidemenucheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "hidemenu",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "parent",
+        "type": "hidden",
+        "value": "2",
+        "checked": false
+      },
+      {
+        "name": "ta",
+        "type": "textarea",
+        "value": "<p class=\"MsoTitle\" style=\"text-align: center;\"><em><strong>&nbsp;</strong></em></p> <p class=\"justifyleft\" align=\"center\">Бескудниковский бульвар, дом 1</p> <p class=\"justifyleft\" align=\"center\">СТ.МЕТРО <em><strong>ВЕРХНИЕ ЛИХОБОРЫ</strong></em> (СЕВЕРНЫЙ ВЫХОД)&nbsp; &nbsp;<br />Номера телефонов храма: 8&nbsp;499&nbsp;480-00-42; 8&nbsp;499&nbsp;480-09-89.</p> <p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</p> <p class=\"justifycenter\">РАСПИСАНИЕ БОГОСЛУЖЕНИЙ</p> <p align=\"center\"><strong>в Патр",
+        "checked": false
+      },
+      {
+        "name": "which_editor",
+        "type": "select-one",
+        "value": "TinyMCE",
+        "checked": false,
+        "selected": [
+          "TinyMCE"
+        ]
+      },
+      {
+        "name": "tv1",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "publishedcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "published",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "pub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "unpub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "type",
+        "type": "select-one",
+        "value": "document",
+        "checked": false,
+        "selected": [
+          "Веб-страница"
+        ]
+      },
+      {
+        "name": "contentType",
+        "type": "select-one",
+        "value": "text/html",
+        "checked": false,
+        "selected": [
+          "text/html"
+        ]
+      },
+      {
+        "name": "content_dispo",
+        "type": "select-one",
+        "value": "0",
+        "checked": false,
+        "selected": [
+          "Отображаемое"
+        ]
+      },
+      {
+        "name": "isfoldercheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": false
+      },
+      {
+        "name": "isfolder",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "alias_visible_check",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "alias_visible",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "richtextcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "richtext",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "donthitcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "donthit",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "searchablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "searchable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "cacheablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "cacheable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "syncsitecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "syncsite",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "save",
+        "type": "submit",
+        "value": "",
+        "checked": false
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "status": 200,
+    "title": "MODX",
+    "headings": [
+      "Редактировать ресурс (20)",
+      "Общие",
+      "Содержимое ресурса",
+      "Параметры (TV)",
+      "Настройка страницы"
+    ],
+    "fields": [
+      {
+        "name": "a",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "id",
+        "type": "hidden",
+        "value": "20",
+        "checked": false
+      },
+      {
+        "name": "mode",
+        "type": "hidden",
+        "value": "27",
+        "checked": false
+      },
+      {
+        "name": "MAX_FILE_SIZE",
+        "type": "hidden",
+        "value": "10485760",
+        "checked": false
+      },
+      {
+        "name": "refresh_preview",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "newtemplate",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "dir",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "sort",
+        "type": "hidden",
+        "value": "createdon",
+        "checked": false
+      },
+      {
+        "name": "page",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "stay",
+        "type": "select-one",
+        "value": "",
+        "checked": false,
+        "selected": [
+          "Закрыть"
+        ]
+      },
+      {
+        "name": "pagetitle",
+        "type": "text",
+        "value": "Приходской листок",
+        "checked": false
+      },
+      {
+        "name": "longtitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "alias",
+        "type": "text",
+        "value": "prihodskoy-listok",
+        "checked": false
+      },
+      {
+        "name": "link_attributes",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "introtext",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "template",
+        "type": "select-one",
+        "value": "7",
+        "checked": false,
+        "selected": [
+          "Приходской листок(страница)"
+        ]
+      },
+      {
+        "name": "menutitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "menuindex",
+        "type": "text",
+        "value": "2",
+        "checked": false
+      },
+      {
+        "name": "hidemenucheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "hidemenu",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "parent",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "ta",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "which_editor",
+        "type": "select-one",
+        "value": "TinyMCE",
+        "checked": false,
+        "selected": [
+          "TinyMCE"
+        ]
+      },
+      {
+        "name": "tv1",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv7",
+        "type": "text",
+        "value": "assets/images/listok/2026/148.jpg",
+        "checked": false
+      },
+      {
+        "name": "publishedcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "published",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "pub_date",
+        "type": "text",
+        "value": "01-01-2004 20:41:00",
+        "checked": false
+      },
+      {
+        "name": "unpub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "type",
+        "type": "select-one",
+        "value": "document",
+        "checked": false,
+        "selected": [
+          "Веб-страница"
+        ]
+      },
+      {
+        "name": "contentType",
+        "type": "select-one",
+        "value": "text/html",
+        "checked": false,
+        "selected": [
+          "text/html"
+        ]
+      },
+      {
+        "name": "content_dispo",
+        "type": "select-one",
+        "value": "0",
+        "checked": false,
+        "selected": [
+          "Отображаемое"
+        ]
+      },
+      {
+        "name": "isfoldercheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "isfolder",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "alias_visible_check",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "alias_visible",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "richtextcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "richtext",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "donthitcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "donthit",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "searchablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "searchable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "cacheablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "cacheable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "syncsitecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "syncsite",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "save",
+        "type": "submit",
+        "value": "",
+        "checked": false
+      }
+    ]
+  },
+  {
+    "id": 48,
+    "status": 200,
+    "title": "MODX",
+    "headings": [
+      "Редактировать ресурс (48)",
+      "Общие",
+      "Содержимое ресурса",
+      "Параметры (TV)",
+      "Настройка страницы"
+    ],
+    "fields": [
+      {
+        "name": "a",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "id",
+        "type": "hidden",
+        "value": "48",
+        "checked": false
+      },
+      {
+        "name": "mode",
+        "type": "hidden",
+        "value": "27",
+        "checked": false
+      },
+      {
+        "name": "MAX_FILE_SIZE",
+        "type": "hidden",
+        "value": "10485760",
+        "checked": false
+      },
+      {
+        "name": "refresh_preview",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "newtemplate",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "dir",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "sort",
+        "type": "hidden",
+        "value": "createdon",
+        "checked": false
+      },
+      {
+        "name": "page",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "stay",
+        "type": "select-one",
+        "value": "",
+        "checked": false,
+        "selected": [
+          "Закрыть"
+        ]
+      },
+      {
+        "name": "pagetitle",
+        "type": "text",
+        "value": "Расписание занятий",
+        "checked": false
+      },
+      {
+        "name": "longtitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "alias",
+        "type": "text",
+        "value": "raspisanie-zanyatiy",
+        "checked": false
+      },
+      {
+        "name": "link_attributes",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "introtext",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "template",
+        "type": "select-one",
+        "value": "6",
+        "checked": false,
+        "selected": [
+          "Внутренняя"
+        ]
+      },
+      {
+        "name": "menutitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "menuindex",
+        "type": "text",
+        "value": "3",
+        "checked": false
+      },
+      {
+        "name": "hidemenucheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "hidemenu",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "parent",
+        "type": "hidden",
+        "value": "4",
+        "checked": false
+      },
+      {
+        "name": "ta",
+        "type": "textarea",
+        "value": "<p>Расписание занятий и кружков Воскресной школы на 2025-26 уч.гг.</p> <p>Запись- в личные&nbsp;сообщения +7 965 392-02-25 Елена Алексеевна.</p> <p>&nbsp;</p> <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; СУББОТА &nbsp;&nbsp;&nbsp;&nbsp;Хор ВШ(практика)</p> <p>8-40 ( или к началу Литургии в 8-00, если Причащаетесь)</p> <p>Исполняем: \"Символ Веры\", \"Отче Наш\", \"Тело Христово ( во время Причастия)\", <br /> Ектении простительные( после \"Отче Наш\")- участвуют все желающие дети и родители.</p> <p>&nbsp;</p> <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ВОСКРЕСЕНЬЕ &nbsp;&nbsp;&nbsp;&nbsp;Воскресная школа</p> <p>&nbsp;</p> <p>Младшая группа &nbsp;(Елена Алексеевна) 10-15-11-00 (1-4 года) &nbsp;11-00-11-40 ОБЕД</p> <p>&nbsp;<",
+        "checked": false
+      },
+      {
+        "name": "which_editor",
+        "type": "select-one",
+        "value": "TinyMCE",
+        "checked": false,
+        "selected": [
+          "TinyMCE"
+        ]
+      },
+      {
+        "name": "tv1",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "publishedcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "published",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "pub_date",
+        "type": "text",
+        "value": "12-03-2014 11:13:21",
+        "checked": false
+      },
+      {
+        "name": "unpub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "type",
+        "type": "select-one",
+        "value": "document",
+        "checked": false,
+        "selected": [
+          "Веб-страница"
+        ]
+      },
+      {
+        "name": "contentType",
+        "type": "select-one",
+        "value": "text/html",
+        "checked": false,
+        "selected": [
+          "text/html"
+        ]
+      },
+      {
+        "name": "content_dispo",
+        "type": "select-one",
+        "value": "0",
+        "checked": false,
+        "selected": [
+          "Отображаемое"
+        ]
+      },
+      {
+        "name": "isfoldercheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": false
+      },
+      {
+        "name": "isfolder",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "alias_visible_check",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "alias_visible",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "richtextcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "richtext",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "donthitcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "donthit",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "searchablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "searchable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "cacheablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "cacheable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "syncsitecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "syncsite",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "save",
+        "type": "submit",
+        "value": "",
+        "checked": false
+      }
+    ]
+  },
+  {
+    "id": 2436,
+    "status": 200,
+    "title": "MODX",
+    "headings": [
+      "Редактировать ресурс (2436)",
+      "Общие",
+      "Содержимое ресурса",
+      "Параметры (TV)",
+      "Настройка страницы"
+    ],
+    "fields": [
+      {
+        "name": "a",
+        "type": "hidden",
+        "value": "5",
+        "checked": false
+      },
+      {
+        "name": "id",
+        "type": "hidden",
+        "value": "2436",
+        "checked": false
+      },
+      {
+        "name": "mode",
+        "type": "hidden",
+        "value": "27",
+        "checked": false
+      },
+      {
+        "name": "MAX_FILE_SIZE",
+        "type": "hidden",
+        "value": "10485760",
+        "checked": false
+      },
+      {
+        "name": "refresh_preview",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "newtemplate",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "dir",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "sort",
+        "type": "hidden",
+        "value": "createdon",
+        "checked": false
+      },
+      {
+        "name": "page",
+        "type": "hidden",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "stay",
+        "type": "select-one",
+        "value": "",
+        "checked": false,
+        "selected": [
+          "Закрыть"
+        ]
+      },
+      {
+        "name": "pagetitle",
+        "type": "text",
+        "value": "2026",
+        "checked": false
+      },
+      {
+        "name": "longtitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "alias",
+        "type": "text",
+        "value": "2026",
+        "checked": false
+      },
+      {
+        "name": "link_attributes",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "introtext",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "template",
+        "type": "select-one",
+        "value": "13",
+        "checked": false,
+        "selected": [
+          "Приходской листок"
+        ]
+      },
+      {
+        "name": "menutitle",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "menuindex",
+        "type": "text",
+        "value": "21",
+        "checked": false
+      },
+      {
+        "name": "hidemenucheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "hidemenu",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "parent",
+        "type": "hidden",
+        "value": "20",
+        "checked": false
+      },
+      {
+        "name": "ta",
+        "type": "textarea",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "which_editor",
+        "type": "select-one",
+        "value": "TinyMCE",
+        "checked": false,
+        "selected": [
+          "TinyMCE"
+        ]
+      },
+      {
+        "name": "tv14",
+        "type": "textarea",
+        "value": "{\"fieldValue\":[{\"title\":\"№ 146 Январь 2026\",\"file\":\"assets/files/list/2026/2026_01-%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8C-146-web.pdf\",\"image\":\"assets/images/listok/2026/146.jpg\",\"thumb\":\"\"},{\"title\":\"№ 147 Апрель 2026\",\"file\":\"assets/files/list/2026/%E2%84%96-147-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-2026-web.pdf\",\"image\":\"assets/images/listok/2026/147.jpg\",\"thumb\":\"\"},{\"title\":\"№ 148 Май - Июль 2026\",\"file\":\"assets/files/list/2026/%D0%B8%D0%BB-148-%D0%BC%D0%B0%D0%B9-%D0%B8%D1%8E%D0%BD%D1%8C-2026-web.pdf\",\"image\":\"assets/images/listok/2026/148.jpg\",\"thumb\":\"\"}],\"fieldSettings\":{\"autoincrement\":1}}",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "word",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "google",
+        "checked": false
+      },
+      {
+        "name": "pasteas",
+        "type": "radio",
+        "value": "csv",
+        "checked": false
+      },
+      {
+        "name": "tv14title_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv14file_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "tv14image_mtv",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "publishedcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "published",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "pub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "unpub_date",
+        "type": "text",
+        "value": "",
+        "checked": false
+      },
+      {
+        "name": "type",
+        "type": "select-one",
+        "value": "document",
+        "checked": false,
+        "selected": [
+          "Веб-страница"
+        ]
+      },
+      {
+        "name": "contentType",
+        "type": "select-one",
+        "value": "text/html",
+        "checked": false,
+        "selected": [
+          "text/html"
+        ]
+      },
+      {
+        "name": "content_dispo",
+        "type": "select-one",
+        "value": "0",
+        "checked": false,
+        "selected": [
+          "Отображаемое"
+        ]
+      },
+      {
+        "name": "isfoldercheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": false
+      },
+      {
+        "name": "isfolder",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "alias_visible_check",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "alias_visible",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "richtextcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "richtext",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "donthitcheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "donthit",
+        "type": "hidden",
+        "value": "0",
+        "checked": false
+      },
+      {
+        "name": "searchablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "searchable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "cacheablecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "cacheable",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "syncsitecheck",
+        "type": "checkbox",
+        "value": "on",
+        "checked": true
+      },
+      {
+        "name": "syncsite",
+        "type": "hidden",
+        "value": "1",
+        "checked": false
+      },
+      {
+        "name": "save",
+        "type": "submit",
+        "value": "",
+        "checked": false
+      }
+    ]
+  }
+]

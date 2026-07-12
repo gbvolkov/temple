@@ -1,0 +1,345 @@
+[
+  {
+    "text": "",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://vk.com/club37731945",
+    "classes": "link-soc",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "https://www.facebook.com/innokentymos",
+    "classes": "link-soc",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "https://t.me/sv_innokenty",
+    "classes": "link-soc",
+    "visible": true
+  },
+  {
+    "text": "О ХРАМЕ",
+    "title": "",
+    "href": "javascript:void(0);",
+    "classes": "item1",
+    "visible": true
+  },
+  {
+    "text": "История",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/istoriya.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Новости прихода",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/novosti-prihoda.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Анонсы",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/anonsy.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Духовенство",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/duhovenstvo.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Небесный покровитель",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/nebesnyy-pokrovitel.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Святыни храма",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/svyatyni-hrama.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Расписание богослужений",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/raspisanie-bogosluzheniy.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Фотогалерея",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya/2014.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "ТРЕБЫ ОНЛАЙН",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html",
+    "classes": "item1",
+    "visible": true
+  },
+  {
+    "text": "ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/%D0%BF%D1%80%D1%8F%D0%BC%D0%B0%D1%8F-%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BB%D1%8F%D1%86%D0%B8%D1%8F-%D0%B1%D0%BE%D0%B3%D0%BE%D1%81%D0%BB%D1%83%D0%B6%D0%B5%D0%BD%D0%B8%D0%B9-%D0%B8%D0%B7-%D1%85%D1%80%D0%B0%D0%BC%D0%B0.html",
+    "classes": "item1",
+    "visible": true
+  },
+  {
+    "text": "Молодежное движение",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/molodezhnoe-dvizhenie.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Молодёжный церковный хор",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/detskaya-cerkovnaya-horovaya-studiya.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Театральный кружок",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/teatralnyy-kruzhok2.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Паломническая служба",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/palomnichestvo.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Социальная служба",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/socialnaya-sluzhba.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Рукопашный бой",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/rukopashnyy-boy2.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Общая информация",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/voskresnaya-shkola/obshhaya-informaciya.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Фотогалерея",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/voskresnaya-shkola/zhizn.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "Расписание занятий",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/voskresnaya-shkola/raspisanie-zanyatiy.html",
+    "classes": "item2 first",
+    "visible": true
+  },
+  {
+    "text": "6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/novosti-prihoda/6-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8F-%D0%B2-%D0%BF%D1%80%D0%B5%D0%B4%D0%B4%D0%B2%D0%B5%D1%80%D0%B8%D0%B8-%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D0%B8%D0%BA%D0%B0-%D0%B1%D0%BB%D0%B0%D0%B3%D0%BE%D0%B2%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B2-%D1%85%D1%80%D0%B0%D0%BC%D0%B5-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D0%BB%D0%B0%D1%81%D1%8C-%D1%84%D0%BE%D1%82%D0%BE%D0%B2%D1%8B%D1%81%D1%82%D0%B0%D0%B2%D0%BA%D0%B0-%D0%BF%D0%BE%D1%81%D0%B2%D1%8F%D1%89%D0%B5%D0%BD%D0%BD%D0%B0%D1%8F-100-%D0%BB%D0%B5%D1%82%D0%B8%D1%8E-%D1%81%D0%BE-%D0%B4%D0%BD%D1%8F-%D0%BA%D0%BE%D0%BD%D1%87%D0%B8%D0%BD%D1%8B-%D1%81%D0%B2%D1%8F%D1%82%D0%B5%D0%B9%D1%88%D0%B5%D0%B3%D0%BE-%D0%BF%D0%B0%D1%82%D1%80%D0%B8%D0%B0%D1%80%D1%85%D0%B0-%D1%82%D0%B8%D1%85%D0%BE%D0%BD%D0%B0.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "15 марта 2025 г. Поминовение усопших",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/novosti-prihoda/15-%D0%BC%D0%B0%D1%80%D1%82%D0%B0-2025-%D0%B3.-%D0%BF%D0%BE%D0%BC%D0%B8%D0%BD%D0%BE%D0%B2%D0%B5%D0%BD%D0%B8%D0%B5-%D1%83%D1%81%D0%BE%D0%BF%D1%88%D0%B8%D1%85.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского.",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/novosti-prihoda/03-%D0%BC%D0%B0%D1%80%D1%82%D0%B0-2025-1-%D0%B9-%D0%B4%D0%B5%D0%BD%D1%8C-%D0%B2%D0%B5%D0%BB%D0%B8%D0%BA%D0%BE%D0%B3%D0%BE-%D0%BF%D0%BE%D1%81%D1%82%D0%B0.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "ПРИХОДСКОЙ ЛИСТОК",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/zhivoe-slovo/prihodskoy-listok.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "1",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#0",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "2",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#1",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "3",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#2",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "4",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#3",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "5",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#4",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "Пасхальное выступление вокального коллектива \"МНОГОЛЕТИЕ\"",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/anonsy/%D0%BF%D0%B0%D1%81%D1%85%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B5-%D0%B2%D1%8B%D1%81%D1%82%D1%83%D0%BF%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2%D0%BE%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BA%D0%BE%D0%BB%D0%BB%D0%B5%D0%BA%D1%82%D0%B8%D0%B2%D0%B0-%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE%D0%BB%D0%B5%D1%82%D0%B8%D0%B524.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "О молодёжном церковном хоре нашего храма",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/anonsy/%D0%BE-%D0%BC%D0%BE%D0%BB%D0%BE%D0%B4%D1%91%D0%B6%D0%BD%D0%BE%D0%BC-%D1%86%D0%B5%D1%80%D0%BA%D0%BE%D0%B2%D0%BD%D0%BE%D0%BC-%D1%85%D0%BE%D1%80%D0%B5-%D0%BD%D0%B0%D1%88%D0%B5%D0%B3%D0%BE-%D1%85%D1%80%D0%B0%D0%BC%D0%B0-22.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "«Свет Православия» приглашает вас",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/anonsy/%D1%81%D0%B2%D0%B5%D1%82-%D0%BF%D1%80%D0%B0%D0%B2%D0%BE%D1%81%D0%BB%D0%B0%D0%B2%D0%B8%D1%8F-%D0%BF%D1%80%D0%B8%D0%B3%D0%BB%D0%B0%D1%88%D0%B0%D0%B5%D1%82-%D0%B2%D0%B0%D1%81.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "Интеллектуальный клуб храма свт. Иннокентия в Бескудниково",
+    "title": "Интеллектуальный клуб храма свт. Иннокентия в Бескудниково",
+    "href": "https://www.sv-innokenty.ru/zhizn-prihoda/%D1%81%D0%BE%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F-%D1%81%D0%BB%D1%83%D0%B6%D0%B1%D0%B0/socialnaya-sluzhba1.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "ФОТОГАЛЕРЕЯ",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "6 - 7 января - Рождество Господа и Спаса нашего Иисуса Христа. Всенощное бдение. Божественная Литургия.",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya/2025/6-7-%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8F-%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D1%81%D1%82%D0%B2%D0%BE-%D0%B3%D0%BE%D1%81%D0%BF%D0%BE%D0%B4%D0%B0-%D0%B8-%D1%81%D0%BF%D0%B0%D1%81%D0%B0-%D0%BD%D0%B0%D1%88%D0%B5%D0%B3%D0%BE-%D0%B8%D0%B8%D1%81%D1%83%D1%81%D0%B0-%D1%85%D1%80%D0%B8%D1%81%D1%82%D0%B0.-%D0%B2%D1%81%D0%B5%D0%BD%D0%BE%D1%89%D0%BD%D0%BE%D0%B5-%D0%B1%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5.-%D0%B1%D0%BE%D0%B6%D0%B5%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%B0%D1%8F-%D0%BB%D0%B8%D1%82%D1%83%D1%80%D0%B3%D0%B8%D1%8F.html",
+    "classes": "bt-image-link",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "18-19.01.2025 - Навечерие Богоявления (Крещенский сочельник).Святое Богоявление. Крещение Господа Бога и Спаса нашего Иисуса Христа.",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya/2025/18-19.01.2025-%D0%BD%D0%B0%D0%B2%D0%B5%D1%87%D0%B5%D1%80%D0%B8%D0%B5-%D0%B1%D0%BE%D0%B3%D0%BE%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%BA%D1%80%D0%B5%D1%89%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9-%D1%81%D0%BE%D1%87%D0%B5%D0%BB%D1%8C%D0%BD%D0%B8%D0%BA.%D1%81%D0%B2%D1%8F%D1%82%D0%BE%D0%B5-%D0%B1%D0%BE%D0%B3%D0%BE%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5.-%D0%BA%D1%80%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B3%D0%BE%D1%81%D0%BF%D0%BE%D0%B4%D0%B0-%D0%B1%D0%BE%D0%B3%D0%B0-%D0%B8-%D1%81%D0%BF%D0%B0%D1%81%D0%B0-%D0%BD%D0%B0%D1%88%D0%B5%D0%B3%D0%BE-%D0%B8%D0%B8%D1%81%D1%83%D1%81%D0%B0-%D1%85%D1%80%D0%B8%D1%81%D1%82%D0%B0.html",
+    "classes": "bt-image-link",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "15.02.2025 - Сретение Господа Нашего Иисуса Христа.",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya/2025/15.02.2025-%D1%81%D1%80%D0%B5%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B3%D0%BE%D1%81%D0%BF%D0%BE%D0%B4%D0%B0-%D0%BD%D0%B0%D1%88%D0%B5%D0%B3%D0%BE-%D0%B8%D0%B8%D1%81%D1%83%D1%81%D0%B0-%D1%85%D1%80%D0%B8%D1%81%D1%82%D0%B0.html",
+    "classes": "bt-image-link",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "02.03.2025 - Прощенное воскресенье. Вечерня с чином прощения .",
+    "href": "https://www.sv-innokenty.ru/o-hrame/fotogalereya/2025/02.03.2025-%D0%BF%D1%80%D0%BE%D1%89%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5-%D0%B2%D0%BE%D1%81%D0%BA%D1%80%D0%B5%D1%81%D0%B5%D0%BD%D1%8C%D0%B5.-%D0%B2%D0%B5%D1%87%D0%B5%D1%80%D0%BD%D1%8F-%D1%81-%D1%87%D0%B8%D0%BD%D0%BE%D0%BC-%D0%BF%D1%80%D0%BE%D1%89%D0%B5%D0%BD%D0%B8%D1%8F.html",
+    "classes": "bt-image-link",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://www.sv-innokenty.ru/kontakty.html",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://severvik.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://znam-blag.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://www.patriarchia.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "http://orthodoxmoscow.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "Создание сайта - АБВ сайт",
+    "title": "Создание сайта - АБВ сайт",
+    "href": "http://www.abcwww.ru/",
+    "classes": "",
+    "visible": true
+  },
+  {
+    "text": "",
+    "title": "",
+    "href": "https://www.sv-innokenty.ru/#mess_ie_content",
+    "classes": "mess_ie",
+    "visible": true
+  }
+]

@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+data/*.sqlite3-shm
+data/*.sqlite3-wal
+data/legacy-crawl-checkpoint.json
+data/legacy-media-manifest.json
+data/full-import-plan.json
+data/media/legacy/
+data/qa-*.sqlite3*

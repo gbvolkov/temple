@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-12T12:40:14+00:00",
+  "ready_for_cutover": false,
+  "gates": {
+    "full_public_crawl": true,
+    "detailed_snapshot_for_every_successful_page": true,
+    "all_referenced_media_resolved": true,
+    "legacy_records_imported": true,
+    "all_imported_records_reviewed": false,
+    "no_unreviewed_content_published": true,
+    "redirects_cover_successful_pages": true,
+    "detail_pages_keep_individual_destination": true,
+    "source_media_failures_documented": true
+  },
+  "legacy": {
+    "crawled": 1615,
+    "remaining_queue": 0,
+    "successful_pages": 1606,
+    "broken_pages": 9,
+    "detailed_snapshots": 1606
+  },
+  "new_cms": {
+    "records": 1757,
+    "review_required": 1757,
+    "redirects": 1606,
+    "detail_redirects": 1578,
+    "expected_detail_redirects": 1575,
+    "missing_detail_redirects": [],
+    "migration_runs": 10,
+    "by_type": {
+      "clergy": 6,
+      "gallery": 825,
+      "leaflet_issue": 148,
+      "news": 732,
+      "page": 39,
+      "parish_section": 6,
+      "site_contact": 1
+    },
+    "by_status": {
+      "draft": 1757
+    }
+  },
+  "media": {
+    "known_assets": 13947,
+    "mirrored": 13746,
+    "source_missing_or_broken": 201,
+    "records_with_local_assets": 1757,
+    "records_with_remote_assets": 0,
+    "referenced_local_files": 13698,
+    "missing_local_files": 0,
+    "missing_local_file_paths": []
+  }
+}

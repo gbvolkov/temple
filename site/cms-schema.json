@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0.0",
+  "locale": "ru-RU",
+  "principles": [
+    "Editors see domain fields, not templates, aliases, HTML, JSON, or filesystem paths.",
+    "Every publishable item supports draft, scheduled, published, archived, and trash states.",
+    "Desktop and mobile preview is mandatory before publish.",
+    "Legacy IDs and URLs are retained as migration metadata for traceability and redirects."
+  ],
+  "content_types": {
+    "home_feature": {
+      "label": "Главное",
+      "fields": {
+        "title": { "type": "string", "required": true, "max_length": 180 },
+        "slug": { "type": "slug", "generated_from": "title", "admin_only": true },
+        "kicker": { "type": "string", "required": true, "default": "Главное", "max_length": 60 },
+        "summary": { "type": "text", "required": true, "max_length": 360 },
+        "cover": { "type": "image", "required": true, "aspect_ratio": "16:9" },
+        "cover_alt": { "type": "string", "required": true },
+        "cta_label": { "type": "string", "required": true, "default": "Прочитать", "max_length": 40 },
+        "target_url": { "type": "string", "required": false },
+        "content_slug": { "type": "relation", "target": "any_publishable", "required": false },
+        "starts_at": { "type": "datetime", "required": false },
+        "ends_at": { "type": "datetime", "required": false },
+        "priority": { "type": "integer", "required": true, "default": 100 }
+      }
+    },
+    "news": {
+      "label": "Новость или анонс",
+      "fields": {
+        "title": { "type": "string", "required": true, "max_length": 180 },
+        "slug": { "type": "slug", "generated_from": "title", "admin_only": true },
+        "publication_date": { "type": "datetime", "required": true },
+        "event_start": { "type": "datetime", "required": false },
+        "event_end": { "type": "datetime", "required": false },
+        "category": { "type": "relation", "target": "category", "required": true },
+        "summary": { "type": "text", "required": true, "max_length": 420 },
+        "body": { "type": "blocks", "allowed": ["paragraph", "heading", "image", "gallery", "quote", "video", "file", "callout"] },
+        "cover": { "type": "image", "required": true, "aspect_ratio": "3:2" },
+        "cover_alt": { "type": "string", "required": true },
+        "featured": { "type": "boolean", "default": false },
+        "related_section": { "type": "relation", "target": "parish_section", "required": false }
+      }
+    },
+    "service": {
+      "label": "Богослужение",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "starts_at": { "type": "datetime", "required": true },
+        "ends_at": { "type": "datetime", "required": false },
+        "service_type": { "type": "enum", "values": ["liturgy", "vigil", "vespers", "matins", "moleben", "panikhida", "confession", "other"] },
+        "liturgical_title": { "type": "string", "required": false },
+        "location": { "type": "relation", "target": "location", "required": true },
+        "note": { "type": "text", "required": false },
+        "featured": { "type": "boolean", "default": false }
+      }
+    },
+    "gallery": {
+      "label": "Фотоальбом",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "event_date": { "type": "date", "required": true },
+        "category": { "type": "relation", "target": "category", "required": true },
+        "summary": { "type": "text", "required": false },
+        "cover": { "type": "image", "required": true },
+        "photos": { "type": "image_list", "required": true, "item_fields": ["image", "caption", "alt", "author", "order"] },
+        "legacy_year": { "type": "integer", "migration_only": true }
+      }
+    },
+    "leaflet_issue": {
+      "label": "Выпуск Иннокентиевского листка",
+      "fields": {
+        "number": { "type": "integer", "required": true, "unique": true },
+        "title": { "type": "string", "required": true },
+        "period": { "type": "string", "required": true },
+        "publication_date": { "type": "date", "required": true },
+        "year": { "type": "integer", "derived_from": "publication_date" },
+        "cover": { "type": "image", "required": true },
+        "pdf": { "type": "file", "accept": ["application/pdf"], "required": true },
+        "attachments": { "type": "file_list", "required": false },
+        "featured": { "type": "boolean", "default": false }
+      }
+    },
+    "parish_section": {
+      "label": "Направление прихода",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "summary": { "type": "text", "required": true },
+        "body": { "type": "blocks" },
+        "cover": { "type": "image", "required": false },
+        "contact_name": { "type": "string", "required": false },
+        "phone": { "type": "phone", "required": false },
+        "email": { "type": "email", "required": false },
+        "schedule": { "type": "structured_schedule", "required": false },
+        "related_news": { "type": "reverse_relation", "target": "news.related_section" },
+        "related_galleries": { "type": "relation_list", "target": "gallery" }
+      }
+    },
+    "clergy": {
+      "label": "Священнослужитель",
+      "fields": {
+        "full_name": { "type": "string", "required": true },
+        "rank": { "type": "string", "required": true },
+        "position": { "type": "string", "required": false },
+        "photo": { "type": "image", "required": false },
+        "biography": { "type": "blocks", "required": true },
+        "name_day": { "type": "string", "required": false },
+        "order": { "type": "integer", "default": 100 }
+      }
+    },
+    "page": {
+      "label": "Информационная страница",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "slug": { "type": "slug", "admin_only": true },
+        "summary": { "type": "text", "required": false },
+        "body": { "type": "blocks", "required": true },
+        "parent": { "type": "relation", "target": "page", "required": false },
+        "navigation_order": { "type": "integer", "default": 100 }
+      }
+    },
+    "video": {
+      "label": "Видео или трансляция",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "publication_date": { "type": "date", "required": true },
+        "external_url": { "type": "url", "required": true },
+        "cover": { "type": "image", "required": false },
+        "category": { "type": "relation", "target": "category" },
+        "is_live": { "type": "boolean", "default": false }
+      }
+    },
+    "site_contact": {
+      "label": "Контакты и реквизиты",
+      "singleton": true,
+      "fields": {
+        "address": { "type": "string", "required": true },
+        "metro": { "type": "string", "required": false },
+        "phone": { "type": "phone", "required": true },
+        "email": { "type": "email", "required": true },
+        "opening_hours": { "type": "structured_schedule", "required": true },
+        "map_coordinates": { "type": "geopoint", "required": true },
+        "legal_details": { "type": "text", "required": true },
+        "social_links": { "type": "list", "item_fields": ["network", "url", "enabled"] }
+      }
+    }
+  },
+  "roles": {
+    "author": ["create_draft", "edit_own_draft", "upload_media", "request_review"],
+    "editor": ["create", "edit", "preview", "schedule", "publish", "archive", "restore_from_trash"],
+    "administrator": ["all_editor_permissions", "manage_users", "manage_schema", "manage_redirects", "run_migration", "configure_integrations"]
+  },
+  "workflow": {
+    "states": ["draft", "in_review", "scheduled", "published", "archived", "trash"],
+    "publish_checks": ["required_fields", "image_alt", "desktop_preview", "mobile_preview", "broken_links"],
+    "trash_retention_days": 30,
+    "version_history": true,
+    "scheduled_publication": true
+  },
+  "migration_metadata": {
+    "fields": {
+      "legacy_modx_id": "integer",
+      "legacy_url": "url",
+      "legacy_template": "string",
+      "legacy_parent_id": "integer",
+      "legacy_created_at": "datetime",
+      "legacy_published_at": "datetime",
+      "legacy_media_paths": "string_list",
+      "migration_batch": "string",
+      "migration_checksum": "string"
+    }
+  }
+}

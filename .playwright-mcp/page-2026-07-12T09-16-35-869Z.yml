@@ -1,0 +1,318 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - table [ref=e8]:
+      - rowgroup [ref=e9]:
+        - row [ref=e10]:
+          - cell [ref=e11]:
+            - link "Храм Симеона Столпника на Поварской" [ref=e12] [cursor=pointer]:
+              - /url: /
+          - cell [ref=e15]
+          - cell [ref=e16]
+    - generic [ref=e20]:
+      - generic [ref=e22]:
+        - link "НАШ ХРАМ" [ref=e23] [cursor=pointer]:
+          - /url: /o-khrame/
+        - list [ref=e24]:
+          - listitem [ref=e25]:
+            - link "О ХРАМЕ" [ref=e26] [cursor=pointer]:
+              - /url: /o-khrame/
+          - listitem [ref=e27]:
+            - link "ИСТОРИЯ" [ref=e28] [cursor=pointer]:
+              - /url: /o-khrame/istoriya-khrama/
+          - listitem [ref=e29]:
+            - link "СВЯТЫНИ" [ref=e30] [cursor=pointer]:
+              - /url: /o-khrame/svyatyni/
+          - listitem [ref=e31]:
+            - link "ДУХОВЕНСТВО" [ref=e32] [cursor=pointer]:
+              - /url: /o-khrame/dukhovenstvo/
+          - listitem [ref=e33]:
+            - link "КОНТАКТЫ" [ref=e34] [cursor=pointer]:
+              - /url: /o-khrame/kontakty/
+      - link "РАСПИСАНИЕ БОГОСЛУЖЕНИЙ" [ref=e37] [cursor=pointer]:
+        - /url: /raspisanie-bogosluzheniy/
+      - generic [ref=e39]:
+        - link "НОВОСТИ" [ref=e40] [cursor=pointer]:
+          - /url: /news/
+        - list [ref=e41]:
+          - listitem [ref=e42]:
+            - link "Евангельские чтения" [ref=e43] [cursor=pointer]:
+              - /url: /news/evangelskie-chteniya/
+          - listitem [ref=e44]:
+            - link "Новости воскресной школы" [ref=e45] [cursor=pointer]:
+              - /url: /news/novosti-voskresnoy-shkoly/
+          - listitem [ref=e46]:
+            - link "Приходские новости" [ref=e47] [cursor=pointer]:
+              - /url: /news/prikhodskie-novosti/
+          - listitem [ref=e48]:
+            - link "Новости социальной работы" [ref=e49] [cursor=pointer]:
+              - /url: /news/novosti-sotsialnoy-raboty/
+          - listitem [ref=e50]:
+            - link "Новости православной жизни" [ref=e51] [cursor=pointer]:
+              - /url: /news/monitoring-smi/
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - link "КАТЕХИЗАЦИЯ" [ref=e54] [cursor=pointer]:
+            - /url: /blog/
+          - list [ref=e55]:
+            - listitem [ref=e56]:
+              - link "Евангельские беседы" [ref=e57] [cursor=pointer]:
+                - /url: /katekhizatsiya/evangelskie-besedy/
+            - listitem [ref=e58]:
+              - link "Огласительные беседы" [ref=e59] [cursor=pointer]:
+                - /url: /katekhizatsiya/oglasitelnye-besedy/
+        - generic [ref=e60]:
+          - link "Церковная лавка" [ref=e61] [cursor=pointer]:
+            - /url: /catalog/
+          - list [ref=e62]:
+            - listitem [ref=e63]:
+              - link "Записки" [ref=e64] [cursor=pointer]:
+                - /url: /catalog/zapiski/
+    - generic [ref=e68]:
+      - generic [ref=e70]:
+        - link "8 495 691-21-84" [ref=e73] [cursor=pointer]:
+          - /url: tel:+<a href=
+        - link "+7(960)610-47-57" [ref=e76] [cursor=pointer]:
+          - /url: tel:+79606104757
+      - generic [ref=e77]: Храм открыт ежедневно:в будни с 8:00 до 19:00в праздники и выходные с 8:00 до 20:00Поварская улица д.5, стр.1.Местная религиозная организация православного прихода Храма преподобного Симеона Столпника (Введения во храм Пресвятой Богородицы) на Поварской Центрального благочиния Москвы Московской епархии
+      - link [ref=e82] [cursor=pointer]:
+        - /url: https://t-do.ru/SStolpnik
+  - generic [ref=e87]:
+    - banner [ref=e88]:
+      - generic [ref=e89]:
+        - table [ref=e92]:
+          - rowgroup [ref=e93]:
+            - row [ref=e94]:
+              - cell [ref=e95]:
+                - table [ref=e97]:
+                  - rowgroup [ref=e98]:
+                    - row [ref=e99]:
+                      - cell [ref=e100]:
+                        - link "Храм Симеона Столпника на Поварской" [ref=e101] [cursor=pointer]:
+                          - /url: /
+              - cell [ref=e104]
+              - cell [ref=e105]:
+                - table [ref=e107]:
+                  - rowgroup [ref=e108]:
+                    - row [ref=e109]:
+                      - cell [ref=e110]:
+                        - generic [ref=e111]:
+                          - link "8 495 691-21-84" [ref=e113] [cursor=pointer]:
+                            - /url: tel:+<a href=
+                          - table [ref=e117]:
+                            - rowgroup [ref=e118]:
+                              - row [ref=e119]:
+                                - cell [ref=e120]:
+                                  - link "8 495 691-21-84" [ref=e123] [cursor=pointer]:
+                                    - /url: tel:+<a href=
+                              - row [ref=e124]:
+                                - cell [ref=e125]:
+                                  - link "+7(960)610-47-57" [ref=e128] [cursor=pointer]:
+                                    - /url: tel:+79606104757
+        - generic [ref=e133]:
+          - generic:
+            - link:
+              - /url: /bitrix/admin/iblock_list_admin.php?IBLOCK_ID=31&type=artdrom_constructor_s1&lang=ru&find_section_section=0
+          - navigation [ref=e135]:
+            - listitem [ref=e136]
+            - listitem [ref=e142]:
+              - link [ref=e143] [cursor=pointer]:
+                - /url: /o-khrame/
+            - listitem [ref=e147]:
+              - link [ref=e148] [cursor=pointer]:
+                - /url: /raspisanie-bogosluzheniy/
+            - listitem [ref=e152]:
+              - link [ref=e153] [cursor=pointer]:
+                - /url: /news/
+            - listitem [ref=e157]:
+              - link [ref=e158] [cursor=pointer]:
+                - /url: /blog/
+            - listitem [ref=e162]:
+              - link [ref=e163] [cursor=pointer]:
+                - /url: /catalog/
+    - listbox [ref=e173]:
+      - option [ref=e174]
+    - generic [ref=e188]:
+      - generic [ref=e189]:
+        - heading "Дорогие друзья, братья и сестры!" [level=2] [ref=e190]
+        - generic [ref=e191]: Добро пожаловать на официальный сайт храма преподобного Симеона Столпника на Поварской улице в Москве!
+      - generic [ref=e192]:
+        - paragraph [ref=e193]: Храм преподобного Симеона Столпника на Поварской – один из древнейших и красивейших храмов столицы. Расположенный в самом центре громкой и быстрой Москвы, храм является местом тишины, молитвы и общения с Богом.
+        - paragraph [ref=e194]: История храма начинается в первой трети ХVII века, когда на месте деревянного на средства великого князя Федора Алексеевича был выстроен каменный храм.
+        - paragraph [ref=e195]: В архивных документах он впервые упоминается как храм Введения во храм Пресвятой Богородицы. В храме также имелись приделы во имя преподобного Симеона Столпника и святителя Николая, который был переосвящен во имя святителя Димитрия, митрополита Ростовского.
+        - paragraph [ref=e196]: В сентябре 1812 года храм Симеона Столпника обгорел во время пожара. Восстановленный и приведенный в порядок, он стал местом, куда ходили отец Александра Сергеевича Пушкина, Сергей Аксаков, Николай Васильевич Гоголь, семья Толстых, в доме которых Гоголь провел последние свои годы.
+        - paragraph [ref=e197]: После революции 1917 года храм хотели снести, но усилиями общественности её удалось отстоять. В советские годы храм на несколько лет превратили в выставочный зал Всероссийского общества охраны природы.
+        - paragraph [ref=e198]: 14 июня 1992 года, в праздник Святой Троицы, в храме была отслужена первая после многолетнего перерыва Божественная литургия. Возглавил ее протоиерей Сергей Никитин, до 2021 года несший послушание настоятеля.
+        - generic [ref=e199]:
+          - paragraph [ref=e200]: В сентябре 2021 года настоятелем храма Указом Святейшего Патриарха назначен священник Даниил Зубов.
+          - text: Сегодня храм открыт каждый день, служится Божественная литургия, совершаются таинства Крещения, Венчания, Соборования. По вторникам проводятся Евангельские беседы, прихожане собираются на просмотры духовных фильмов.
+      - link "Подробнее о храме" [ref=e202] [cursor=pointer]:
+        - /url: /o-khrame/
+    - generic [ref=e203]:
+      - heading "СВЯЩЕННОНАЧАЛИЕ" [level=2] [ref=e207]
+      - generic [ref=e213]:
+        - generic [ref=e219]:
+          - generic [ref=e220]:
+            - generic [ref=e221]: Патриарх Кирилл
+            - generic [ref=e222]: Святейший Патриарх Московский и всея Руси
+          - link "Сайт Патриархии" [ref=e224] [cursor=pointer]:
+            - /url: http://www.patriarchia.ru/
+        - generic [ref=e230]:
+          - generic [ref=e231]:
+            - generic [ref=e232]: Митрополит Воскресенский Григорий
+            - generic [ref=e233]: Управляющий Центральным викариатством
+          - link "Центральное Викариатство" [ref=e235] [cursor=pointer]:
+            - /url: https://www.центрвик.рф/
+        - generic [ref=e237]:
+          - link [ref=e238] [cursor=pointer]:
+            - /url: http://www.patriarchia.ru/db/text/301097.html
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - generic [ref=e244]: Протопресвитер Владимир Диваков
+              - generic [ref=e245]: Благочинный храмовЦентрального округа г.Москвы
+            - link "Сайт" [ref=e247] [cursor=pointer]:
+              - /url: http://www.patriarchia.ru/db/text/301097.html
+    - generic [ref=e248]:
+      - generic [ref=e250]:
+        - heading "РАСПИСАНИЕ БОГОСЛУЖЕНИЙ" [level=2] [ref=e251]
+        - generic [ref=e252]: В храме преподобного Симеона Столпника
+      - generic [ref=e254]:
+        - generic [ref=e260]:
+          - paragraph [ref=e261]
+          - heading [level=2] [ref=e262]:
+            - img "6-12 июля.jpg" [ref=e263]
+        - link "Расписание богослужений" [ref=e265] [cursor=pointer]:
+          - /url: /raspisanie-bogosluzheniy/
+    - generic [ref=e269]:
+      - generic [ref=e272]:
+        - heading "ЦЕРКОВНАЯ ЛАВКА" [level=2] [ref=e273]
+        - generic [ref=e274]: Поставить свечу, подать записки или сделать пожертвование
+      - link "Подробнее" [ref=e278] [cursor=pointer]:
+        - /url: /catalog/
+    - generic [ref=e279]:
+      - heading "АКАФИСТЫ" [level=2] [ref=e282]
+      - generic [ref=e288]:
+        - generic [ref=e294]:
+          - generic [ref=e295]: Акафист святому преподобному Симеону Столпнику
+          - generic [ref=e297]: Подробнее
+        - generic [ref=e304]:
+          - generic [ref=e305]: Акафист святителю Димитрию, митрополиту Ростовскому, чудотворцу
+          - generic [ref=e307]: Подробнее
+        - generic [ref=e314]:
+          - generic [ref=e315]: Акафист Введению во Храм Пресвятой Богородицы
+          - generic [ref=e317]: Подробнее
+        - generic [ref=e324]:
+          - generic [ref=e325]: Акафист святителю Николаю Мирликийскому Чудотворцу
+          - generic [ref=e327]: Подробнее
+    - generic [ref=e329]:
+      - generic [ref=e332]:
+        - heading "НОВОСТИ" [level=2] [ref=e333]
+        - generic [ref=e334]: Актуальные приходские новости и новости православной жизни
+      - generic [ref=e335]:
+        - generic [ref=e340]:
+          - generic [ref=e342]:
+            - link [ref=e343] [cursor=pointer]:
+              - /url: /news/detail/shestvie-pravednikov-v-ray-obnovlenie-ekspozitsii-v-nashem-khrame-/
+            - link "Шествие праведников в рай. Обновление экспозиции в нашем храме" [ref=e346] [cursor=pointer]:
+              - /url: /news/detail/shestvie-pravednikov-v-ray-obnovlenie-ekspozitsii-v-nashem-khrame-/
+          - generic [ref=e348]:
+            - link [ref=e349] [cursor=pointer]:
+              - /url: /news/detail/svyashchennik-daniil-zubov-sdelal-simvolicheskoe-vbrasyvanie-v-khokkeynom-matche-sila-dukha-/
+            - link "Священник Даниил Зубов сделал символическое вбрасывание в хоккейном матче «Сила духа»" [ref=e352] [cursor=pointer]:
+              - /url: /news/detail/svyashchennik-daniil-zubov-sdelal-simvolicheskoe-vbrasyvanie-v-khokkeynom-matche-sila-dukha-/
+          - generic [ref=e354]:
+            - link [ref=e355] [cursor=pointer]:
+              - /url: /news/detail/shakhmatnyy-turnir-sostoyalsya-v-nashem-khrame-/
+            - link "Шахматный турнир состоялся в нашем храме" [ref=e358] [cursor=pointer]:
+              - /url: /news/detail/shakhmatnyy-turnir-sostoyalsya-v-nashem-khrame-/
+          - generic [ref=e360]:
+            - link [ref=e361] [cursor=pointer]:
+              - /url: /news/detail/v-den-pamyati-svt-nikolaya-khram-vstretil-malyy-prestolnyy-prazdnik-/
+            - link "В день памяти свт. Николая храм встретил малый престольный праздник" [ref=e364] [cursor=pointer]:
+              - /url: /news/detail/v-den-pamyati-svt-nikolaya-khram-vstretil-malyy-prestolnyy-prazdnik-/
+          - generic [ref=e366]:
+            - link [ref=e367] [cursor=pointer]:
+              - /url: /news/detail/pervaya-lektsiya-ekskursiya-po-stenopisi-ferapontovo-sostoyalas-v-nashem-khrame-/
+            - link "Первая лекция-экскурсия по стенописи Ферапонтово состоялась в нашем храме" [ref=e370] [cursor=pointer]:
+              - /url: /news/detail/pervaya-lektsiya-ekskursiya-po-stenopisi-ferapontovo-sostoyalas-v-nashem-khrame-/
+        - generic [ref=e373]:
+          - link "Катехизация" [ref=e374] [cursor=pointer]:
+            - /url: /blog/
+          - link "Новости" [ref=e375] [cursor=pointer]:
+            - /url: /news/
+    - generic [ref=e384]:
+      - heading "Н.В. Гоголь и храм Преподобного Симеона Столпника на Поварской" [level=2] [ref=e386]
+      - generic [ref=e387]:
+        - paragraph [ref=e388]: "Статья посвящена роли, значению храма Преподобного Симеона Столпника на Поварской в жизни Н.В. Гоголя. Прихожанином этого старинного православного храма русский писатель стал уже в последний период своей жизни, когда поселился в Доме Талызина на Никитском бульваре у четы Толстых: графа Александра Петровича Толстого и графини Анны Георгиевны Толстой. Особенно часто он посещал этот храм в последние два месяца своей жизни, т.е. в январе-феврале 1852 г., что было связано с тяжелым переживанием кончины Екатерины Михайловны Хомяковой. Настоятель храма Симеона Столпника – протоиерей Алексей Иванович Соколов – неотступно находился при Н.В. Гоголе в последние дни его жизни, оказывал ему свою духовную помощь. Именно причт храма Симеона Столпника отпевал Гоголя и проводил его в горний мир."
+        - paragraph [ref=e389]: "Ключевые слова: Н.В. Гоголь, храм Симеона Столпника, Е.М. Хомякова, Дом Талызина, А.П. Толстой, А.Г. Толстая, протоиерей А.И. Соколов"
+      - link "Подробнее" [ref=e391] [cursor=pointer]:
+        - /url: /gogol/
+    - generic [ref=e392]:
+      - heading "ХРАМ НА КАРТЕ" [level=2] [ref=e395]
+      - table [ref=e403]:
+        - rowgroup [ref=e404]:
+          - row [ref=e405]:
+            - cell "Храм преподобного Симеона Столпника на Поварской 129069 Россия, г. Москва, ул. Поварская, д. 5, стр. 1 +7 (960) 610-47-57 8 (495) 691-21-84" [ref=e406]:
+              - generic [ref=e407]:
+                - generic [ref=e408]: Храм преподобного Симеона Столпника на Поварской
+                - generic [ref=e409]:
+                  - generic [ref=e410]: 129069 Россия, г. Москва, ул. Поварская, д. 5, стр. 1
+                  - generic [ref=e412]: +7 (960) 610-47-578 (495) 691-21-84
+    - generic [ref=e417]:
+      - heading "РЕСУРСЫ" [level=2] [ref=e420]
+      - generic [ref=e428]:
+        - group "1 / 4" [ref=e429]:
+          - generic [ref=e431]:
+            - table [ref=e432]:
+              - rowgroup [ref=e433]:
+                - row [ref=e434]:
+                  - cell [ref=e435]
+            - generic [ref=e437]: Патриаршая комиссия по вопросам физической культуры и спорта
+            - link [ref=e438] [cursor=pointer]:
+              - /url: http://www.rpcsport.ru/
+        - group "2 / 4" [ref=e439]:
+          - generic [ref=e441]:
+            - table [ref=e442]:
+              - rowgroup [ref=e443]:
+                - row [ref=e444]:
+                  - cell [ref=e445]
+            - generic [ref=e447]: Православие.Ру
+            - link [ref=e448] [cursor=pointer]:
+              - /url: https://pravoslavie.ru/
+        - group "3 / 4" [ref=e449]:
+          - generic [ref=e451]:
+            - table [ref=e452]:
+              - rowgroup [ref=e453]:
+                - row [ref=e454]:
+                  - cell [ref=e455]
+            - generic [ref=e457]: Федерация хоккея с мячом
+            - link [ref=e458] [cursor=pointer]:
+              - /url: http://www.rusbandy.ru
+        - group "4 / 4" [ref=e459]:
+          - generic [ref=e461]:
+            - table [ref=e462]:
+              - rowgroup [ref=e463]:
+                - row [ref=e464]:
+                  - cell [ref=e465]
+            - link [ref=e467] [cursor=pointer]:
+              - /url: http://www.patriarchia.ru/
+    - contentinfo [ref=e468]:
+      - generic [ref=e472]:
+        - generic [ref=e473]:
+          - link "Храм Симеона Столпника на Поварской" [ref=e474] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e477]:
+            - link "8 495 691-21-84" [ref=e480] [cursor=pointer]:
+              - /url: tel:+<a href=
+            - link "+7(960)610-47-57" [ref=e483] [cursor=pointer]:
+              - /url: tel:+79606104757
+        - generic [ref=e484]: Храм открыт ежедневно:в будни с 8:00 до 19:00в праздники и выходные с 8:00 до 20:00Поварская улица д.5, стр.1.Местная религиозная организация православного прихода Храма преподобного Симеона Столпника (Введения во храм Пресвятой Богородицы) на Поварской Центрального благочиния Москвы Московской епархии
+        - link [ref=e489] [cursor=pointer]:
+          - /url: https://t-do.ru/SStolpnik
+      - link [ref=e498] [cursor=pointer]:
+        - /url: https://orthodox-team.ru/
+        - table [ref=e499]:
+          - rowgroup [ref=e500]:
+            - row [ref=e501]:
+              - cell "Разработано Православным агенством - Orthodox-team" [ref=e502]
+  - link [ref=e504] [cursor=pointer]:
+    - /url: "#body"

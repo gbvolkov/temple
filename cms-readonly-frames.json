@@ -1,0 +1,2248 @@
+[
+  {
+    "index": 0,
+    "name": "mainMenu",
+    "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu",
+    "title": "nav",
+    "body": "krouttch Изменить пароль Выйти 1.2.1 Сайт Главная Просмотр Очистить кэш Поиск Новый ресурс Новая ссылка Элементы Модули Пользователи Инструменты Отчеты",
+    "links": [
+      {
+        "text": "Изменить пароль",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=28",
+        "target": "main"
+      },
+      {
+        "text": "Выйти",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=8",
+        "target": "_top"
+      },
+      {
+        "text": "Сайт",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#site",
+        "target": ""
+      },
+      {
+        "text": "Главная",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=2",
+        "target": "main"
+      },
+      {
+        "text": "Просмотр",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/",
+        "target": "_blank"
+      },
+      {
+        "text": "Очистить кэш",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=26",
+        "target": "main"
+      },
+      {
+        "text": "Поиск",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=71",
+        "target": "main"
+      },
+      {
+        "text": "Новый ресурс",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=4",
+        "target": "main"
+      },
+      {
+        "text": "Новая ссылка",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=72",
+        "target": "main"
+      },
+      {
+        "text": "Элементы",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#elements",
+        "target": ""
+      },
+      {
+        "text": "Управление элементами",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=76",
+        "target": "main"
+      },
+      {
+        "text": "Управление файлами",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=31",
+        "target": "main"
+      },
+      {
+        "text": "Модули",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#modules",
+        "target": ""
+      },
+      {
+        "text": "Управление модулями",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=106",
+        "target": "main"
+      },
+      {
+        "text": "Doc Finder",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=112&id=1",
+        "target": "main"
+      },
+      {
+        "text": "Doc Manager",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=112&id=2",
+        "target": "main"
+      },
+      {
+        "text": "EvoGallery",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=112&id=3",
+        "target": "main"
+      },
+      {
+        "text": "Extras",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=112&id=4",
+        "target": "main"
+      },
+      {
+        "text": "Пользователи",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#users",
+        "target": ""
+      },
+      {
+        "text": "Управление менеджерами",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=75",
+        "target": "main"
+      },
+      {
+        "text": "Управление веб-пользователями",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=99",
+        "target": "main"
+      },
+      {
+        "text": "Управление ролями",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=86",
+        "target": "main"
+      },
+      {
+        "text": "Права менеджеров",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=40",
+        "target": "main"
+      },
+      {
+        "text": "Права веб-пользователей",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=91",
+        "target": "main"
+      },
+      {
+        "text": "Инструменты",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#tools",
+        "target": ""
+      },
+      {
+        "text": "Резервное копирование",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=93",
+        "target": "main"
+      },
+      {
+        "text": "Удалить блокировки",
+        "title": "",
+        "href": "javascript:removeLocks();",
+        "target": ""
+      },
+      {
+        "text": "Импортировать сайт",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=95",
+        "target": "main"
+      },
+      {
+        "text": "Экспортировать сайт",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=83",
+        "target": "main"
+      },
+      {
+        "text": "Конфигурация",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=17",
+        "target": "main"
+      },
+      {
+        "text": "Отчеты",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=menu#reports",
+        "target": ""
+      },
+      {
+        "text": "Расписание сайта",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=70",
+        "target": "main"
+      },
+      {
+        "text": "Просмотр событий",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=114",
+        "target": "main"
+      },
+      {
+        "text": "Протокол системы управления",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=13",
+        "target": "main"
+      },
+      {
+        "text": "Системная информация",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=53",
+        "target": "main"
+      }
+    ],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=71#results",
+        "method": "post",
+        "fields": [
+          {
+            "name": "submitok",
+            "type": "hidden",
+            "value": "Search",
+            "placeholder": ""
+          },
+          {
+            "name": "searchid",
+            "type": "text",
+            "value": "",
+            "placeholder": "Поиск"
+          }
+        ]
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/l4mnu.php",
+        "method": "get",
+        "fields": [
+          {
+            "name": "sessToken",
+            "type": "hidden",
+            "value": "7f13e4559e018d7b40e379c976d06868",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "name": "tree",
+    "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+    "title": "Document Tree",
+    "body": "Site Tree Храм святителя Иннокентия, митрополита Московского в Бескудникове Главная (1) Копия Главная (1727) ТРЕБЫ ОНЛАЙН (1728) ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ (1713) О храме (2) Жизнь прихода (3) Воскресная школа (4) Живое слово (5) Вопросы священнослужителю (6) Контакты (7) Результаты поиска(16) Ссылки на внешние ресурсы (29) Анкета(52) Служебные страницы (53) Требы онлайн(1720) Новый ресурс(1422) Новый ресурс(1022) Создать Редактировать Сделать копию Удалить",
+    "links": [
+      {
+        "text": "Сортировать дерево",
+        "title": "Сортировать дерево",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Раскрыть дерево",
+        "title": "Раскрыть дерево",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Свернуть дерево",
+        "title": "Свернуть дерево",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Новый ресурс",
+        "title": "Новый ресурс",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Новая ссылка",
+        "title": "Новая ссылка",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Обновить дерево",
+        "title": "Обновить дерево",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Сортировать дерево",
+        "title": "Сортировать дерево",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Сортировать по позиции в меню",
+        "title": "Сортировать по позиции в меню",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Управление изображениями (Shift + клик, чтобы открыть несколько окон)",
+        "title": "Управление изображениями\n(Shift + клик, чтобы открыть несколько окон)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Управление файлами (Shift + клик, чтобы открыть несколько окон)",
+        "title": "Управление файлами\n(Shift + клик, чтобы открыть несколько окон)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Управление элементами (Shift + клик, чтобы открыть несколько окон)",
+        "title": "Управление элементами\n(Shift + клик, чтобы открыть несколько окон)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Очистить корзину",
+        "title": "Очистить корзину",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Demo Content",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_templates1",
+        "target": ""
+      },
+      {
+        "text": "MODX startup - Bootstrap (19)",
+        "title": "1.0 Sample template in Bootstrap",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=19&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "MODxHost (4)",
+        "title": "1.0 Legacy MODx Host template including dropdown menu",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=4&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Без категории",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_templates0",
+        "target": ""
+      },
+      {
+        "text": "Home (3)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=3&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Photoalbum (17)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=17&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Альбом (9)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=9&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Анкета (15)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=15&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Внутренняя (6)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=6&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Внутренняя с кратким описанием (11)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=11&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Галерея (12)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=12&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Главная (5)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=5&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Контакты (14)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=14&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Приходской листок (13)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=13&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Приходской листок(страница) (7)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=7&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Список страниц (8)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=8&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Список страниц (без ПОДРОБНЕЕ) (18)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=18&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Ссылка (10)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=10&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Таблица (16)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=16&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Требы (20)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=20&a=16",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Новый шаблон",
+        "title": "Новый шаблон",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=19",
+        "target": "main"
+      },
+      {
+        "text": "Click here to reload elements list.",
+        "title": "Click here to reload elements list.",
+        "href": "javascript:reloadElementsInTree();",
+        "target": ""
+      },
+      {
+        "text": "Demo Content",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_tmplvars1",
+        "target": ""
+      },
+      {
+        "text": "blogContent (20)",
+        "title": "RTE for the new blog entries",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=20&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "documentTags (21)",
+        "title": "Space delimited tags for the current document",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=21&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "loginName (22)",
+        "title": "Conditional name for the Login menu item",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=22&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "SEO",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_tmplvars2",
+        "target": ""
+      },
+      {
+        "text": "keyw (1)",
+        "title": "Ключевые слова",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=1&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "noIndex (2)",
+        "title": "Управление URL",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=2&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "sitemap_changefreq (3)",
+        "title": "Для карты сайта",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=3&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "sitemap_exclude (4)",
+        "title": "Для карты сайта",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=4&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "sitemap_priority (5)",
+        "title": "Для карты сайта",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=5&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Без категории",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_tmplvars0",
+        "target": ""
+      },
+      {
+        "text": "dateA (12)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=12&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "day (13)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=13&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "image (7)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=7&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "images (9)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=9&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "map (15)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=15&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "pdf-ras (19)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=19&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "prlist (14)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=14&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "question (16)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=16&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "short-desc (8)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=8&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "table (17)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=17&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "главная",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_tmplvars13",
+        "target": ""
+      },
+      {
+        "text": "copy (10)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=10&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "emailA (18)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=18&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "homeslider (11)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=11&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "soc (6)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=6&a=301",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Новый параметр (TV)",
+        "title": "Новый параметр (TV)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=300",
+        "target": "main"
+      },
+      {
+        "text": "Click here to reload elements list.",
+        "title": "Click here to reload elements list.",
+        "href": "javascript:reloadElementsInTree();",
+        "target": ""
+      },
+      {
+        "text": "Demo Content",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets1",
+        "target": ""
+      },
+      {
+        "text": "AjaxSearch_tplAjaxGrpResult (47)",
+        "title": "Grp Result Tpl for AjaxSearch",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=47&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "AjaxSearch_tplAjaxResult (48)",
+        "title": "Result Tpl for AjaxSearch",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=48&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "AjaxSearch_tplAjaxResults (49)",
+        "title": "Results Tpl for AjaxSearch",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=49&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "AjaxSearch_tplInput (50)",
+        "title": "Input-Form for AjaxSearch",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=50&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Comments_tplComments (51)",
+        "title": "Comments (Jot) Form-Template",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=51&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Comments_tplForm (52)",
+        "title": "Comments (Jot) Form-Template",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=52&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "WebLogin_tplForm (53)",
+        "title": "WebLogin Tpl",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=53&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "ditto",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets14",
+        "target": ""
+      },
+      {
+        "text": "anonsHomeTpl (19)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=19&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "galleryHomeTpl (20)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=20&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "galleryHomeTplF (42)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=42&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "newsHomeTpl (18)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=18&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "page-tpl (24)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=24&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "page-tpl-nomore (46)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=46&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "page-tpl-photo (44)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=44&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "prList-tpl (33)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=33&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Forms",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets3",
+        "target": ""
+      },
+      {
+        "text": "eFeedbackForm (1)",
+        "title": "eFeedbackForm Шаблон формы обратной связи",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=1&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "eFeedbackReport (2)",
+        "title": "eFeedbackReport  шаблон отправки на почту",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=2&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "feedback (3)",
+        "title": "форма обратной связи",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=3&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "form-tpl (37)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=37&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "report-tpl (38)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=38&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "thank-tpl (39)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=39&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Js",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets4",
+        "target": ""
+      },
+      {
+        "text": "calendar (25)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=25&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "fancybox (4)",
+        "title": "скрипт fancybox (Jquery подключить отдельно)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=4&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "mm_rules (7)",
+        "title": "Default ManagerManager rules.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=7&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "mm_rules-1_2_1 (54)",
+        "title": "Default ManagerManager rules.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=54&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "multiTV",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets15",
+        "target": ""
+      },
+      {
+        "text": "arrayQuestion (40)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=40&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "imagesRowTpl (30)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=30&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "sliderTpl (21)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=21&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Navigation",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets9",
+        "target": ""
+      },
+      {
+        "text": "menuInnerRowTpl (15)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=15&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "menuParentRowTpl (16)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=16&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "menuRowTpl (17)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=17&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Templates",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets5",
+        "target": ""
+      },
+      {
+        "text": "_footer (5)",
+        "title": "низ сайта",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=5&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "_header (6)",
+        "title": "шапка",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=6&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "основные",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_htmlsnippets12",
+        "target": ""
+      },
+      {
+        "text": "bottom-home (13)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=13&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "breadcrumbs (23)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=23&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-album (29)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=29&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-gal (27)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=27&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-home (11)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=11&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-inner (31)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=31&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-innerShort (26)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=26&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-list (22)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=22&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-list-nomore (45)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=45&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-photoalbum (43)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=43&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-prlist (32)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=32&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-questionnaire (36)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=36&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-table (41)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=41&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "content-treby (55)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=55&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "footer (14)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=14&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "head (8)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=8&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "header (9)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=9&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "left-column (10)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=10&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "metrika (34)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=34&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "right-column (12)",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=12&a=78",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Новый чанк",
+        "title": "Новый чанк",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=77",
+        "target": "main"
+      },
+      {
+        "text": "Click here to reload elements list.",
+        "title": "Click here to reload elements list.",
+        "href": "javascript:reloadElementsInTree();",
+        "target": ""
+      },
+      {
+        "text": "add",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_snippets7",
+        "target": ""
+      },
+      {
+        "text": "aDate (1)",
+        "title": "0.1 Вывод даты с русским названием месяца",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=1&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "alterTitle (4)",
+        "title": "1 Pagetitle если Longtitle пуст",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=4&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "DocInfo (8)",
+        "title": "1 Берем любое поле из любого документа (меньше запросов по сравнению с GetField)",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=8&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "if (12)",
+        "title": "1.3 A simple conditional snippet. Allows for eq/neq/lt/gt/etc logic within templates, resources, chunks, etc.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=12&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "MultiFiles (16)",
+        "title": "1.11 MultiFiles",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=16&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "MultiPhotos (17)",
+        "title": "1.26 MultiPhotos",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=17&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "multiTV (18)",
+        "title": "1.4.8 multiTV",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=18&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "phpthumb (21)",
+        "title": "1.3 PHPThumb creates thumbnails and altered images on the fly and caches them",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=21&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "sitemap (23)",
+        "title": "1.0.8 google-sitemap.xml",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=23&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "TvTable (26)",
+        "title": "1.1 TvTable",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=26&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Content",
+        "title": "Click to toggle collapse. Shift+Click to toggle all.",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#collapsesite_snippets10",
+        "target": ""
+      },
+      {
+        "text": "Ditto (7)",
+        "title": "2.1.2 Summarizes and lists pages to create blogs, catalogs, PR archives, bio listings and more",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=7&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "DocLister (39)",
+        "title": "2.3.0 Snippet to display the information of the tables by the description rules. The main goal - replacing Ditto and CatalogView",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=39&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "EvoGallery (11)",
+        "title": "1.1 Beta 1 Generates sortable listing of galleries, with full templating control",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=11&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "Jot (40)",
+        "title": "1.1.5 User comments with moderation and email subscription",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=40&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      },
+      {
+        "text": "JotX (13)",
+        "title": "1.1 User comments with moderation and email subscription",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?id=13&a=22",
+        "target": "main"
+      },
+      {
+        "text": "",
+        "title": "Open in new window",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree#",
+        "target": ""
+      }
+    ],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/manager/menu.php",
+        "method": "get",
+        "fields": [
+          {
+            "name": "dt",
+            "type": "hidden",
+            "value": "",
+            "placeholder": ""
+          },
+          {
+            "name": "sortby",
+            "type": "select-one",
+            "value": "isfolder",
+            "placeholder": ""
+          },
+          {
+            "name": "sortdir",
+            "type": "select-one",
+            "value": "DESC",
+            "placeholder": ""
+          },
+          {
+            "name": "nodename",
+            "type": "select-one",
+            "value": "default",
+            "placeholder": ""
+          }
+        ]
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/manager/index.php?a=1&f=tree",
+        "method": "get",
+        "fields": []
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "name": "main",
+    "href": "https://www.sv-innokenty.ru/manager/index.php?a=2",
+    "title": "MODX",
+    "body": "Напоминание: Похоже 27-05-2026 Вы забыли выйти из системы. Пожалуйста, обратите внимание в будущем, нужно выходить из системы после того как закончили работу. Добро пожаловать в систему управления сайтом Менеджеры Пользователи Модули Элементы Бэкап Помощь Вы авторизованы как: krouttch Ваша роль: Administrator Последняя авторизация: 27-05-2026 Всего авторизаций: 66 Входящие Почтовый ящик пуст. Пользователи онлайн Этот список показывает всех пользователей, активных за последние 20 минут (текущее время - 12:22:07): Пользователь ID пользователя IP-адрес посетителя сайта Момент последнего действия Действие krouttch 3 95.165.168.65 13:54:44 Viewing home page/ online users krouttch 3 95.165.168.65 12:21:47 Viewing home page/ online users Недавно созданные/отредактированные ресурсы ID Заголовок Редактировался Пользователь Действие: 1 Главная 12-07-2026 SVadmin 14 Расписание богослужений 30-06-2026 SVadmin 20 Приходской листок 29-05-2026 SVadmin 2436 2026 29-05-2026 SVadmin 1105 Пасхальное выступление вокального коллектива \"МНОГОЛЕТИЕ\" 16-05-2026 SVadmin 7 Контакты 03-12-2025 SVadmin 2435 2025 25-08-2025 SVadmin 48 Расписание занятий 10-08-2025 SVadmin 2410 12 июля 2025 г. День Первоверховных апостолов Петра и Павла. Всенощное бдение, Божественная литургия. 22-07-2025 SVadmin 2409 08 июня 2025 г. День Святой Троицы. Пятидесятница. Всенощное бдение, Божественная литургия, Вечерня с чтением коленнопреклоненых молитв. 19-07-2025 SVadmin Новости MODX Revolution 3.1.1 and modAI Released - 21-02-2025 03:10:26 Happy February, MODXers! Today we’re announcing two important releases: the latest patch release of MODX Revolution, 3.1.1. and the first comprehensive generative AI Extra for MODX Revo... Read more. Revolution 3.0.6 Released - 09-12-2024 23:48:27 Happy December, folks! Today we’re announcing the latest patch release of MODX Revolution, 3.0.6. It brings a fresh collection of improvements to enhance system stability and user exper... Read more. MODX Login Extra PHP Object Injection Vulnerability - 23-11-2024 00:57:00 Overview Project: Login Extra CVE ID: CVE-2024-55039 (pending) Affected Versions: 1.5.2 through 1.9.13 Fixed Version: 1.9.14 Release Date: 2024-11-22 Severity: Critical CVSS v4.0 Score: ... Read more. Уведомления безопасности MODX Login Extra PHP Object Injection Vulnerability - 23-11-2024 00:57:00 Overview Project: Login Extra CVE ID: CVE-2024-55039 (pending) Affected Versions: 1.5.2 through 1.9.13 Fixed Version: 1.9.14 Release Date: 2024-11-22 Severity: Critical CVSS v4.0 Score: ... Read more. MODX setup/ Directory Site Exploit - 24-04-2019 18:36:05 Product: MODX Revolution Severity: Critical Versions: <=2.7.0 Vulnerability type(s): Site Exploit Date Published: 2019-04-01 Issue There is currently an active exploit of sites with an... Read more. About the Security Notices category - 01-01-2013 09:00:00 This is a subcategory of Announcements for Security Notices. Older security notices can be found in the archived MODX Forums. 1 post - 1 participant Read full topi... Read more. Сброс",
+    "links": [
+      {
+        "text": "Менеджеры",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=75",
+        "target": ""
+      },
+      {
+        "text": "Пользователи",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=99",
+        "target": ""
+      },
+      {
+        "text": "Модули",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=106",
+        "target": ""
+      },
+      {
+        "text": "Элементы",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=76",
+        "target": ""
+      },
+      {
+        "text": "Бэкап",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=93",
+        "target": ""
+      },
+      {
+        "text": "Помощь",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=9",
+        "target": ""
+      },
+      {
+        "text": "Почтовый ящик пуст.",
+        "title": "",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=10",
+        "target": ""
+      },
+      {
+        "text": "Главная",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=1",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=1",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=1",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=1",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=1",
+        "target": ""
+      },
+      {
+        "text": "Расписание богослужений",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=14",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=14",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=14",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=14",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=14",
+        "target": ""
+      },
+      {
+        "text": "Приходской листок",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=20",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=20",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=20",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=20",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=20",
+        "target": ""
+      },
+      {
+        "text": "2026",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=2436",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=2436",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=2436",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=2436",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=2436",
+        "target": ""
+      },
+      {
+        "text": "Пасхальное выступление вокального коллектива \"МНОГОЛЕТИЕ\"",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=1105",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=1105",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=1105",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=1105",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=1105",
+        "target": ""
+      },
+      {
+        "text": "Контакты",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=7",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=7",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=7",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=7",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=7",
+        "target": ""
+      },
+      {
+        "text": "2025",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=2435",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=2435",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=2435",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=2435",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=2435",
+        "target": ""
+      },
+      {
+        "text": "Расписание занятий",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=48",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=48",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=48",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=48",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=48",
+        "target": ""
+      },
+      {
+        "text": "12 июля 2025 г. День Первоверховных апостолов Петра и Павла. Всенощное бдение, Божественная литургия.",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=2410",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=2410",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=2410",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=2410",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=2410",
+        "target": ""
+      },
+      {
+        "text": "08 июня 2025 г. День Святой Троицы. Пятидесятница. Всенощное бдение, Божественная литургия, Вечерня с чтением коленнопреклоненых молитв.",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=3&id=2409",
+        "target": ""
+      },
+      {
+        "text": "Редактировать",
+        "title": "Редактировать",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=27&id=2409",
+        "target": ""
+      },
+      {
+        "text": "Просмотр",
+        "title": "Просмотр",
+        "href": "https://www.sv-innokenty.ru/index.php?&id=2409",
+        "target": "_blank"
+      },
+      {
+        "text": "Удалить",
+        "title": "Удалить",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=6&id=2409",
+        "target": ""
+      },
+      {
+        "text": "Отменить публикацию",
+        "title": "Отменить публикацию",
+        "href": "https://www.sv-innokenty.ru/manager/index.php?a=62&id=2409",
+        "target": ""
+      },
+      {
+        "text": "Revolution 3.1.1 and modAI Released",
+        "title": "",
+        "href": "https://community.modx.com/t/revolution-3-1-1-and-modai-released/8345",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/revolution-3-1-1-and-modai-released/8345",
+        "target": "_blank"
+      },
+      {
+        "text": "Revolution 3.0.6 Released",
+        "title": "",
+        "href": "https://community.modx.com/t/revolution-3-0-6-released/8210",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/revolution-3-0-6-released/8210",
+        "target": "_blank"
+      },
+      {
+        "text": "MODX Login Extra PHP Object Injection Vulnerability",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-login-extra-php-object-injection-vulnerability/8174",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-login-extra-php-object-injection-vulnerability/8174",
+        "target": "_blank"
+      },
+      {
+        "text": "MODX Login Extra PHP Object Injection Vulnerability",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-login-extra-php-object-injection-vulnerability/8174",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-login-extra-php-object-injection-vulnerability/8174",
+        "target": "_blank"
+      },
+      {
+        "text": "MODX setup/ Directory Site Exploit",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-setup-directory-site-exploit/648",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/modx-setup-directory-site-exploit/648",
+        "target": "_blank"
+      },
+      {
+        "text": "About the Security Notices category",
+        "title": "",
+        "href": "https://community.modx.com/t/about-the-security-notices-category/2264",
+        "target": "_blank"
+      },
+      {
+        "text": "more",
+        "title": "",
+        "href": "https://community.modx.com/t/about-the-security-notices-category/2264",
+        "target": "_blank"
+      }
+    ],
+    "forms": []
+  }
+]

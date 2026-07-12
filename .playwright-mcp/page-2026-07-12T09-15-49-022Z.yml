@@ -1,0 +1,254 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - table [ref=e8]:
+      - rowgroup [ref=e9]:
+        - row [ref=e10]:
+          - cell [ref=e11]:
+            - link "Храм Феодоровской иконы Божией Матери" [ref=e12] [cursor=pointer]:
+              - /url: /
+          - cell [ref=e15]
+          - cell [ref=e16]
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - link "О храме" [ref=e23] [cursor=pointer]:
+          - /url: /about/
+        - link "Расписание богослужений" [ref=e25] [cursor=pointer]:
+          - /url: /raspisanie-bogosluzheniy/
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - link "Новости" [ref=e28] [cursor=pointer]:
+            - /url: /news/
+          - list [ref=e29]:
+            - listitem [ref=e30]:
+              - link "Новости воскрестной школы" [ref=e31] [cursor=pointer]:
+                - /url: /news/voskres/
+            - listitem [ref=e32]:
+              - link "Приходские новости" [ref=e33] [cursor=pointer]:
+                - /url: /news/prihod/
+        - generic [ref=e34]:
+          - link "Катехизация" [ref=e35] [cursor=pointer]:
+            - /url: /blog/
+          - list [ref=e36]:
+            - listitem [ref=e37]:
+              - link "Полезная информация" [ref=e38] [cursor=pointer]:
+                - /url: /blog/info/
+        - generic [ref=e39]:
+          - link "Церковная лавка" [ref=e40] [cursor=pointer]:
+            - /url: /catalog/
+          - list [ref=e41]:
+            - listitem [ref=e42]:
+              - link "Свечи" [ref=e43] [cursor=pointer]:
+                - /url: /catalog/svechi/
+            - listitem [ref=e44]:
+              - link "Записки" [ref=e45] [cursor=pointer]:
+                - /url: /catalog/zapiski/
+            - listitem [ref=e46]:
+              - link "Требы" [ref=e47] [cursor=pointer]:
+                - /url: /catalog/treby/
+    - generic [ref=e53]:
+      - generic [ref=e54]: +7 (908) 188-76-15
+      - generic [ref=e59]:
+        - generic [ref=e60]: Храм открыт ежедневно:в будни с 8:00 до 19:00в праздники и выходные с 8:00 до 20:00
+        - generic [ref=e61]: Обработка персональных данных
+      - link "Chuprinalexandr@yandex.ru" [ref=e65] [cursor=pointer]:
+        - /url: "mailto:Chuprinalexandr@yandex.ru "
+  - generic [ref=e67]:
+    - banner [ref=e68]:
+      - generic [ref=e69]:
+        - table [ref=e72]:
+          - rowgroup [ref=e73]:
+            - row [ref=e74]:
+              - cell [ref=e75]:
+                - table [ref=e77]:
+                  - rowgroup [ref=e78]:
+                    - row [ref=e79]:
+                      - cell [ref=e80]:
+                        - link "Храм Феодоровской иконы Божией Матери" [ref=e81] [cursor=pointer]:
+                          - /url: /
+              - cell [ref=e84]
+              - cell [ref=e85]:
+                - table [ref=e87]:
+                  - rowgroup [ref=e88]:
+                    - row [ref=e89]:
+                      - cell "+7 (908) 188-76-15 Chuprinalexandr@yandex.ru +7 (908) 188-76-15 Настоятель храма Chuprinalexandr@yandex.ru" [ref=e90]:
+                        - generic [ref=e91]:
+                          - generic [ref=e92]: +7 (908) 188-76-15
+                          - link "Chuprinalexandr@yandex.ru" [ref=e94] [cursor=pointer]:
+                            - /url: "mailto:Chuprinalexandr@yandex.ru "
+                          - table [ref=e98]:
+                            - rowgroup [ref=e99]:
+                              - row [ref=e100]:
+                                - cell "+7 (908) 188-76-15 Настоятель храма" [ref=e101]:
+                                  - generic [ref=e102]: +7 (908) 188-76-15
+                                  - generic [ref=e103]: Настоятель храма
+                              - row [ref=e104]:
+                                - cell [ref=e105]:
+                                  - link "Chuprinalexandr@yandex.ru" [ref=e107] [cursor=pointer]:
+                                    - /url: "mailto:Chuprinalexandr@yandex.ru "
+        - generic [ref=e112]:
+          - generic:
+            - link:
+              - /url: /bitrix/admin/iblock_list_admin.php?IBLOCK_ID=62&type=artdrom_constructor_s1&lang=ru&find_section_section=0
+          - navigation [ref=e114]:
+            - listitem [ref=e115]
+            - listitem [ref=e121]:
+              - link [ref=e122] [cursor=pointer]:
+                - /url: /about/
+            - listitem [ref=e126]:
+              - link [ref=e127] [cursor=pointer]:
+                - /url: /news/
+            - listitem [ref=e131]:
+              - link [ref=e132] [cursor=pointer]:
+                - /url: /blog/
+            - listitem [ref=e136]:
+              - link [ref=e137] [cursor=pointer]:
+                - /url: /raspisanie-bogosluzheniy/
+            - listitem [ref=e141]:
+              - link [ref=e142] [cursor=pointer]:
+                - /url: /catalog/
+    - listbox [ref=e152]:
+      - option [ref=e153]:
+        - heading "Храм Феодоровской иконы Божией Матери" [level=1] [ref=e162]
+    - generic [ref=e172]:
+      - generic [ref=e173]:
+        - heading "Иерей Александр Владимирович Чуприн" [level=2] [ref=e174]
+        - generic [ref=e175]: НАСТОЯТЕЛЬ ХРАМА
+      - generic [ref=e176]:
+        - paragraph [ref=e177]: Дорогие во Христе братья и сестры, друзья!
+        - paragraph [ref=e178]: От всей души рад приветствовать вас на сайте храма Фёдоровской иконы Божией Матери посёлка Янтарный Аксайского района Ростовской-на-Дону епархии Русской Православной Церкви (Московский Патриархат).
+        - paragraph [ref=e179]: Здесь вы познакомитесь с историей строительства нашего главного каменного храма, большого и красивого, который станет жемчужиной и духовным центром нашего посёлка и близлежащих. А так же мы будем рассказывать вам о жизни нашего прихода во временном, небольшом храме, который уже много лет служит духовным пристанищем и домом для наших прихожан, ставших единой семьёй, глава которой Христос.
+        - paragraph [ref=e180]: Мы постараемся вам рассказать много интересного о православии и жизни святых подвижников. В разделах сайта найдете информацию о воскресной школе, социальном служении пастыря и мирян, узнаете об актуальных событиях приходской жизни, увидите наши фотографии.
+        - paragraph [ref=e181]: Надеюсь, сайт послужит духовному укреплению и возрастанию в вере для Вас, и каждый, закрывая страничку, положит что-то в свою духовную копилку и с трепетом и любовью откроет ее вновь. Призываю на каждого, посетившего наш сайт с добрым сердцем и чистыми помыслами, милость и благословение Божие и небесное ходатайство Пресвятой Владычицы нашей Богородицы и Приснодевы Марии.
+        - paragraph
+        - paragraph
+        - paragraph [ref=e182]: С уважением настоятель храма Фёдоровской иконы Божией Матери, иерей Александр Чуприн.
+      - link "ПОДРОБНЕЕ" [ref=e184] [cursor=pointer]:
+        - /url: /about/
+    - generic [ref=e185]:
+      - generic [ref=e187]:
+        - heading "НОВОСТИ ПРИХОДА" [level=2] [ref=e188]
+        - generic [ref=e189]: Актуальные приходские новости и душеполезные статьи для людей уверовавших в Бога, помогающие в сознательном и ответственном вхождении в жизнь Церкви Христовой
+      - generic [ref=e195]:
+        - generic [ref=e197]:
+          - generic [ref=e198]: 16 февраля 2026
+          - link [ref=e199] [cursor=pointer]:
+            - /url: /news/detail/aktsiya-maminy-bliny/
+          - link "Акция \"Мамины блины\"" [ref=e202] [cursor=pointer]:
+            - /url: /news/detail/aktsiya-maminy-bliny/
+        - generic [ref=e204]:
+          - generic [ref=e205]: 15 февраля 2026
+          - link [ref=e206] [cursor=pointer]:
+            - /url: /news/detail/sretenie-gospoda-nashego-iisusa-khrista-/
+          - link "Сретение Господа нашего Иисуса Христа." [ref=e209] [cursor=pointer]:
+            - /url: /news/detail/sretenie-gospoda-nashego-iisusa-khrista-/
+        - generic [ref=e211]:
+          - generic [ref=e212]: 18 января 2026
+          - link [ref=e213] [cursor=pointer]:
+            - /url: /news/detail/velikoe-osvyashchenie-vody-svyatykh-bogoyavleniy/
+          - link "Великое освящение воды святых Богоявлений" [ref=e216] [cursor=pointer]:
+            - /url: /news/detail/velikoe-osvyashchenie-vody-svyatykh-bogoyavleniy/
+        - generic [ref=e218]:
+          - generic [ref=e219]: 18 января 2026
+          - link [ref=e220] [cursor=pointer]:
+            - /url: /news/detail/rozhdestvenskoe-chudo/
+          - link "\"Рождественское чудо\"" [ref=e223] [cursor=pointer]:
+            - /url: /news/detail/rozhdestvenskoe-chudo/
+        - generic [ref=e225]:
+          - generic [ref=e226]: 7 января 2026
+          - link [ref=e227] [cursor=pointer]:
+            - /url: /news/detail/rozhdestvo-khristovo-/
+          - link "Рождество Христово" [ref=e230] [cursor=pointer]:
+            - /url: /news/detail/rozhdestvo-khristovo-/
+        - generic [ref=e232]:
+          - generic [ref=e233]: 6 января 2026
+          - link [ref=e234] [cursor=pointer]:
+            - /url: /news/detail/novecherie-rozhdestva-khristova/
+          - link "Навечерие Рождества Христова" [ref=e237] [cursor=pointer]:
+            - /url: /news/detail/novecherie-rozhdestva-khristova/
+          - generic [ref=e238]: В храме Федоровской иконы Божией Матери прошли богослужения навечерия Рождества Христова. Божественную литургию служил настоятель храма иерей Александра Чуприн.
+        - generic [ref=e242]:
+          - generic [ref=e243]: 28 декабря 2025
+          - link [ref=e244] [cursor=pointer]:
+            - /url: /news/detail/aktsiya-pokormim-ptits-zimoy/
+          - link "Акция \"Покормим птиц зимой\"" [ref=e247] [cursor=pointer]:
+            - /url: /news/detail/aktsiya-pokormim-ptits-zimoy/
+        - generic [ref=e249]:
+          - generic [ref=e250]: 14 мая 2025
+          - link [ref=e251] [cursor=pointer]:
+            - /url: /news/detail/pobeditel-sretenskikh-chteniy/
+          - link "Победитель Сретенских Чтений" [ref=e254] [cursor=pointer]:
+            - /url: /news/detail/pobeditel-sretenskikh-chteniy/
+          - generic [ref=e255]: Ученица нашей воскресной школы стала победителем Сретенских Чтений
+        - generic [ref=e259]:
+          - generic [ref=e260]: 11 мая 2025
+          - link [ref=e261] [cursor=pointer]:
+            - /url: /news/detail/80-letie-velikoy-pobedy-frontovaya-brigada-v-yantarnom/
+          - link "80-летие Великой Победы. Фронтовая бригада в Янтарном." [ref=e264] [cursor=pointer]:
+            - /url: /news/detail/80-letie-velikoy-pobedy-frontovaya-brigada-v-yantarnom/
+          - generic [ref=e265]: В рамках празднования 80-летие Победы в Великой Отечественной Войне в нашем приходе выступила фронтовая бригада с песнями военных лет.
+        - generic [ref=e269]:
+          - generic [ref=e270]: 5 мая 2025
+          - link [ref=e271] [cursor=pointer]:
+            - /url: /news/detail/yantarnaya-vesna/
+          - link "Янтарная весна" [ref=e274] [cursor=pointer]:
+            - /url: /news/detail/yantarnaya-vesna/
+          - generic [ref=e275]: “Праздник “Янтарная весна”, посвященный Женам Мироносицам, наполнил радостью поселок Янтарный!
+        - generic [ref=e279]:
+          - generic [ref=e280]: 30 марта 2025
+          - link [ref=e281] [cursor=pointer]:
+            - /url: /news/detail/poseshchenie-vospitannikov-voskresnoy-shkoly-doma-kultury-posyelka-vodopadnyy/
+          - link "Посещение воспитанников воскресной школы Дома Культуры посёлка Водопадный" [ref=e284] [cursor=pointer]:
+            - /url: /news/detail/poseshchenie-vospitannikov-voskresnoy-shkoly-doma-kultury-posyelka-vodopadnyy/
+        - generic [ref=e286]:
+          - generic [ref=e287]: 13 октября 2024
+          - link [ref=e288] [cursor=pointer]:
+            - /url: /news/detail/sostoyalos-pervoe-zanyatie-voskresnoy-shkoly-v-etom-godu/
+          - link "Состоялось первое занятие воскресной школы в этом году" [ref=e291] [cursor=pointer]:
+            - /url: /news/detail/sostoyalos-pervoe-zanyatie-voskresnoy-shkoly-v-etom-godu/
+    - generic [ref=e293]:
+      - heading "РАСПИСАНИЕ БОГОСЛУЖЕНИЙ" [level=2] [ref=e297]
+      - link "ПОДРОБНЕЕ" [ref=e301] [cursor=pointer]:
+        - /url: /raspisanie-bogosluzheniy/
+    - generic [ref=e302]:
+      - generic [ref=e303]: Наши реквизиты для добровольных пожертвований
+      - generic [ref=e313]:
+        - heading [level=3]
+        - heading "По словам Максима Исповедника «жертвоприношение – это внешнее выражение внутреннего богоугодного состояния человека, которое приемлет Господь, это есть видимый и очевидный акт любви человека к Богу, его свободный дар Ему, иными словами, это свободное движение ума и сердца человека навстречу к Богу, это есть начало, точка отсчета возвращения к тому естественному для человека состоянию, которое ему было свойственно по природе от момента его сотворения»" [level=3] [ref=e314]
+        - paragraph
+        - heading "Дорогие братья и сёстры! Все ваши добровольные пожертвования будут направлены на развитие нашего прихода и строительство нового каменного храма." [level=3] [ref=e315]
+        - heading "Господь не оставит вас своей милостью!" [level=3] [ref=e316]
+        - heading [level=3]
+        - paragraph [ref=e317]: "Счёт получателя: 40703810300100000172"
+        - paragraph [ref=e318]: "Получатель: МРО православный Приход храма в честь иконы Божией Матери"
+        - paragraph [ref=e319]: Фёдоровской в пос. Янтарный
+        - paragraph [ref=e320]: "ИНН получателя: 6102042272"
+        - paragraph [ref=e321]: "КПП получателя: 610201001"
+        - paragraph [ref=e322]: "Банк получателя: ПАО КБ \"ЦЕНТР-ИНВЕСТ\""
+        - paragraph [ref=e323]: "БИК банка получателя: 046015762"
+        - paragraph [ref=e324]: "Корр. счёт банка получателя: 30101810100000000762"
+        - paragraph [ref=e325]: "Юридический адрес: 346720, Россия, Ростовская область, город Аксай, улица Пушкина, дом 15"
+        - paragraph [ref=e326]: "Настоятель храма: иерей Александр Чуприн"
+    - contentinfo [ref=e327]:
+      - generic [ref=e331]:
+        - generic [ref=e332]:
+          - link "Храм Феодоровской иконы Божией Матери" [ref=e333] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e336]:
+            - generic [ref=e337]: +7 (908) 188-76-15
+            - link "Chuprinalexandr@yandex.ru" [ref=e340] [cursor=pointer]:
+              - /url: "mailto:Chuprinalexandr@yandex.ru "
+        - generic [ref=e342]:
+          - generic [ref=e343]: Храм открыт ежедневно:в будни с 8:00 до 19:00в праздники и выходные с 8:00 до 20:00
+          - generic [ref=e344]: Обработка персональных данных
+      - generic [ref=e349]:
+        - generic [ref=e350]: Работает по благословению настоятеля
+        - link [ref=e353] [cursor=pointer]:
+          - /url: https://orthodox-team.ru/
+          - table [ref=e354]:
+            - rowgroup [ref=e355]:
+              - row [ref=e356]:
+                - cell [ref=e357]:
+                  - img "copyright" [ref=e358]
+                - cell
+  - link [ref=e359] [cursor=pointer]:
+    - /url: "#body"

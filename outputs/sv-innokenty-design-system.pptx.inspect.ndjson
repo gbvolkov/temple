@@ -1,0 +1,227 @@
+{"kind":"deck","id":"pr/ri5m22","name":"Deck"}
+{"kind":"layout","layoutId":"bc53bffe-0a78-4ac6-bc1f-5717a1a1b2dc","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"5edbbfa5-ac31-4af8-a0f4-cb26fb2148d7","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/3ovlcq","slide":1,"title":"ПРЕДЛОЖЕНИЕ ПО ДИЗАЙНУ И CMS","textShapes":5}
+{"kind":"shape","id":"sh/e54zml03","slide":1,"bbox":[0,0,520,720]}
+{"kind":"textbox","id":"sh/18fyhgje","slide":1,"text":"ПРЕДЛОЖЕНИЕ ПО ДИЗАЙНУ И CMS","textPreview":"ПРЕДЛОЖЕНИЕ ПО ДИЗАЙНУ И CMS","textChars":28,"textLines":1,"bbox":[64,64,380,24]}
+{"kind":"textbox","id":"sh/g76hobi9","slide":1,"text":"Новый сайт\nхрама святителя\nИннокентия","textPreview":"Новый сайт | храма святителя | Иннокентия","textChars":37,"textLines":3,"bbox":[64,112,400,250]}
+{"kind":"textbox","id":"sh/3axgjq1k","slide":1,"text":"Дизайн-система · карта сайта · редактор · миграция","textPreview":"Дизайн-система · карта сайта · редактор · миграция","textChars":50,"textLines":1,"bbox":[64,394,390,64]}
+{"kind":"shape","id":"sh/29ozql0z","slide":1,"bbox":[64,512,245,38]}
+{"kind":"textbox","id":"sh/pwfyl0jq","slide":1,"text":"Концепция «Тихий свет»","textPreview":"Концепция «Тихий свет»","textChars":22,"textLines":1,"bbox":[74,520,225,22]}
+{"kind":"textbox","id":"sh/ov6hsvi5","slide":1,"text":"12 июля 2026","textPreview":"12 июля 2026","textChars":12,"textLines":1,"bbox":[64,626,230,26]}
+{"kind":"image","id":"im/e5of2h83","slide":1,"name":"","geometry":"rect","alt":"Дизайн-система Тихий свет","bbox":[520,0,760,720]}
+{"kind":"notes","id":"nt/3ovlcq","slide":1,"text":""}
+{"kind":"slide","id":"sl/52vjff","slide":2,"title":"АУДИТ СУЩЕСТВУЮЩЕГО САЙТА","textShapes":11}
+{"kind":"textbox","id":"sh/3yt8vypg","slide":2,"text":"АУДИТ СУЩЕСТВУЮЩЕГО САЙТА","textPreview":"АУДИТ СУЩЕСТВУЮЩЕГО САЙТА","textChars":25,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/4z29o361","slide":2,"text":"Полная карта подтвердила масштаб","textPreview":"Полная карта подтвердила масштаб","textChars":32,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"textbox","id":"sh/p0vqx87m","slide":2,"text":"1 615","textPreview":"1 615","textChars":5,"textLines":1,"bbox":[66,180,190,70]}
+{"kind":"textbox","id":"sh/utkri9oz","slide":2,"text":"публичных URL обследовано\nполным read-only обходом","textPreview":"публичных URL обследовано | полным read-only обходом","textChars":50,"textLines":2,"bbox":[66,245,230,58]}
+{"kind":"textbox","id":"sh/fut8rep4","slide":2,"text":"1 606","textPreview":"1 606","textChars":5,"textLines":1,"bbox":[66,340,190,70]}
+{"kind":"textbox","id":"sh/gv29kj6p","slide":2,"text":"рабочих страниц получили\nподробный снимок","textPreview":"рабочих страниц получили | подробный снимок","textChars":41,"textLines":2,"bbox":[66,405,220,58]}
+{"kind":"textbox","id":"sh/hwbqto7a","slide":2,"text":"2006–2026","textPreview":"2006–2026","textChars":9,"textLines":1,"bbox":[66,500,250,52]}
+{"kind":"textbox","id":"sh/6p0re9on","slide":2,"text":"архив Иннокентиевского листка","textPreview":"архив Иннокентиевского листка","textChars":29,"textLines":1,"bbox":[66,552,250,54]}
+{"kind":"shape","id":"sh/7q98nep8","slide":2,"bbox":[342,162,820,458]}
+{"kind":"shape","id":"sh/6d4relcz","slide":2,"bbox":[1018,184,122,366]}
+{"kind":"shape","id":"sh/8zm9gvu5","slide":2,"bbox":[736,568,404,38]}
+{"kind":"textbox","id":"sh/v2d8rqdw","slide":2,"text":"1 259 px контента в окне 390 px","textPreview":"1 259 px контента в окне 390 px","textChars":31,"textLines":1,"bbox":[746,576,384,22]}
+{"kind":"shape","id":"sh/u14rilcb","slide":2,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/h4vqt0vm","slide":2,"text":"Источник: sv-innokenty.ru · полный read-only Playwright-аудит 12.07.2026","textPreview":"Источник: sv-innokenty.ru · полный read-only Playwright-аудит 12.07.2026","textChars":72,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/g3m9kvuh","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/czyt032x","slide":2,"name":"","geometry":"rect","alt":"Текущий сайт на ПК","bbox":[364,184,650,366]}
+{"kind":"image","id":"im/qxgbytk7","slide":2,"name":"","geometry":"rect","alt":"Текущий сайт на смартфоне","bbox":[1027,194,104,346]}
+{"kind":"notes","id":"nt/52vjff","slide":2,"text":""}
+{"kind":"slide","id":"sl/v651kr","slide":3,"title":"ПРИНЦИП СТРУКТУРЫ","textShapes":19}
+{"kind":"textbox","id":"sh/bipgjq14","slide":3,"text":"ПРИНЦИП СТРУКТУРЫ","textPreview":"ПРИНЦИП СТРУКТУРЫ","textChars":17,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/cjyxsv2p","slide":3,"text":"Сохраняем всё ценное, меняем порядок","textPreview":"Сохраняем всё ценное, меняем порядок","textChars":36,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"shape","id":"sh/xk7ylgja","slide":3,"bbox":[64,168,1152,92]}
+{"kind":"textbox","id":"sh/yl0fulkv","slide":3,"text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[88,184,50,50]}
+{"kind":"textbox","id":"sh/zm9gnq1g","slide":3,"text":"Сначала — то, зачем пришли сегодня","textPreview":"Сначала — то, зачем пришли сегодня","textChars":34,"textLines":1,"bbox":[150,184,480,32]}
+{"kind":"textbox","id":"sh/knihwvi1","slide":3,"text":"Ближайшая служба · записка/треба · маршрут · трансляция","textPreview":"Ближайшая служба · записка/треба · маршрут · трансляция","textChars":55,"textLines":1,"bbox":[150,219,760,26]}
+{"kind":"textbox","id":"sh/l8ryp0j6","slide":3,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[64,310,74,48]}
+{"kind":"shape","id":"sh/m90zy50r","slide":3,"bbox":[64,366,240,3]}
+{"kind":"textbox","id":"sh/7a9gra1c","slide":3,"text":"Фотогалерея","textPreview":"Фотогалерея","textChars":11,"textLines":1,"bbox":[64,392,240,54]}
+{"kind":"textbox","id":"sh/j2d43ux4","slide":3,"text":"Альбомы по годам и событиям, отдельная рубрика школы","textPreview":"Альбомы по годам и событиям, отдельная рубрика школы","textChars":52,"textLines":1,"bbox":[64,458,240,108]}
+{"kind":"textbox","id":"sh/i143upwj","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[352,310,74,48]}
+{"kind":"shape","id":"sh/54vm54fa","slide":3,"bbox":[352,366,240,3]}
+{"kind":"textbox","id":"sh/43mlwzep","slide":3,"text":"Иннокентиевский листок","textPreview":"Иннокентиевский листок","textChars":22,"textLines":1,"bbox":[352,392,240,54]}
+{"kind":"textbox","id":"sh/vyd4zuxs","slide":3,"text":"Обложка, номер, период, PDF и полный архив с 2006 года","textPreview":"Обложка, номер, период, PDF и полный архив с 2006 года","textChars":54,"textLines":1,"bbox":[352,458,240,108]}
+{"kind":"textbox","id":"sh/ux43qpwn","slide":3,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[640,310,74,48]}
+{"kind":"shape","id":"sh/h0vm1kfy","slide":3,"bbox":[640,366,240,3]}
+{"kind":"textbox","id":"sh/wzmlszed","slide":3,"text":"Воскресная школа","textPreview":"Воскресная школа","textChars":16,"textLines":1,"bbox":[640,392,240,54]}
+{"kind":"textbox","id":"sh/fux4bexc","slide":3,"text":"О школе, расписание, новости, фотоальбомы и запись","textPreview":"О школе, расписание, новости, фотоальбомы и запись","textChars":50,"textLines":1,"bbox":[640,458,240,108]}
+{"kind":"textbox","id":"sh/eto329wr","slide":3,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[928,310,74,48]}
+{"kind":"shape","id":"sh/a1cfqhkb","slide":3,"bbox":[928,366,240,3]}
+{"kind":"textbox","id":"sh/b2lgjmlw","slide":3,"text":"Социальные сети","textPreview":"Социальные сети","textChars":15,"textLines":1,"bbox":[928,392,240,54]}
+{"kind":"textbox","id":"sh/w3uxsr21","slide":3,"text":"Telegram и VK — заметно, но сайт остаётся источником важных объявлений","textPreview":"Telegram и VK — заметно, но сайт остаётся источником важных объявлений","textChars":70,"textLines":1,"bbox":[928,458,240,108]}
+{"kind":"shape","id":"sh/x43ylc3m","slide":3,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/y5cfuhk7","slide":3,"text":"Обязательные разделы сохранены в новой карте сайта и модели CMS","textPreview":"Обязательные разделы сохранены в новой карте сайта и модели CMS","textChars":63,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/j6lgnmls","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"notes","id":"nt/v651kr","slide":3,"text":""}
+{"kind":"slide","id":"sl/8q1n63","slide":4,"title":"ВИЗУАЛЬНЫЕ ОРИЕНТИРЫ","textShapes":9}
+{"kind":"textbox","id":"sh/r6dwb2t8","slide":4,"text":"ВИЗУАЛЬНЫЕ ОРИЕНТИРЫ","textPreview":"ВИЗУАЛЬНЫЕ ОРИЕНТИРЫ","textChars":20,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/c7mx47at","slide":4,"text":"Два референса — один самостоятельный характер","textPreview":"Два референса — один самостоятельный характер","textChars":45,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"textbox","id":"sh/32tw7itc","slide":4,"text":"Янтарный храм","textPreview":"Янтарный храм","textChars":13,"textLines":1,"bbox":[64,494,260,28]}
+{"kind":"textbox","id":"sh/43md0nax","slide":4,"text":"Воздух, крупная иерархия, светлая фотография.","textPreview":"Воздух, крупная иерархия, светлая фотография.","textChars":45,"textLines":1,"bbox":[64,526,520,50]}
+{"kind":"textbox","id":"sh/p4ve9sbi","slide":4,"text":"Храм Симеона Столпника","textPreview":"Храм Симеона Столпника","textChars":22,"textLines":1,"bbox":[676,494,330,28]}
+{"kind":"textbox","id":"sh/udkvudcv","slide":4,"text":"Уверенная храмовая фотография и цельная цветовая полоса навигации.","textPreview":"Уверенная храмовая фотография и цельная цветовая полоса навигации.","textChars":66,"textLines":1,"bbox":[676,526,520,54]}
+{"kind":"shape","id":"sh/fetw3itg","slide":4,"bbox":[64,606,1152,46]}
+{"kind":"textbox","id":"sh/fylcbu50","slide":4,"text":"Наша версия: теплее, спокойнее и функциональнее — без копирования референсов","textPreview":"Наша версия: теплее, спокойнее и функциональнее — без копирования референсов","textChars":76,"textLines":1,"bbox":[92,617,1096,24]}
+{"kind":"shape","id":"sh/excbip4f","slide":4,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/1k3ud4n6","slide":4,"text":"Референсы: yantarhram.ru · st-simeon.ru","textPreview":"Референсы: yantarhram.ru · st-simeon.ru","textChars":39,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/0jutkzml","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/0fmpc3et","slide":4,"name":"","geometry":"rect","alt":"Сайт yantarhram.ru","bbox":[64,170,540,304]}
+{"kind":"image","id":"im/ratofexw","slide":4,"name":"","geometry":"rect","alt":"Сайт st-simeon.ru","bbox":[676,170,540,304]}
+{"kind":"notes","id":"nt/8q1n63","slide":4,"text":""}
+{"kind":"slide","id":"sl/ssuu1j","slide":5,"title":"ДИЗАЙН-СИСТЕМА «ТИХИЙ СВЕТ»","textShapes":4}
+{"kind":"textbox","id":"sh/v6pk7qlg","slide":5,"text":"ДИЗАЙН-СИСТЕМА «ТИХИЙ СВЕТ»","textPreview":"ДИЗАЙН-СИСТЕМА «ТИХИЙ СВЕТ»","textChars":27,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/w7yl0vm1","slide":5,"text":"Тёплая палитра и читаемый ритм","textPreview":"Тёплая палитра и читаемый ритм","textChars":30,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"shape","id":"sh/itg32l47","slide":5,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/jupkbqlc","slide":5,"text":"Шрифты для веба: Prata + Manrope · fallback: Georgia + Arial","textPreview":"Шрифты для веба: Prata + Manrope · fallback: Georgia + Arial","textChars":60,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/4vyl4vmx","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/0zu5kfyp","slide":5,"name":"","geometry":"rect","alt":"Палитра и типографика","bbox":[64,154,1152,498]}
+{"kind":"notes","id":"nt/ssuu1j","slide":5,"text":""}
+{"kind":"slide","id":"sl/wapy0a","slide":6,"title":"ГЛАВНАЯ СТРАНИЦА","textShapes":7}
+{"kind":"textbox","id":"sh/q90ru5sr","slide":6,"text":"ГЛАВНАЯ СТРАНИЦА","textPreview":"ГЛАВНАЯ СТРАНИЦА","textChars":16,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/dcrap0r2","slide":6,"text":"Главное видно до первого скролла","textPreview":"Главное видно до первого скролла","textChars":32,"textLines":1,"bbox":[64,76,900,70]}
+{"kind":"shape","id":"sh/3mpsjq90","slide":6,"bbox":[952,160,248,475]}
+{"kind":"shape","id":"sh/p87al0r6","slide":6,"bbox":[92,575,200,38]}
+{"kind":"textbox","id":"sh/o7y9sval","slide":6,"text":"Ближайшая служба","textPreview":"Ближайшая служба","textChars":16,"textLines":1,"bbox":[102,583,180,22]}
+{"kind":"shape","id":"sh/nitsvu94","slide":6,"bbox":[306,575,180,38]}
+{"kind":"textbox","id":"sh/mhkb2psz","slide":6,"text":"Подать записку","textPreview":"Подать записку","textChars":14,"textLines":1,"bbox":[316,583,160,22]}
+{"kind":"shape","id":"sh/wb2t4nip","slide":6,"bbox":[500,575,170,38]}
+{"kind":"textbox","id":"sh/xcbuxsja","slide":6,"text":"Как добраться","textPreview":"Как добраться","textChars":13,"textLines":1,"bbox":[510,583,150,22]}
+{"kind":"shape","id":"sh/ap0b2d0j","slide":6,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/bq9cvi14","slide":6,"text":"Проверено при ширинах 1600 · 1024 · 768 · 390 · 320 px","textPreview":"Проверено при ширинах 1600 · 1024 · 768 · 390 · 320 px","textChars":54,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/onit03id","slide":6,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/lorux4bm","slide":6,"name":"","geometry":"rect","alt":"Концепция главной на ПК","bbox":[64,160,844,475]}
+{"kind":"image","id":"im/bypcrat4","slide":6,"name":"","geometry":"roundRect","alt":"Концепция главной на смартфоне","bbox":[979,176,194,443]}
+{"kind":"notes","id":"nt/wapy0a","slide":6,"text":""}
+{"kind":"slide","id":"sl/u6acnp","slide":7,"title":"АДАПТИВНОСТЬ","textShapes":15}
+{"kind":"textbox","id":"sh/1kzups3e","slide":7,"text":"АДАПТИВНОСТЬ","textPreview":"АДАПТИВНОСТЬ","textChars":12,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/ehobex43","slide":7,"text":"Один порядок на ПК, планшете и телефоне","textPreview":"Один порядок на ПК, планшете и телефоне","textChars":39,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"textbox","id":"sh/fixcn25o","slide":7,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[66,192,54,46]}
+{"kind":"textbox","id":"sh/sf6tcnmx","slide":7,"text":"ПК · 12 колонок","textPreview":"ПК · 12 колонок","textChars":15,"textLines":1,"bbox":[132,192,390,28]}
+{"kind":"textbox","id":"sh/tgfulsni","slide":7,"text":"Полная навигация и два смысловых потока","textPreview":"Полная навигация и два смысловых потока","textChars":39,"textLines":1,"bbox":[132,227,440,48]}
+{"kind":"shape","id":"sh/6tobad4r","slide":7,"bbox":[66,288,460,1]}
+{"kind":"textbox","id":"sh/ruxcji5c","slide":7,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[66,318,54,46]}
+{"kind":"textbox","id":"sh/4rmt8nm1","slide":7,"text":"Планшет · 8 колонок","textPreview":"Планшет · 8 колонок","textChars":19,"textLines":1,"bbox":[132,318,390,28]}
+{"kind":"textbox","id":"sh/5sfuh8nm","slide":7,"text":"Одна колонка для сложных блоков","textPreview":"Одна колонка для сложных блоков","textChars":31,"textLines":1,"bbox":[132,353,440,48]}
+{"kind":"shape","id":"sh/dovedgjy","slide":7,"bbox":[66,414,460,1]}
+{"kind":"textbox","id":"sh/cn2x4b2t","slide":7,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[66,444,54,46]}
+{"kind":"textbox","id":"sh/bmtwb6l8","slide":7,"text":"Смартфон · 4 колонки","textPreview":"Смартфон · 4 колонки","textChars":20,"textLines":1,"bbox":[132,444,390,28]}
+{"kind":"textbox","id":"sh/qlkf21kn","slide":7,"text":"Меню сворачивается, действия остаются видимыми","textPreview":"Меню сворачивается, действия остаются видимыми","textChars":46,"textLines":1,"bbox":[132,479,440,48]}
+{"kind":"shape","id":"sh/pkbe9g32","slide":7,"bbox":[66,540,460,1]}
+{"kind":"shape","id":"sh/oj2x0b2h","slide":7,"bbox":[606,166,238,472]}
+{"kind":"shape","id":"sh/2hkfy1kb","slide":7,"bbox":[886,166,238,472]}
+{"kind":"shape","id":"sh/gvixwr2l","slide":7,"bbox":[607,608,236,38]}
+{"kind":"textbox","id":"sh/sb658ved","slide":7,"text":"Сейчас: горизонтальный скролл","textPreview":"Сейчас: горизонтальный скролл","textChars":29,"textLines":1,"bbox":[617,616,216,22]}
+{"kind":"shape","id":"sh/tcf610fy","slide":7,"bbox":[887,608,236,38]}
+{"kind":"textbox","id":"sh/69on6lwn","slide":7,"text":"Новая система: 0 px overflow","textPreview":"Новая система: 0 px overflow","textChars":28,"textLines":1,"bbox":[897,616,216,22]}
+{"kind":"shape","id":"sh/raxozqxs","slide":7,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/47654beh","slide":7,"text":"Числовая проверка: scrollWidth = clientWidth на всех пяти контрольных ширинах","textPreview":"Числовая проверка: scrollWidth = clientWidth на всех пяти контрольных ширинах","textChars":77,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/58f6xgf2","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/cjql4zet","slide":7,"name":"","geometry":"rect","alt":"Текущий мобильный вид","bbox":[627,184,196,436]}
+{"kind":"image","id":"im/el8369wz","slide":7,"name":"","geometry":"rect","alt":"Предлагаемый мобильный вид","bbox":[907,184,196,436]}
+{"kind":"notes","id":"nt/u6acnp","slide":7,"text":""}
+{"kind":"slide","id":"sl/e1aif8","slide":8,"title":"ИНФОРМАЦИОННАЯ АРХИТЕКТУРА","textShapes":22}
+{"kind":"textbox","id":"sh/s36xszi9","slide":8,"text":"ИНФОРМАЦИОННАЯ АРХИТЕКТУРА","textPreview":"ИНФОРМАЦИОННАЯ АРХИТЕКТУРА","textChars":26,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/72xgjuho","slide":8,"text":"Архив укладывается в шесть понятных разделов","textPreview":"Архив укладывается в шесть понятных разделов","textChars":44,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"textbox","id":"sh/61ofqp03","slide":8,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[64,178,60,42]}
+{"kind":"textbox","id":"sh/hszyp4zq","slide":8,"text":"Главная","textPreview":"Главная","textChars":7,"textLines":1,"bbox":[140,178,470,34]}
+{"kind":"textbox","id":"sh/grqhwzi5","slide":8,"text":"Служба · важное · новости · листок · фото · контакты","textPreview":"Служба · важное · новости · листок · фото · контакты","textChars":52,"textLines":1,"bbox":[140,222,470,62]}
+{"kind":"shape","id":"sh/f6hgnuhk","slide":8,"bbox":[64,294,520,1]}
+{"kind":"textbox","id":"sh/u58fup0f","slide":8,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[640,178,60,42]}
+{"kind":"textbox","id":"sh/xwvydkzm","slide":8,"text":"Богослужения","textPreview":"Богослужения","textChars":12,"textLines":1,"bbox":[716,178,470,34]}
+{"kind":"textbox","id":"sh/wvmxkfi1","slide":8,"text":"Расписание · требы · трансляция · видео · календарь","textPreview":"Расписание · требы · трансляция · видео · календарь","textChars":51,"textLines":1,"bbox":[716,222,470,62]}
+{"kind":"shape","id":"sh/610rq5ob","slide":8,"bbox":[640,294,520,1]}
+{"kind":"textbox","id":"sh/729sja5w","slide":8,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[64,326,60,42]}
+{"kind":"textbox","id":"sh/83i9sv61","slide":8,"text":"О храме","textPreview":"О храме","textChars":7,"textLines":1,"bbox":[140,326,470,34]}
+{"kind":"textbox","id":"sh/t4ral0nm","slide":8,"text":"История · духовенство · святитель Иннокентий · святыни · контакты","textPreview":"История · духовенство · святитель Иннокентий · святыни · контакты","textChars":65,"textLines":1,"bbox":[140,370,470,62]}
+{"kind":"shape","id":"sh/u50ru5o7","slide":8,"bbox":[64,442,520,1]}
+{"kind":"textbox","id":"sh/v6tsna5s","slide":8,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[640,326,60,42]}
+{"kind":"textbox","id":"sh/g729wf6d","slide":8,"text":"Жизнь прихода","textPreview":"Жизнь прихода","textChars":13,"textLines":1,"bbox":[716,326,470,34]}
+{"kind":"textbox","id":"sh/h8bapkny","slide":8,"text":"Новости · молодёжь · хор · театр · паломничество · соцслужба · спорт","textPreview":"Новости · молодёжь · хор · театр · паломничество · соцслужба · спорт","textChars":68,"textLines":1,"bbox":[716,370,470,62]}
+{"kind":"shape","id":"sh/i9krypoj","slide":8,"bbox":[640,442,520,1]}
+{"kind":"textbox","id":"sh/3atsru5o","slide":8,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[64,474,60,42]}
+{"kind":"textbox","id":"sh/fyd8fulw","slide":8,"text":"Воскресная школа","textPreview":"Воскресная школа","textChars":16,"textLines":1,"bbox":[140,474,470,34]}
+{"kind":"textbox","id":"sh/ex4rmpkb","slide":8,"text":"О школе · программа · расписание · новости · галерея · запись","textPreview":"О школе · программа · расписание · новости · галерея · запись","textChars":61,"textLines":1,"bbox":[140,518,470,62]}
+{"kind":"shape","id":"sh/10vqhk32","slide":8,"bbox":[64,590,520,1]}
+{"kind":"textbox","id":"sh/0zm9oz2h","slide":8,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[640,474,60,42]}
+{"kind":"textbox","id":"sh/rat8bal0","slide":8,"text":"Медиа и архив","textPreview":"Медиа и архив","textChars":13,"textLines":1,"bbox":[716,474,470,34]}
+{"kind":"textbox","id":"sh/q9kri54f","slide":8,"text":"Фотогалерея · Иннокентиевский листок · видео · поиск","textPreview":"Фотогалерея · Иннокентиевский листок · видео · поиск","textChars":52,"textLines":1,"bbox":[716,518,470,62]}
+{"kind":"shape","id":"sh/dwbqdk36","slide":8,"bbox":[640,590,520,1]}
+{"kind":"shape","id":"sh/sb29kf2l","slide":8,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/36t87alo","slide":8,"text":"Полная карта разделов и миграционных сущностей приложена отдельным файлом","textPreview":"Полная карта разделов и миграционных сущностей приложена отдельным файлом","textChars":73,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/i5k7e543","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"notes","id":"nt/e1aif8","slide":8,"text":""}
+{"kind":"slide","id":"sl/nc2ht1","slide":9,"title":"CMS","textShapes":10}
+{"kind":"textbox","id":"sh/0jelgj6d","slide":9,"text":"CMS","textPreview":"CMS","textChars":3,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/fi547e5s","slide":9,"text":"Редактор хранит смысл, а не внешний вид","textPreview":"Редактор хранит смысл, а не внешний вид","textChars":39,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"shape","id":"sh/dg3m54nm","slide":9,"bbox":[82,548,220,38]}
+{"kind":"textbox","id":"sh/sfulcz6h","slide":9,"text":"MODX Evolution 1.2.1","textPreview":"MODX Evolution 1.2.1","textChars":20,"textLines":1,"bbox":[92,556,200,22]}
+{"kind":"textbox","id":"sh/rul4ju5w","slide":9,"text":"Сейчас","textPreview":"Сейчас","textChars":6,"textLines":1,"bbox":[604,166,210,38]}
+{"kind":"textbox","id":"sh/qtc3apob","slide":9,"text":"• длинный HTML для расписаний\n• JSON / TV-поля на главной\n• служебные параметры рядом с контентом","textPreview":"• длинный HTML для расписаний | • JSON / TV-поля на главной | • служебные параметры рядом с контентом","textChars":97,"textLines":3,"bbox":[604,216,550,116]}
+{"kind":"textbox","id":"sh/5s3mhknq","slide":9,"text":"Новая CMS","textPreview":"Новая CMS","textChars":9,"textLines":1,"bbox":[604,374,240,38]}
+{"kind":"textbox","id":"sh/4rul8f65","slide":9,"text":"Новость · событие · богослужение · страница · духовенство · направление · фотоальбом · выпуск листка · видео · контакт","textPreview":"Новость · событие · богослужение · страница · духовенство · направление · фотоальбом · выпуск листка · видео · контакт","textChars":118,"textLines":1,"bbox":[604,426,550,130]}
+{"kind":"shape","id":"sh/u1c3itcj","slide":9,"bbox":[604,576,360,38]}
+{"kind":"textbox","id":"sh/f25kbyt4","slide":9,"text":"Один тип = одна понятная форма","textPreview":"Один тип = одна понятная форма","textChars":30,"textLines":1,"bbox":[614,584,340,22]}
+{"kind":"shape","id":"sh/g3elk3up","slide":9,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/h4n2d8bu","slide":9,"text":"Источник: авторизованный просмотр текущей CMS; данные не изменялись","textPreview":"Источник: авторизованный просмотр текущей CMS; данные не изменялись","textChars":67,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/6xc3etc7","slide":9,"text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/bipsv6tw","slide":9,"name":"","geometry":"rect","alt":"Текущая MODX CMS","bbox":[64,166,500,430]}
+{"kind":"notes","id":"nt/nc2ht1","slide":9,"text":""}
+{"kind":"slide","id":"sl/dr51nd","slide":10,"title":"РЕДАКТОРСКИЙ СЦЕНАРИЙ","textShapes":4}
+{"kind":"textbox","id":"sh/szmp0ze1","slide":10,"text":"РЕДАКТОРСКИЙ СЦЕНАРИЙ","textPreview":"РЕДАКТОРСКИЙ СЦЕНАРИЙ","textChars":21,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/7yd8rudg","slide":10,"text":"Материал публикуется за четыре шага","textPreview":"Материал публикуется за четыре шага","textChars":35,"textLines":1,"bbox":[64,76,1152,70]}
+{"kind":"shape","id":"sh/h4fqxovy","slide":10,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/g36p4jud","slide":10,"text":"Предпросмотр отдельно показывает состояние на ПК и смартфоне","textPreview":"Предпросмотр отдельно показывает состояние на ПК и смартфоне","textChars":60,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/f2x8veds","slide":10,"text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"image","id":"im/7ex0bq9k","slide":10,"name":"","geometry":"rect","alt":"Концепция редактора контента","bbox":[64,158,1152,484]}
+{"kind":"notes","id":"nt/dr51nd","slide":10,"text":""}
+{"kind":"slide","id":"sl/yfyhb1","slide":11,"title":"МИГРАЦИЯ","textShapes":21}
+{"kind":"textbox","id":"sh/rmx47m9c","slide":11,"text":"МИГРАЦИЯ","textPreview":"МИГРАЦИЯ","textChars":8,"textLines":1,"bbox":[64,44,500,24]}
+{"kind":"textbox","id":"sh/snq50rax","slide":11,"text":"Даты, файлы и старые адреса не теряются","textPreview":"Даты, файлы и старые адреса не теряются","textChars":39,"textLines":1,"bbox":[64,76,1050,70]}
+{"kind":"shape","id":"sh/dozm9wri","slide":11,"bbox":[118,334,1000,4]}
+{"kind":"shape","id":"sh/ep8n2183","slide":11,"bbox":[84,300,72,72]}
+{"kind":"textbox","id":"sh/zqh4b69o","slide":11,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[84,319,72,28]}
+{"kind":"textbox","id":"sh/0rq54bq9","slide":11,"text":"Обход","textPreview":"Обход","textChars":5,"textLines":1,"bbox":[48,402,144,30]}
+{"kind":"textbox","id":"sh/1szmdgre","slide":11,"text":"1 615 URL · только чтение","textPreview":"1 615 URL · только чтение","textChars":25,"textLines":1,"bbox":[29,440,182,54]}
+{"kind":"shape","id":"sh/mt8n6l8z","slide":11,"bbox":[316,300,72,72]}
+{"kind":"textbox","id":"sh/nu14f69k","slide":11,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[316,319,72,28]}
+{"kind":"textbox","id":"sh/ry9wratg","slide":11,"text":"Реестр","textPreview":"Реестр","textChars":6,"textLines":1,"bbox":[280,402,144,30]}
+{"kind":"textbox","id":"sh/qx0vy5cv","slide":11,"text":"URL · тип · дата · файл","textPreview":"URL · тип · дата · файл","textChars":23,"textLines":1,"bbox":[261,440,182,54]}
+{"kind":"shape","id":"sh/d0retkb6","slide":11,"bbox":[548,300,72,72]}
+{"kind":"textbox","id":"sh/czid0ful","slide":11,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[548,319,72,28]}
+{"kind":"textbox","id":"sh/3apwnqt4","slide":11,"text":"Очистка","textPreview":"Очистка","textChars":7,"textLines":1,"bbox":[512,402,144,30]}
+{"kind":"textbox","id":"sh/i9gvu5cj","slide":11,"text":"дубли · кодировки · ссылки","textPreview":"дубли · кодировки · ссылки","textChars":26,"textLines":1,"bbox":[493,440,182,54]}
+{"kind":"shape","id":"sh/5w7ep0ba","slide":11,"bbox":[780,300,72,72]}
+{"kind":"textbox","id":"sh/4bydwvup","slide":11,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[780,319,72,28]}
+{"kind":"textbox","id":"sh/n6twzut8","slide":11,"text":"Импорт","textPreview":"Импорт","textChars":6,"textLines":1,"bbox":[744,402,144,30]}
+{"kind":"textbox","id":"sh/m5kf6pc3","slide":11,"text":"структурированные сущности","textPreview":"структурированные сущности","textChars":26,"textLines":1,"bbox":[725,440,182,54]}
+{"kind":"shape","id":"sh/ixo7ex07","slide":11,"bbox":[1012,300,72,72]}
+{"kind":"textbox","id":"sh/jyx8nihs","slide":11,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1012,319,72,28]}
+{"kind":"textbox","id":"sh/kz6pgnid","slide":11,"text":"Проверка","textPreview":"Проверка","textChars":8,"textLines":1,"bbox":[976,402,144,30]}
+{"kind":"textbox","id":"sh/50fqpszy","slide":11,"text":"301 · выборка · полный обход","textPreview":"301 · выборка · полный обход","textChars":28,"textLines":1,"bbox":[957,440,182,54]}
+{"kind":"textbox","id":"sh/6187ix0j","slide":11,"text":"Контрольный принцип","textPreview":"Контрольный принцип","textChars":19,"textLines":1,"bbox":[64,566,250,28]}
+{"kind":"textbox","id":"sh/72h8r2h4","slide":11,"text":"Новая страница считается принятой только после сверки со старым материалом и проверки редиректа.","textPreview":"Новая страница считается принятой только после сверки со старым материалом и проверки редиректа.","textChars":96,"textLines":1,"bbox":[64,600,920,48]}
+{"kind":"shape","id":"sh/s3qpk7ip","slide":11,"bbox":[64,684,1152,1]}
+{"kind":"textbox","id":"sh/t4zqtczu","slide":11,"text":"Итог: 1 757 черновиков · 13 746 локальных медиа · 1 606 редиректов · исходный MODX не изменён","textPreview":"Итог: 1 757 черновиков · 13 746 локальных медиа · 1 606 редиректов · исходный MODX не изменён","textChars":93,"textLines":1,"bbox":[64,690,1020,18]}
+{"kind":"textbox","id":"sh/m5476t0f","slide":11,"text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1160,688,56,18]}
+{"kind":"notes","id":"nt/yfyhb1","slide":11,"text":""}
+{"kind":"slide","id":"sl/cldsl1","slide":12,"title":"РЕШЕНИЕ","textShapes":9}
+{"kind":"shape","id":"sh/tgr6pwvy","slide":12,"bbox":[0,0,556,720]}
+{"kind":"textbox","id":"sh/6d07ehcn","slide":12,"text":"РЕШЕНИЕ","textPreview":"РЕШЕНИЕ","textChars":7,"textLines":1,"bbox":[64,64,300,24]}
+{"kind":"textbox","id":"sh/7e9onmd8","slide":12,"text":"Система готова\nк редакторской\nприёмке","textPreview":"Система готова | к редакторской | приёмке","textChars":37,"textLines":3,"bbox":[64,110,420,240]}
+{"kind":"shape","id":"sh/gj2pkrup","slide":12,"bbox":[64,474,42,42]}
+{"kind":"textbox","id":"sh/hkb6twva","slide":12,"text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[64,482,42,24]}
+{"kind":"textbox","id":"sh/uh07i1cj","slide":12,"text":"Проверить материалы","textPreview":"Проверить материалы","textChars":19,"textLines":1,"bbox":[124,471,350,28]}
+{"kind":"textbox","id":"sh/fi9or6d4","slide":12,"text":"Текст, фотографии, PDF и даты","textPreview":"Текст, фотографии, PDF и даты","textChars":29,"textLines":1,"bbox":[124,501,350,42]}
+{"kind":"shape","id":"sh/472pobul","slide":12,"bbox":[64,566,42,42]}
+{"kind":"textbox","id":"sh/p8b6xgv6","slide":12,"text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[64,574,42,24]}
+{"kind":"textbox","id":"sh/l4z6tgrq","slide":12,"text":"Подготовить запуск","textPreview":"Подготовить запуск","textChars":18,"textLines":1,"bbox":[124,563,350,28]}
+{"kind":"textbox","id":"sh/k3q5kba5","slide":12,"text":"Резервная копия, HTTPS и переключение домена","textPreview":"Резервная копия, HTTPS и переключение домена","textChars":44,"textLines":1,"bbox":[124,593,350,42]}
+{"kind":"shape","id":"sh/j2hor69k","slide":12,"bbox":[596,72,620,500]}
+{"kind":"shape","id":"sh/tsj6x0rm","slide":12,"bbox":[650,534,500,112]}
+{"kind":"textbox","id":"sh/8rapova1","slide":12,"text":"Следующий этап: приёмка 1 757 черновиков и безопасное переключение домена","textPreview":"Следующий этап: приёмка 1 757 черновиков и безопасное переключение домена","textChars":73,"textLines":1,"bbox":[682,562,436,66]}
+{"kind":"image","id":"im/9cfudkzm","slide":12,"name":"","geometry":"roundRect","alt":"Концепция главной страницы","bbox":[612,88,588,468]}
+{"kind":"notes","id":"nt/cldsl1","slide":12,"text":""}

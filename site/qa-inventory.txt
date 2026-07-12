@@ -1,0 +1,76 @@
+PLAYWRIGHT QA INVENTORY — RESPONSIVE SITE + WORKING CMS
+
+USER-VISIBLE CLAIMS
+- Public prototype contains the complete top-level structure needed for the parish.
+- Gallery, Innokentievsky leaflet, Sunday school, and social links are prominent and usable.
+- Schedule is structured and readable without a wide HTML table.
+- Public prototype fits desktop, tablet, 390 px mobile, and 320 px mobile without horizontal overflow.
+- Mobile navigation exposes every top-level route and returns to its initial state after selection.
+- Search finds key sections and can open the note flow.
+- Note form is a three-step local demonstration and explicitly sends nothing.
+- Gallery filters by year and opens/closes a lightbox.
+- Leaflet filters by year.
+- CMS requires a separate authenticated session and exposes content-specific fields, desktop/mobile preview, real draft save, and controlled publication.
+- Existing drafts can be reopened and updated without losing versions.
+- CMS migration panel imports only into the new database; legacy MODX remains unchanged.
+- Full archive search covers all imported records while rendering at most 100 results at once.
+- Migration metrics reflect the real full crawl and CMS counts, not prototype placeholders.
+- Imported drafts have an explicit editorial acceptance flow; saving alone never clears the review requirement.
+- Complex imported data such as gallery photo lists survives save-and-review unchanged.
+- Every old detail URL redirects to its own published material; index URLs redirect to the matching section.
+
+PUBLIC CONTROLS AND STATES
+- Desktop navigation: home, schedule, about, parish, school, media.
+- Mobile menu: closed -> open -> route selection -> closed.
+- Search: closed -> open -> populated results -> no-results -> closed.
+- Note form: step 1 -> step 2 validation -> step 3 summary -> closed.
+- Schedule day tabs: Sunday, Wednesday, Saturday.
+- Gallery year filters: 2025, 2024, 2023.
+- Gallery lightbox: open -> closed by button and backdrop.
+- Migrated detail: old URL -> 301 -> generic content page -> gallery lightbox -> closed.
+- Leaflet year filters: 2026, 2025, 2024.
+- Toast messages for prototype-only actions.
+
+CMS CONTROLS AND STATES
+- Content types: news, service, gallery, leaflet, parish section, page, clergy, video, contacts/social links.
+- Editor input updates preview.
+- Preview size: desktop -> mobile -> desktop.
+- Login: unauthenticated -> invalid credentials -> authenticated editor.
+- Existing-material selector: empty/new -> imported draft -> edit -> saved version.
+- Existing-material search: all-count -> filtered result -> no-results -> reset.
+- Editorial queue filter: all records -> review-required only -> reviewed count decreases by one.
+- Imported draft: warning -> absolute old-page comparison link -> save and mark reviewed -> review warning removed.
+- Save draft: POST new record -> PUT next version -> visible status in CMS.
+- Publish confirmation: unchecked checklist or unreviewed import stays draft; complete reviewed material becomes public.
+- Migration: status -> dry-run -> optional import as review-required drafts.
+- Management panels: media, migration, settings.
+- Mobile CMS sidebar: closed -> open -> selection.
+
+VIEWPORTS
+- 1600x900 desktop.
+- 1024x768 tablet landscape.
+- 768x1024 tablet portrait.
+- 390x844 smartphone.
+- 320x720 minimum smartphone.
+
+VISUAL CHECKS
+- Above-the-fold public view shows identity, primary message, nearest service, and primary actions.
+- Long Russian titles wrap without clipping.
+- Required visible regions are not obscured by sticky header or dialogs.
+- Cards, tables/cards, footer, and forms remain legible at every viewport.
+- Dialog focus and layering are correct.
+- No broken images, accidental overlap, weak contrast, or horizontal scroll.
+
+EXPLORATORY / OFF-HAPPY-PATH
+- Empty note names at step 2 must block progression and focus the field.
+- Search nonsense query must show a useful empty state.
+- Rapid route switching while mobile menu is open must leave menu closed.
+- Very long content title in CMS preview must wrap without overflowing.
+- Gallery year with fewer items must preserve balanced layout.
+- Missing CSRF token must block mutation; stale version must return a conflict instead of overwriting work.
+- Re-running the same legacy import must create zero duplicates.
+- Search must find an item beyond the first 100 gallery records and never hide the total count.
+- Invalid login must keep the CMS locked and explain the error.
+- Reviewing an imported gallery must preserve every photo object and create a new revision.
+- Imported text cleanup must remove legacy boilerplate while preserving the gallery and publication metadata.
+- Hash-based redirects must serve the SPA root without a redirect loop in a fresh browser context.

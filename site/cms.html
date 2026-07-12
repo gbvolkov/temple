@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <meta name="theme-color" content="#173a3a">
+  <title>Редактор сайта — CMS</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="cms.css">
+</head>
+<body class="cms-body">
+  <a class="skip-link" href="#editor">К редактору</a>
+  <header class="cms-topbar">
+    <a class="cms-logo" href="index.html#/" aria-label="На сайт"><span>✣</span><strong>Редактор сайта</strong></a>
+    <div class="cms-topbar__center"><span class="status-dot"></span><span data-save-status>Проверяем подключение к CMS…</span></div>
+    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="index.html#/" target="_blank">Открыть сайт ↗</a><button class="button button--primary button--compact" type="button" data-publish-open>Опубликовать</button></div>
+  </header>
+  <div class="cms-shell">
+    <aside class="cms-sidebar" aria-label="Типы материалов">
+      <button class="cms-sidebar__new" type="button" data-create-current><span>＋</span> Новый материал</button>
+      <nav>
+        <div class="cms-sidebar__label">Содержание</div>
+        <button class="cms-type" type="button" data-content-type="home_feature"><span>★</span> Главное</button>
+        <button class="cms-type is-active" type="button" data-content-type="news"><span>▤</span> Новости и анонсы</button>
+        <button class="cms-type" type="button" data-content-type="service"><span>◷</span> Богослужения</button>
+        <button class="cms-type" type="button" data-content-type="gallery"><span>▦</span> Фотоальбомы</button>
+        <button class="cms-type" type="button" data-content-type="leaflet"><span>▧</span> Выпуски листка</button>
+        <button class="cms-type" type="button" data-content-type="section"><span>◇</span> Направления прихода</button>
+        <button class="cms-type" type="button" data-content-type="page"><span>≡</span> Страницы</button>
+        <button class="cms-type" type="button" data-content-type="clergy"><span>✣</span> Духовенство</button>
+        <button class="cms-type" type="button" data-content-type="video"><span>▶</span> Видео и трансляции</button>
+        <button class="cms-type" type="button" data-content-type="contact"><span>⌖</span> Контакты и соцсети</button>
+      </nav>
+      <nav>
+        <div class="cms-sidebar__label">Управление</div>
+        <button class="cms-type" type="button" data-panel="media"><span>◫</span> Медиатека</button>
+        <button class="cms-type" type="button" data-panel="migration"><span>⇄</span> Миграция</button>
+        <button class="cms-type" type="button" data-panel="settings"><span>⚙</span> Настройки</button>
+      </nav>
+      <div class="cms-user"><div class="cms-user__avatar">Р</div><div><strong>Редактор</strong><small>Контент и публикации</small></div></div>
+    </aside>
+    <main class="cms-main" id="editor">
+      <div class="cms-mobile-head"><button class="cms-mobile-menu" type="button" data-cms-menu>☰</button><strong data-mobile-title>Новости и анонсы</strong></div>
+      <section class="editor-pane" data-editor-pane>
+        <div class="content-picker" data-content-picker hidden><label>Найти материал<input type="search" data-content-search placeholder="Название или старый URL" autocomplete="off"></label><label>Открыть существующий материал<select data-content-select><option value="">Новый материал</option></select></label><label class="review-filter"><input type="checkbox" data-review-only> Только требующие проверки</label><span data-content-count></span></div>
+        <div class="editor-head"><div><div class="eyebrow">Новый материал</div><h1 data-editor-title>Новая новость</h1><p data-editor-help>Заполните понятные поля — технические настройки CMS скрыты.</p></div><div class="editor-head__status"><span>Черновик</span></div></div>
+        <form class="editor-form" data-editor-form autocomplete="off"></form>
+      </section>
+      <aside class="preview-pane" data-preview-pane>
+        <div class="preview-head"><div><strong>Предпросмотр</strong><small>Обновляется автоматически</small></div><div class="preview-switch" role="group" aria-label="Размер предпросмотра"><button class="is-active" type="button" data-preview-size="desktop" aria-label="Предпросмотр на ПК">ПК</button><button type="button" data-preview-size="mobile" aria-label="Предпросмотр на смартфоне">Телефон</button></div></div>
+        <div class="preview-stage"><article class="content-preview" data-content-preview></article></div>
+      </aside>
+      <section class="cms-panel" data-cms-panel hidden></section>
+    </main>
+  </div>
+  <dialog class="modal publish-dialog" data-publish-dialog aria-labelledby="publish-title">
+    <div class="modal__surface"><button class="modal__close" type="button" aria-label="Закрыть" data-publish-close>×</button><div class="eyebrow">Проверка перед публикацией</div><h2 id="publish-title">Материал готов?</h2><div class="publish-checklist"><label><input type="checkbox" checked> Заголовок и дата проверены</label><label><input type="checkbox" checked> Предпросмотр на ПК просмотрен</label><label><input type="checkbox" checked> Предпросмотр на смартфоне просмотрен</label><label><input type="checkbox"> Alt-текст изображения заполнен</label></div><p data-publish-note>Материал будет опубликован на новом сайте. Старый MODX при этом не изменяется.</p><div class="form-actions"><button class="button button--ghost" type="button" data-publish-close>Вернуться</button><button class="button button--primary" type="button" data-publish-confirm>Подтвердить публикацию</button></div></div>
+  </dialog>
+  <dialog class="modal login-dialog" data-login-dialog aria-labelledby="login-title">
+    <form class="modal__surface login-form" data-login-form>
+      <div class="eyebrow">Защищённый вход</div><h2 id="login-title">Войти в редактор</h2>
+      <p>Учётная запись редактора новой CMS. Данные старой админ-панели сюда не передаются.</p>
+      <label class="field">Имя пользователя<input name="username" autocomplete="username" required value="admin"></label>
+      <label class="field">Пароль<input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="form-error" data-login-error role="alert"></p>
+      <button class="button button--primary" type="submit">Войти</button>
+      <small class="login-hint">Локальный режим разработки: admin / temple-demo</small>
+    </form>
+  </dialog>
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+  <script src="cms.js"></script>
+</body>
+</html>

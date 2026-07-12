@@ -1,0 +1,2189 @@
+[
+  {
+    "path": "/o-hrame/istoriya.html",
+    "status": 200,
+    "title": "История | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "История",
+      "ЛЕТОПИСЬ ПРИХОДА"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок История Главная - О храме - История ЛЕТОПИСЬ ПРИХОДА В 1996 году администрация Северного округа г. Москвы выступила с инициативой постройки храма в Бескудникове. Идея возвести храм именно в этом районе Москвы возникла неслучайно. Дело в том, что жители столь многолюдного района, чтобы посетить православный храм и помолиться за Богослужением, вынуждены были ехать довольно далеко от дома. Для многих пожилых верующих это было практически неосуществимой задачей. Кроме того, небольшие соседние храмы в праздничные дни попросту перестали вмещать всех желающих помолиться. Неудивительно, что освящения храма свт. Иннокентия ждали с нетерпением. С самого начала строительства храм решено было освятить в честь святителя Иннокентия, великого подвижника Русской Православной Церкви XIX столетия, посвятившего многие годы православному просвещению народов Си",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/istoriya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/istoriya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/016.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/015.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/014.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/pamyatnyy-krest.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/013.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/012.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/011.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/o-hrame/duhovenstvo.html",
+    "status": 200,
+    "title": "Духовенство | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Духовенство",
+      "Настоятель протоиерей Михаил Дудко",
+      "Иерей Алексий Есипов",
+      "Иерей Глеб Седов",
+      "Иерей Сергий Правдолюбов",
+      "Диакон Павел Николаев",
+      "Чтец Валерий Кулиш"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Духовенство Главная - О храме - Духовенство Настоятель протоиерей Михаил Дудко День ангела - 21 ноября Родился 14 ноября 1961 года в семье православного священника Дмитрия Дудко. Окончил школу в Москве. В 1979 году поступил в Московский горный институт, который закончил в 1984 году по специальности инженер-системотехник. Занимался прикладной математикой и вычислительной техникой. В 1990 году окончил Московскую духовную семинарию и поступил в Московскую духовную академию. Во время обучения в Московских духовных школах возглавлял пресс-группу Московских духовных школ. В 1994 году проходил стажировку в Женевском университете по специальности «Социальная доктрина Церкви». С 1990 года работал в Издательском Отделе РПЦ редактором газеты «Московский Церковный вестник», затем главным редактором той же газеты. После её временного закрытия — координа",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/duhovenstvo.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/duhovenstvo.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/03-duhovenstvo/150x150-DSCF0749-%281411x2000%29.70c.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/03-duhovenstvo/150x150-DSC07114-%282000x1415%291.e68.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/01-istoriya/150x150-dsc01270.tif.1d7.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/150x150-fuji7244.ad0.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/03-duhovenstvo/150x150-DSC021941.460.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/kontent/svyashenniki/150x150-valeriy-kulish.232.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/KONT2.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/o-hrame/nebesnyy-pokrovitel.html",
+    "status": 200,
+    "title": "Небесный покровитель | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Небесный покровитель",
+      "СВЯТИТЕЛЬ ИННОКЕНТИЙ, МИТРОПОЛИТ МОСКОВСКИЙ"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Небесный покровитель Главная - О храме - Небесный покровитель СВЯТИТЕЛЬ ИННОКЕНТИЙ, МИТРОПОЛИТ МОСКОВСКИЙ Дни памяти (по н.ст.): 13 апреля (Блаженная кончина святителя), 23 июня (Собор Сибирских святых), 6 октября (Прославление святителя), 18 октября (Собор Московских святителей) Житие святителя Иннокентия, митрополита Московского. Подробнее... Служба святителю Иннокентию, митрополиту Московскому (с каноном). Подробнее... Тропарь, кондак и молитва святителю Иннокентию, митрополиту Московскому. Подробнее... Миссионерская деятельность Русской Православной Церкви в Америке. Подробнее... (c) Храм святителя Иннокентия, митрополита Московского,в Бескудникове Мы не гарантируем корректную работу сайта в браузерах Internet Explorer 6 и Internet Explorer 7. Обновите, пожалуйста, Ваш браузер до версии Internet Explorer 8 или до более поздней версии. (",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/nebesnyy-pokrovitel.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/nebesnyy-pokrovitel.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/image005(1).jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/Innokenty_Moscow.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/image001.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban4.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/o-hrame/svyatyni-hrama.html",
+    "status": 200,
+    "title": "Святыни храма | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Святыни храма",
+      "СПИСОК ЧУДОТВОРНОЙ ИКОНЫ БОЖИЕЙ МАТЕРИ СИТСКАЯ (КАЗАНСКАЯ) С ЧАСТИЦЕЙ МОЩЕЙ СВЯТИТЕЛЯ ИННОКЕНТИЯ МОСКОВСКОГО",
+      "Частицы мощей свт. Амвросия Медиоланского и свт. Григория Двоеслова, папы Римского",
+      "Частица мощей мученика Назария Медиоланского"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Святыни храма Главная - О храме - Святыни храма СПИСОК ЧУДОТВОРНОЙ ИКОНЫ БОЖИЕЙ МАТЕРИ СИТСКАЯ (КАЗАНСКАЯ) С ЧАСТИЦЕЙ МОЩЕЙ СВЯТИТЕЛЯ ИННОКЕНТИЯ МОСКОВСКОГО 21 июля – день празднования Явления иконы Пресвятой Богородицы во граде Казани – стал для нашего прихода особенным днем, настоящим храмовым праздником. 21 июля 2007 года приход храма свт. Иннокентия торжественно встретил святыню – список чудотворной иконы Божией Матери Ситская (Казанская). Икона с частицей св. мощей святителя Иннокентия Московского была передана в дар нашему храму из Америки потомками святого. В этот знаменательный день духовенство и прихожане храма свт. Иннокентия, возглавляемые настоятелем иереем Михаилом Михайловом, прошли с иконой Божией Матери Ситская крестным ходом вокруг храма с молебным пением Божией Матери. Икона с частицей мощей небесного покровителя нашего хр",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/svyatyni-hrama.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/svyatyni-hrama.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Встреча образа Ситской Казанской иконы Божией Матери",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/ikona4.jpg"
+      },
+      {
+        "alt": "Встреча образа Ситской Казанской иконы Божией Матери",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/ikona1.jpg"
+      },
+      {
+        "alt": "Встреча образа Ситской Казанской иконы Божией Матери",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/ikona2.jpg"
+      },
+      {
+        "alt": "Встреча образа Ситской Казанской иконы Божией Матери",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/ikona3.jpg"
+      },
+      {
+        "alt": "Частицы мощей свт. Амвросия Медиоланского и свт. Григория Двоеслова, папы Римского",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/amvrosiy3.jpg"
+      },
+      {
+        "alt": "Частицы мощей свт. Амвросия Медиоланского и свт. Григория Двоеслова, папы Римского",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/amvrosiy2.jpg"
+      },
+      {
+        "alt": "Частицы мощей свт. Амвросия Медиоланского и свт. Григория Двоеслова, папы Римского",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/amvrosiy1.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/o-hrame/raspisanie-bogosluzheniy.html",
+    "status": 200,
+    "title": "Расписание богослужений | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Расписание богослужений"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Расписание богослужений Главная - О храме - Расписание богослужений Бескудниковский бульвар, дом 1 СТ.МЕТРО ВЕРХНИЕ ЛИХОБОРЫ (СЕВЕРНЫЙ ВЫХОД) Номера телефонов храма: 8 499 480-00-42; 8 499 480-09-89. РАСПИСАНИЕ БОГОСЛУЖЕНИЙ в Патриаршем Подворье храма святителя Иннокентия Московского в Бескудникове на ИЮЛЬ 2026 года http://www.sv-innokenty.ru YouTube <Храм свт.Иннокентия в Бескудникове> тел. 8 (499) 480-00-42 Дата Праздник Время Богослужения 1, ср Мчч. Леонтия, Ипатия и Феодула. Прп. Варлаама Хутынского. Прп. Леонтия. 8:00 Литургия. Общий молебен. 18:00 Вечернее богослужение 2, чт Апостола Иуды, брата Господня. Свт. Иова, патриарха Московского и всея Руси. Свт.Иоанна (Максимовича) 8:00 Литургия. 18:00 Вечерня с акафистом Святителю Николаю 3, пт Сщмч. Мефодия, еп. Патарского. Блгв. кн. Глеба Владимирского (сына св. Андрея Боголюбского). 8:00",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/raspisanie-bogosluzheniy.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/raspisanie-bogosluzheniy.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban4.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/banners/ban5.jpg"
+      },
+      {
+        "alt": "Создание сайта - АБВ сайт",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/black.png"
+      },
+      {
+        "alt": "",
+        "src": "https://mc.yandex.ru/watch/24265213"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/o-hrame/fotogalereya.html",
+    "status": 200,
+    "title": "2014 | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "2014",
+      "Утреня.Молебен на начало 2015 г.(по н.ст.)",
+      "Лития по воинам-афганцам.",
+      "Память свт.Николая, арх.Мир Ликийских, чудотворца. Божественная Литургия (поздняя)",
+      "Память свт.Николая, арх.Мир Ликийских, чудотворца. Божественная Литургия (ранняя)",
+      "Память свт.Николая, арх.Мир Ликийских, чудотворца. Всенощное Бдение.",
+      "Введение во храм Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Божественная Литургия.",
+      "Введение во храм Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Всенощное Бдение.",
+      "Собор Архистратига Михаила и прочих Небесных Сил бесплотных. Божественная Литургия.",
+      "Собор Архистратига Михаила и прочих Небесных Сил бесплотных. Всенощное Бдение.",
+      "Празднование в честь Казанской иконы Божией Матери. Божественная Литургия.",
+      "Празднование в честь Казанской иконы Божией Матери. Всенощное Бдение.",
+      "Дмитриевская родительская суббота. Божественная Литургия. Панихида.",
+      "Утреня с парастасом.",
+      "Покров Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Божественная Литургия. Молебен о всех православных христианах во узах темничных пребывающих.",
+      "Покров Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Всенощное Бдение.",
+      "Прославление свт.Иннокентия, митр.Московского(1977). Престольный праздник. Божественная Литургия. Служение архиепископа Марка.",
+      "Прославление свт.Иннокентия, митр.Московского(1977). Престольный праздник. Всенощное Бдение",
+      "Воздвижение Честного и Животворящего Креста Господня. Божественная Литургия..",
+      "Воздвижение Честного и Животворящего Креста Господня. Всенощное Бдение.",
+      "Рождество Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Божественная Литургия.",
+      "Рождество Пресвятой Владычицы нашей Богородицы и Приснодевы Марии.Всенощное Бдение.",
+      "Усекновение главы Пророка, Предтечи и Крестителя Господня Иоанна. Божественная Литургия.",
+      "Утреня с чином Погребения Божией Матери.",
+      "Молебен о начале учебного года.",
+      "Успение Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Божественная Литургия.",
+      "Успение Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Всенощное Бдение с выносом Плащаницы.",
+      "Преображение Господа Бога и Спаса нашего Иисуса Христа. Всенощное Бдение. Божественная Литургия.",
+      "Происхождение (изнесение) Честных Древ Животворящего Креста Господня. Вечерня. Утреня с выносом Креста. Божественная Литургия. Водосвятный молебен. Освящение мёда.",
+      "Память прп. Германа Аляскинского (1837). Всенощное Бдение. Божественная Литургия. Лития.",
+      "Память пророка Илии (IX в. до Р.Х.). Всенощное Бдение. Божественная Литургия",
+      "Память равноап.вел.кн. Владимира. Божественная Литургия.",
+      "Память равноап.вел.кн. Владимира. Всенощное Бдение.",
+      "Память равноап. Ольги, вел.княгини Российской. Божественная Литургия. Лития.",
+      "Явление иконы Пресвятой Богородицы во граде Казани (1579). Божественная Литургия",
+      "Явление иконы Пресвятой Богородицы во граде Казани (1579). Всенощное Бдение.",
+      "Обретение честных мощей прп.Сергия, игумена Радонежского. Божественная Литургия.",
+      "Обретение честных мощей прп.Сергия, игумена Радонежского. Всенощное Бдение.",
+      "Память страстотерпцев царя Николая II, царицы Александры, царевича Алексия, вел.княжен Ольги, Татианы, Марии и Анастасии. Божественная Литургия, молебен, лития.",
+      "Память славных и всехвальных первоверховных апостолов Петра и Павла. Божественная Литургия.",
+      "Память славных и всехвальных первоверховных апостолов Петра и Павла. Всенощное Бдение.",
+      "Память блгвв. кнн. Петра и Февронии, Муромских чудотворцев. Божественная Литургия.",
+      "Память блгвв. кнн. Петра и Февронии, Муромских чудотворцев. Вечерня. Утреня.",
+      "Рождество честного славного Пророка, Предтечи и Крестителя Господня Иоанна. Божественная Литургия. Лития.",
+      "Лития о упокоении приснопамятного протоиерея Димитрия Дудко.",
+      "Всех святых, в земле Российской Просиявших.Божественная Литургия",
+      "День Святой Троицы.Пятидесятница.Божественная Литургия.Великая вечерня с чтением коленопреклонных молитв.",
+      "День Святой Троицы.Пятидесятница.Всенощное бдение.",
+      "Троицкая родительская суббота.Божественная Литургия.Панихида.",
+      "Вечерня.Утреня с парастасом.",
+      "Вознесение Господне.Божественная Литургия.",
+      "Вознесение Господне.Всенощное Бдение.",
+      "Перенесение мощей святителя и чудотворца Николая из Мир Ликийских в Бари(1087).Божественная Литургия.",
+      "Перенесение мощей святителя и чудотворца Николая из Мир Ликийских в Бари(1087).Всенощное Бдение.",
+      "Молебен Божией Матери перед иконой её Неупиваемая Чаша.",
+      "Благодарственный молебен и лития.",
+      "Радоница.Поминовение усопших",
+      "Светлая седмица.Божественная Литургия.Водосвятный молебен.Крестный ход.",
+      "Светлое Христово Воскресение.ПАСХА",
+      "Освящение куличей.",
+      "Великая Пятница.Вечерня с выносом плащаницы",
+      "Великий Четверг.Утреня с чтением 12-ти Страстных Евангелий.",
+      "Вход Господень в Иерусалим.Память свт.Иннокентия.Божественная Литургия.",
+      "Вход Господень в Иерусалим.Всенощное Бдение.",
+      "Благовещение Пресвятой Богородицы.Божественная Литургия.",
+      "Благовещение Пресвятой Богородицы.Всенощное Бдение.",
+      "Соборование.",
+      "Утреня с чтением Акафиста Божией Матери.",
+      "Литургия Преждеосвященных Даров.Служение архиепископа Марка",
+      "Утреня с чтением Великого канона прп.Андрея Критского",
+      "Пассия",
+      "Соборование.",
+      "Пассия",
+      "Неделя 3-я Великого Поста. Крестопоклонная. Божественная Литургия.",
+      "Всенощное Бдение с выносом Креста.",
+      "Литургия Преждеосвященных Даров.",
+      "Пассия",
+      "Панихида",
+      "Соборование.",
+      "Неделя 1-я Великого Поста. Торжество Православия. Божественная Литургия.",
+      "Великое Повечерие с чтением канона прп.Андрея Критского",
+      "Прощеное воскресенье. Чин прощения",
+      "Парастас",
+      "Лития по воинам-афганцам у Поклонного Креста",
+      "Сретение Господне. Божественная Литургия",
+      "Панихида по воинам-афганцам у Поклонного Креста",
+      "Святое Богоявление. Литургия и Чин великого освящения воды",
+      "Рождество Христово. Божественная Литургия",
+      "Рождество Христово. Всенощное Бдение"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок 2014 Главная - О храме - Фотогалерея - 2014 2013 2014 2015 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025 31 декабря Утреня.Молебен на начало 2015 г.(по н.ст.) Подробнее... 25 декабря Лития по воинам-афганцам. Подробнее... 19 декабря Память свт.Николая, арх.Мир Ликийских, чудотворца. Божественная Литургия (поздняя) Подробнее... 19 декабря Память свт.Николая, арх.Мир Ликийских, чудотворца. Божественная Литургия (ранняя) Подробнее... 18 декабря Память свт.Николая, арх.Мир Ликийских, чудотворца. Всенощное Бдение. Подробнее... 04 декабря Введение во храм Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Божественная Литургия. Подробнее... 03 декабря Введение во храм Пресвятой Владычицы нашей Богородицы и Приснодевы Марии. Всенощное Бдение. Подробнее... 21 ноября Собор Архистратига Михаила и прочих Небесных Сил бесплотных. Божественная",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/fotogalereya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/fotogalereya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/90.utrena-moleben-na-nachalo-2015/150x150-DSC05944.ae0.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/89.litija-po-voinam-afgancam/150x150-DSC05893.254.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/88.svt-nikolaya-liturgia-pozdnaya/150x150-DSC05809.d33.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/87.svt-nikolaya-lityrgia-rannaya/150x150-DSC05643.976.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/86.svt.nikolaya-bdenie/150x150-DSC05488.e4f.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/85.vvedenie-vo-hram-liturgia/150x150-DSC05183.34f.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/o-hrame/assets/cache/images/fotogallery/2014/84.vvedenie-vo-hram-bdenie/150x150-DSC04981.001.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/zhivoe-slovo/prihodskoy-listok.html",
+    "status": 200,
+    "title": "Приходской листок | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Приходской листок"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Приходской листок Главная - Приходской листок 2026 № 148 Май - Июль 2026№ 147 Апрель 2026№ 146 Январь 20262025 № 145 Август - Сентябрь 2025№ 144 Июнь - Июль 2025№ 143 Апрель - Май 20252024 № 142 Май - Июнь 2024№ 141 Март - Апрель 2024№ 140 Январь - Февраль 20242023 № 139 Ноябрь - Декабрь 2023№ 138 Август - Сентябрь 2023№ 137 Июнь - Июль 2023№ 136 Апрелт - Май 2023№ 135 Март Апрель 2023№ 134 Январь Февраль 20232022 № 133 Приложение№ 133 Ноябрь - Декабрь 2022№ 132 Сентябрь - Октябрь 2022№ 131 Июль - Август 2022№ 130 Июнь - Июль 2022№ 129 Апрелт - Май 2022№ 128 Март - Апрель 2022№ 127 Январь - Февраль 20222021 № 126 Ноябрь - Декабрь 2022№ 125 Октябрь 2021№ 124 Июнь - Июль 2021№ 123 Май - Июнь 2021№ 122 Март - Апрель 2021№ 121 Январь 20212020 № 120 Ноябрь - Декабрь№ 119 Октябрь№ 118 Июль 2020№ 117 Апрель - Май 2020№ 116 Март - Апрель 2020№ 115 ",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/prihodskoy-listok.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/prihodskoy-listok.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2026/150x150-148.6f7.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2026/150x150-147.4cd.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2026/150x150-146.72a.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2025/150x150-145.820.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2025/150x150-144.122.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2025/150x150-143.00e.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/cache/images/listok/2024/150x150-142.50f.jpg"
+      }
+    ],
+    "documents": [
+      {
+        "text": "№ 148 Май - Июль 2026",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2026/%D0%B8%D0%BB-148-%D0%BC%D0%B0%D0%B9-%D0%B8%D1%8E%D0%BD%D1%8C-2026-web.pdf"
+      },
+      {
+        "text": "№ 147 Апрель 2026",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2026/%E2%84%96-147-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-2026-web.pdf"
+      },
+      {
+        "text": "№ 146 Январь 2026",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2026/2026_01-%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8C-146-web.pdf"
+      },
+      {
+        "text": "№ 145 Август - Сентябрь 2025",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2025/145-%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82-%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8C-2025-web.pdf"
+      },
+      {
+        "text": "№ 144 Июнь - Июль 2025",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2025/%E2%84%96-144-2-2025.pdf"
+      },
+      {
+        "text": "№ 143 Апрель - Май 2025",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2025/%D0%B8%D0%BB-143-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-%D0%BC%D0%B0%D0%B9-2025.pdf"
+      },
+      {
+        "text": "№ 142 Май - Июнь 2024",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2024/%D0%B8%D0%BB-%E2%84%96-142-web-2.pdf"
+      },
+      {
+        "text": "№ 141 Март - Апрель 2024",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2024/%E2%84%96-141-%D0%BC%D0%B0%D1%80%D1%82-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-2024-web.pdf"
+      },
+      {
+        "text": "№ 140 Январь - Февраль 2024",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2024/%D0%B8%D0%BB-%E2%84%96-140-web.pdf"
+      },
+      {
+        "text": "№ 139 Ноябрь - Декабрь 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%D0%B8%D0%BB-%E2%84%96-139-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-%D0%B4%D0%B5%D0%BA%D0%B0%D0%B1%D1%80%D1%8C.pdf"
+      },
+      {
+        "text": "№ 138 Август - Сентябрь 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%E2%84%96-138.web.pdf"
+      },
+      {
+        "text": "№ 137 Июнь - Июль 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%E2%84%96-137-%D0%B8%D1%8E%D0%BD%D1%8C_%D0%B8%D1%8E%D0%BB%D1%8C-2023-web.pdf"
+      },
+      {
+        "text": "№ 136 Апрелт - Май 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%E2%84%96-136-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-%D0%BC%D0%B0%D0%B9-2023-web.pdf"
+      },
+      {
+        "text": "№ 135 Март Апрель 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%E2%84%96-135-web.pdf"
+      },
+      {
+        "text": "№ 134 Январь Февраль 2023",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2023/%E2%84%96-134-web.pdf"
+      },
+      {
+        "text": "№ 133 Приложение",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5.pdf"
+      },
+      {
+        "text": "№ 133 Ноябрь - Декабрь 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-133-web.pdf"
+      },
+      {
+        "text": "№ 132 Сентябрь - Октябрь 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-132-web.pdf"
+      },
+      {
+        "text": "№ 131 Июль - Август 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-131-web.pdf"
+      },
+      {
+        "text": "№ 130 Июнь - Июль 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-130-web.pdf"
+      },
+      {
+        "text": "№ 129 Апрелт - Май 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-129-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-%D0%BC%D0%B0%D0%B9-2022.pdf"
+      },
+      {
+        "text": "№ 128 Март - Апрель 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-128-web.pdf"
+      },
+      {
+        "text": "№ 127 Январь - Февраль 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2022/%E2%84%96-127_web.pdf"
+      },
+      {
+        "text": "№ 126 Ноябрь - Декабрь 2022",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/126.pdf-web.pdf"
+      },
+      {
+        "text": "№ 125 Октябрь 2021",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/%E2%84%96-125-09-2021-web.pdf"
+      },
+      {
+        "text": "№ 124 Июнь - Июль 2021",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/2021_07-124.pdf-web.pdf"
+      },
+      {
+        "text": "№ 123 Май - Июнь 2021",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/%E2%84%96-123.pdf"
+      },
+      {
+        "text": "№ 122 Март - Апрель 2021",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/%E2%84%96122-%D0%BC%D0%B0%D1%80%D1%82-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-2021_web.pdf"
+      },
+      {
+        "text": "№ 121 Январь 2021",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2021/121_2021_01.pdf-web.pdf"
+      },
+      {
+        "text": "№ 120 Ноябрь - Декабрь",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/%E2%84%96-120-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-%D0%B4%D0%B5%D0%BA%D0%B0%D0%B1%D1%80%D1%8C-2020_web.pdf"
+      },
+      {
+        "text": "№ 119 Октябрь",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/%E2%84%96-119-%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8C-2020-web.pdf"
+      },
+      {
+        "text": "№ 118 Июль 2020",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/118-%D0%B8%D1%8E%D0%BB%D1%8C-2020.pdf"
+      },
+      {
+        "text": "№ 117 Апрель - Май 2020",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/04_2020_%E2%84%96117.pdf"
+      },
+      {
+        "text": "№ 116 Март - Апрель 2020",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/%E2%84%96-116-%D0%BC%D0%B0%D1%80%D1%82-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-2020-web.pdf"
+      },
+      {
+        "text": "№ 115 Январь Февраль 2020",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2020/%E2%84%96-115-%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8C-%D1%84%D0%B5%D0%B2%D1%80%D0%B0%D0%BB%D1%8C-web.pdf"
+      },
+      {
+        "text": "114 Ноябрь - Декабрь 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/%E2%84%96-114-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-%D0%B4%D0%B5%D0%BA%D0%B0%D0%B1%D1%80%D1%8C-2019-web.pdf"
+      },
+      {
+        "text": "113 Октябрь - Ноябрь 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_10_%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8C-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-%E2%84%96-113-web.pdf"
+      },
+      {
+        "text": "112 Август - Сентябрь 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/%E2%84%96-112-%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82-%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8C-2019-web.pdf"
+      },
+      {
+        "text": "111 Июль - Август 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_07_%E2%84%96-111-%D0%B8%D1%8E%D0%BB%D1%8C-%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82-web.pdf"
+      },
+      {
+        "text": "110 Июнь - Июль 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_6_-%D0%B8%D1%8E%D0%BD%D1%8C-%E2%84%96-110-web.pdf"
+      },
+      {
+        "text": "109 Май - Июнь 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_5_%D0%BC%D0%B0%D0%B9-%D0%B8%D1%8E%D0%BD%D1%8C-%E2%84%96109-web.pdf"
+      },
+      {
+        "text": "108 Март - Апрель 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_%E2%84%96108_%D0%BC%D0%B0%D1%80%D1%82-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C_web.pdf"
+      },
+      {
+        "text": "107 Январь - Февраль 2019",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2019/2019_01_-%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8C_107-web.pdf"
+      },
+      {
+        "text": "106 Ноябрь - Декабрь 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/106-2018-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-%D0%B4%D0%B5%D0%BA%D0%B0%D0%B1%D1%80%D1%8C-106-web.pdf"
+      },
+      {
+        "text": "105 Сентябрь - Октябрь 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/2018_09-%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8C-%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8C-105-web.pdf"
+      },
+      {
+        "text": "104 Июль - Август 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/104-%D0%B8%D1%8E%D0%BB%D1%8C-%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82-2018-web.pdf"
+      },
+      {
+        "text": "103 Май - Июль 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/05_2018-%D0%BC%D0%B0%D0%B9-%D0%B8%D1%8E%D0%BD%D1%8C-103-web.pdf"
+      },
+      {
+        "text": "102 Апрель 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/2018-04-%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8C-102-web.pdf"
+      },
+      {
+        "text": "101 Февраль - Март",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/2018_02-%D1%84%D0%B5%D0%B2%D1%80%D0%B0%D0%BB%D1%8C-%D0%BC%D0%B0%D1%80%D1%82-101-web.pdf"
+      },
+      {
+        "text": "100 Январь 2018",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2018/2018_01_%D1%8F%D0%BD%D0%B2%D0%B0%D1%80%D1%8C-100-web.pdf"
+      },
+      {
+        "text": "92 ЯНВАРЬ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/2017-01-yanvar-92.pdf"
+      },
+      {
+        "text": "93 ФЕВРАЛЬ - МАРТ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/2017_02_fevral-mart-93-web.pdf"
+      },
+      {
+        "text": "94 АПРЕЛЬ - МАЙ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/il__94-aprel-may-2017-web.pdf"
+      },
+      {
+        "text": "95 ИЮНЬ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/95-iun-iul-2017-web1.pdf"
+      },
+      {
+        "text": "96 ИЮЛЬ АВГУСТ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/2017-%D0%B8%D1%8E%D0%BB%D1%8C-%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82-96-web-1.pdf"
+      },
+      {
+        "text": "97 СЕНТЯБРЬ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/2017_09-%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8C-97-web.pdf"
+      },
+      {
+        "text": "98 ОКТЯБРЬ НОЯБРЬ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/98-2017-%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8C-%D0%BD%D0%BE%D1%8F%D0%B1%D1%80%D1%8C-98web2.pdf"
+      },
+      {
+        "text": "99 ДЕКАБРЬ 2017",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2017/2017_12_%D0%B4%D0%B5%D0%BA%D0%B0%D0%B1%D1%80%D1%8C_99_web.pdf"
+      },
+      {
+        "text": "85 НОЯБРЬ 2015-ЯНВАРЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/01-Noyabr-Yanvar-2016--(85)-web.pdf"
+      },
+      {
+        "text": "86 ФЕВРАЛЬ - АПРЕЛЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/02-fevral-aprel-2016-86-web.pdf"
+      },
+      {
+        "text": "87 МАЙ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/05-2015-aprel-87-web.pdf"
+      },
+      {
+        "text": "88 ИЮНЬ - ИЮЛЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/06-2015-iun-iul-88-web.pdf"
+      },
+      {
+        "text": "89 АВГУСТ - СЕНТЯБРЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/2016-08-avgust-sentyabr-89-web.pdf"
+      },
+      {
+        "text": "90 ОКТЯБРЬ - НОЯБРЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/2016-oktyabr-noyabr-90-web.pdf"
+      },
+      {
+        "text": "91 ДЕКАБРЬ 2016",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2016/2016-dekabr-91-web.pdf"
+      },
+      {
+        "text": "79 ЯНВАРЬ 2015",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-yanvar-79.pdf"
+      },
+      {
+        "text": "80 ФЕВРАЛЬ-МАРТ",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-fevral-mart-80-web.pdf"
+      },
+      {
+        "text": "81 АПРЕЛЬ 2015",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-aprel-81-web.pdf"
+      },
+      {
+        "text": "82 МАЙ-ИЮЛЬ 2015",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-may-iun-82-a4.pdf"
+      },
+      {
+        "text": "83 ИЮЛЬ-АВГУСТ 2015",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-iul-avgust-83-web.pdf"
+      },
+      {
+        "text": "84 СЕНТЯБРЬ-ОКТЯБРЬ 2015",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2015/2015-sentyabr-oktyabr-84-web.pdf"
+      },
+      {
+        "text": "70 ЯНВАРЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-Yanvar-2014-(70)-web.pdf"
+      },
+      {
+        "text": "71 ФЕВРАЛЬ-МАРТ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-Fevral-mart-2014-(71)-web(2).pdf"
+      },
+      {
+        "text": "72 АПРЕЛЬ МАЙ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-aprel-may-72.pdf"
+      },
+      {
+        "text": "73 ИЮНЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-iun-73-web.pdf"
+      },
+      {
+        "text": "74 ИЮЛЬ-АВГУСТ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-iul-74.pdf"
+      },
+      {
+        "text": "75 СЕНТЯБРЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-sentyabr-75.pdf"
+      },
+      {
+        "text": "76 ОКТЯБРЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-oktyabr-76.pdf"
+      },
+      {
+        "text": "77 НОЯБРЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-noyabr-771.pdf"
+      },
+      {
+        "text": "78 ДЕКАБРЬ 2014",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2014/2014-12-dekabr-78.pdf"
+      },
+      {
+        "text": "62 ЯНВАРЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.01-(62)-web.pdf"
+      },
+      {
+        "text": "63 ФЕВРАЛЬ-МАРТ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.02-03-(63)-web.pdf"
+      },
+      {
+        "text": "64 АПРЕЛЬ-МАЙ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.04-05-(64)-web.pdf"
+      },
+      {
+        "text": "65 ИЮНЬ-ИЮЛЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.06-07-(65)-web.pdf"
+      },
+      {
+        "text": "66 АВГУСТ-СЕНТЯБРЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.08-09-(66)-web.pdf"
+      },
+      {
+        "text": "67 ОКТЯБРЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.10-(67)-web.pdf"
+      },
+      {
+        "text": "68 НОЯБРЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.11-(68)-web.pdf"
+      },
+      {
+        "text": "69 ДЕКАБРЬ 2013",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2013/2013.12-(69)-web.pdf"
+      },
+      {
+        "text": "55 ЯНВАРЬ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-yanvar-55-web-2.pdf"
+      },
+      {
+        "text": "56 ФЕВРАЛЬ МАРТ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-fevral-mart-56-web.pdf"
+      },
+      {
+        "text": "СТРАСТНАЯ СЕДМИЦА",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-strastnaya-nedelya-570-web.pdf"
+      },
+      {
+        "text": "57 АПРЕЛЬ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-aprel-57-web.pdf"
+      },
+      {
+        "text": "58 МАЙ ИЮНЬ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-may-iun-58-web.pdf"
+      },
+      {
+        "text": "59 ИЮЛЬ АВГУСТ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-iul-avgust-59-web.pdf"
+      },
+      {
+        "text": "60 СЕНТЯБРЬ ОКТЯБРЬ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-sentyabr-oktyabr-60-web.pdf"
+      },
+      {
+        "text": "61 НОЯБРЬ 2012",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2012/2012-noyabr-61-web.pdf"
+      },
+      {
+        "text": "48 ЯНВАРЬ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-yanvar-48-web.pdf"
+      },
+      {
+        "text": "49 ФЕВРАЛЬ МАРТ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-fevral-mart-49-web.pdf"
+      },
+      {
+        "text": "СТРАСТНАЯ СЕДМИЦА 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-aprel-500-strastnaya-sedmica-web.pdf"
+      },
+      {
+        "text": "50 АПРЕЛЬ МАЙ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-aprel-may-50-web.pdf"
+      },
+      {
+        "text": "51 ИЮНЬ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-iun-51-web.pdf"
+      },
+      {
+        "text": "52 ИЮЛЬ АВГУСТ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-iul-avgust-52-web.pdf"
+      },
+      {
+        "text": "53 СЕНТЯБРЬ ОКТЯБРЬ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-sentyabr-oktyabr-53-web.pdf"
+      },
+      {
+        "text": "54 НОЯБРЬ ДЕКАБРЬ 2011",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2011/2011-noyabr-dekabr-54-web.pdf"
+      },
+      {
+        "text": "39 ЯНВАРЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-yanvar-39-web.pdf"
+      },
+      {
+        "text": "40 ФЕВРАЛЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-fevral-40-web.pdf"
+      },
+      {
+        "text": "41 МАРТ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-mart-41-web.pdf"
+      },
+      {
+        "text": "42 АПРЕЛЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-aprel-42-web.pdf"
+      },
+      {
+        "text": "43 МАЙ - ИЮНЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-may-iun-43-web.pdf"
+      },
+      {
+        "text": "44 ИЮЛЬ-АВГУСТ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-ilu-avgust-44-web.pdf"
+      },
+      {
+        "text": "45 СЕНТЯБРЬ-ОКТЯБРЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-sentyabr-oktyabr-45-web.pdf"
+      },
+      {
+        "text": "46 НОЯБРЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-noyabr-46-web.pdf"
+      },
+      {
+        "text": "47 ДЕКАБРЬ 2010",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2010/2010-yaekabr-47-web.pdf"
+      },
+      {
+        "text": "29 ЯНВАРЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-yanvar-29-web.pdf"
+      },
+      {
+        "text": "30 ФЕВРАЛЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-fevral-30-web.pdf"
+      },
+      {
+        "text": "31 МАРТ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-mart-31-web.pdf"
+      },
+      {
+        "text": "Страстная Седмица 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-aprel-prilozhenie-k-32-web.pdf"
+      },
+      {
+        "text": "32 АПРЕЛЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-aprel-32-web.pdf"
+      },
+      {
+        "text": "33 МАЙ ИЮНЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-may-iun-33-web.pdf"
+      },
+      {
+        "text": "34 ИЮЛЬ АВГУСТ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-iul-avgust-34-web.pdf"
+      },
+      {
+        "text": "35 СЕНТЯБРЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-centyabr-35-web.pdf"
+      },
+      {
+        "text": "36 ОКТЯБРЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-oktyabr-36-web.pdf"
+      },
+      {
+        "text": "37 НОЯБРЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-noyabr-37-web.pdf"
+      },
+      {
+        "text": "38 ДЕКАБРЬ 2009",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2009/2009-dekabr-38-web.pdf"
+      },
+      {
+        "text": "19 ЯНВАРЬ",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-yanvar-19-web.pdf"
+      },
+      {
+        "text": "20 ФЕВРАЛЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-fevral-20-web.pdf"
+      },
+      {
+        "text": "21 МАРТ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-mart-21-web.pdf"
+      },
+      {
+        "text": "22 АПРЕЛЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-aprel-22-web.pdf"
+      },
+      {
+        "text": "23 МАЙ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-may-23-web.pdf"
+      },
+      {
+        "text": "24 ИЮНЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-iun-24-web.pdf"
+      },
+      {
+        "text": "25 ИЮЛЬ АВГУСТ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-iul-avgust-25-web.pdf"
+      },
+      {
+        "text": "26 СЕНТЯБРЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-sentyabr-26-web.pdf"
+      },
+      {
+        "text": "27 ОКТЯБРЬ НОЯБРЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-oktyabr-noyabr-27-web.pdf"
+      },
+      {
+        "text": "28 ДЕКАБРЬ 2008",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2008/2008-dekabr-28-web.pdf"
+      },
+      {
+        "text": "7 ЯНВАРЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-yanvar-7-web.pdf"
+      },
+      {
+        "text": "8 ФЕВРАЛЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-fevral-8-web.pdf"
+      },
+      {
+        "text": "9 МАРТ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-mart-9-web.pdf"
+      },
+      {
+        "text": "10 АПРЕЛЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-aprel-10-web.pdf"
+      },
+      {
+        "text": "11 МАЙ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-may-11-web.pdf"
+      },
+      {
+        "text": "12 ИЮНЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-iun-12-web.pdf"
+      },
+      {
+        "text": "13 ИЮЛЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-iul-13-web.pdf"
+      },
+      {
+        "text": "14 АВГУСТ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-avgust-14-web.pdf"
+      },
+      {
+        "text": "15 СЕНТЯБРЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-sentyabr-15-web.pdf"
+      },
+      {
+        "text": "16 ОКТЯБРЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-oktyabr-16-web.pdf"
+      },
+      {
+        "text": "17 НОЯБРЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-noyabr-17-web.pdf"
+      },
+      {
+        "text": "18 ДЕКАБРЬ 2007",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2007/2007-dekabr-18-web.pdf"
+      },
+      {
+        "text": "1 ИЮЛЬ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-iul-1-web.pdf"
+      },
+      {
+        "text": "2 АВГУСТ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-avgust-2-web.pdf"
+      },
+      {
+        "text": "3 СЕНТЯБРЬ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-sentyabr-3-web.pdf"
+      },
+      {
+        "text": "4 ОКТЯБРЬ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-oktyabr-4-web.pdf"
+      },
+      {
+        "text": "5 НОЯБРЬ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-noyabr-5-web.pdf"
+      },
+      {
+        "text": "6 ДЕКАБРЬ 2006",
+        "href": "https://www.sv-innokenty.ru/zhivoe-slovo/assets/files/list/2006/2006-dekabr-6-web.pdf"
+      }
+    ],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/voskresnaya-shkola/obshhaya-informaciya.html",
+    "status": 200,
+    "title": "Общая информация | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Общая информация",
+      "ВОСКРЕСНАЯ ШКОЛА ХРАМА СВТ. ИННОКЕНТИЯ МИТРОПОЛИТА МОСКОВСКОГО В БЕСКУДНИКОВЕ"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Общая информация Главная - Воскресная школа - Общая информация ВОСКРЕСНАЯ ШКОЛА ХРАМА СВТ. ИННОКЕНТИЯ МИТРОПОЛИТА МОСКОВСКОГО В БЕСКУДНИКОВЕ ссылка для просмотра на youtube ПОЗДРАВЛЕНИЕ С РОЖДЕСТВОМ ХРИСТОВЫМ 2021г. https://youtu.be/Y39Nu8XIk1M ССЫЛКА ДЛЯ ПРОСМОТРА ВИДЕОПРЕЗЕНТАЦИИ О ВОСКРЕСНОЙ ШКОЛЕ Воскресная школа слайд 4_0.mp4 (169228200) ССЫЛКА НА САЙТ ОЩЕСТВЕННОЙ МЕТОДИЧЕСКОЙ СЛУЖБЫ СЕВЕРНОГО ВИКАРИАТСТВА www.opksao.ru Директор Воскресной школы Кулиш Валерий Викторович 8 926 842 84 02 В начале 2007 года, как только позволили обстоятельства строящегося храма, по благословению настоятеля, иерей Николай Фатеев подобрал преподавательский состав, после чего стала формироваться группа учащихся. 18 февраля 2007 года состоялось первое занятие Воскресной школы храма свт. Иннокентия. С этого дня учителя школы начали преподавание детям основ пра",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/obshhaya-informaciya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/obshhaya-informaciya.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/%D1%84%D0%BE%D1%82%D0%BE%D0%B3%D0%B0%D0%BB%D0%B5%D1%80%D0%B5%D1%8F-2022/40.%D1%83%D1%87%D0%B5%D0%B1.%D0%B3%D0%BE%D0%B4/photo_2022-09-03_14-23-19.jpg"
+      },
+      {
+        "alt": "Директор Воскресной школы Елена Есипова и священник Алексий Есипов. Урок Закона Божия",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/DSC06912.TIF-(2000x1290).jpg"
+      },
+      {
+        "alt": "Урок пения для детей. Преподаватель Седова Наталья Александровна",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/obshhee/DSC06952.TIF-(2000x1786).jpg"
+      },
+      {
+        "alt": "Урок рисования. Преподаватель Васильева Светлана Юрьевна",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/obshhee/DSC06909.TIF-(1430x2000).jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/DSC06832.TIF-(2000x1414).jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/obshhee/DSC06128.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/16-voskresnaya-shkola/obshhee/IMG_2154.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/voskresnaya-shkola/zhizn.html",
+    "status": 200,
+    "title": "Фотогалерея | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Фотогалерея",
+      "23 февраля 2025 - Праздник Масленицы в Воскресной школе.",
+      "23 февраля 2025 - День Защитника Отечества у малышей Воскресной школы.",
+      "12 января 2025 В Воскресной школе прошел Праздник Рождества Христова.",
+      "29 декабря 2024 Воскресная школа готовится к Рождественским праздникам",
+      "24 ноября в Воскресной школе прошел праздничный концерт ко Дню Матери.",
+      "15.05.2023",
+      "12.05..2023",
+      "30.04.2023",
+      "23.04.2023.Пасхальный праздник",
+      "9.04.2023",
+      "26.03.2023",
+      "19.03.2023.У нас в гостях музей \"Огни Москвы\"",
+      "19.03.2023",
+      "17.03.2023",
+      "12.03.2023"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Фотогалерея Главная - Воскресная школа - Фотогалерея 01 января 23 февраля 2025 - Праздник Масленицы в Воскресной школе. Подробнее... 01 января 23 февраля 2025 - День Защитника Отечества у малышей Воскресной школы. Подробнее... 01 января 12 января 2025 В Воскресной школе прошел Праздник Рождества Христова. Подробнее... 01 января 29 декабря 2024 Воскресная школа готовится к Рождественским праздникам Подробнее... 01 января 24 ноября в Воскресной школе прошел праздничный концерт ко Дню Матери. Подробнее... 15 мая 15.05.2023 Подробнее... 12 мая 12.05..2023 Подробнее... 01 января 30.04.2023 Подробнее... 23 апреля 23.04.2023.Пасхальный праздник Подробнее... 09 апреля 9.04.2023 Подробнее... 01 января 26.03.2023 Подробнее... 27 марта 19.03.2023.У нас в гостях музей \"Огни Москвы\" Подробнее... 27 марта 19.03.2023 Подробнее... 27 марта 17.03.2023 Подро",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/zhizn.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/zhizn.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/16-voskresnaya-shkola/2025/3_Maslenizcha/150x150-photo_2025-02-24_21-37-23-2.e2f.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/16-voskresnaya-shkola/2025/2_23,02/150x150-photo_2025-02-24_21-33-00.7f3.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/16-voskresnaya-shkola/2025/1_prazdnik%20Rozhdestva/150x150-photo_2025-01-12_19-50-04.2a6.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/16-voskresnaya-shkola/2024/29,12/150x150-photo_2025-01-05_21-45-47.c96.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/16-voskresnaya-shkola/2024/24,11%20den%20materi/150x150-photo_2024-11-25_20-03-13-2.81a.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/fotoalbomy-vsh/2023/36/150x150-photo_2023-05-16_14-02-44.e55.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/cache/images/fotoalbomy-vsh/2023/35/150x150-photo_2023-05-16_14-00-50.072.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/voskresnaya-shkola/raspisanie-zanyatiy.html",
+    "status": 200,
+    "title": "Расписание занятий | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Расписание занятий"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Расписание занятий Главная - Воскресная школа - Расписание занятий Расписание занятий и кружков Воскресной школы на 2025-26 уч.гг. Запись- в личные сообщения +7 965 392-02-25 Елена Алексеевна. СУББОТА Хор ВШ(практика) 8-40 ( или к началу Литургии в 8-00, если Причащаетесь) Исполняем: \"Символ Веры\", \"Отче Наш\", \"Тело Христово ( во время Причастия)\", Ектении простительные( после \"Отче Наш\")- участвуют все желающие дети и родители. ВОСКРЕСЕНЬЕ Воскресная школа Младшая группа (Елена Алексеевна) 10-15-11-00 (1-4 года) 11-00-11-40 ОБЕД Средняя группа (Елена Алексеевна) (в том числе хор ВШ + блок-флейты с 12-45 до 13-30) 11-40-13-30 (5-9 лет) Старшая группа (Валентина Петровна) 12-20-13-30 (10+ лет) ВОСКРЕСЕНЬЕ Кружки Хор 11-30-12-15 (Мария Анатольевна) (Возраст- любой, идёт набор групп) Театральная студия (Анна Юрьевна) Младшая группа 13-30-14-30",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/raspisanie-zanyatiy.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/raspisanie-zanyatiy.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/banners/ban4.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/banners/ban5.jpg"
+      },
+      {
+        "alt": "Создание сайта - АБВ сайт",
+        "src": "https://www.sv-innokenty.ru/voskresnaya-shkola/assets/images/black.png"
+      },
+      {
+        "alt": "",
+        "src": "https://mc.yandex.ru/watch/24265213"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/zhizn-prihoda/molodezhnoe-dvizhenie.html",
+    "status": 200,
+    "title": "Молодежное движение | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Молодежное движение",
+      "Новый ресурс",
+      "Молодёжный клуб нашего храма отметил вторую годовщину возникновения движения",
+      "Молодёжная организация при нашем храме возобновила свою регулярную деятельность",
+      "Молодежный клуб совершил выездную экскурсию «Русское село»",
+      "21 февраля 2016.Состоялся музыкальный вечер.",
+      "28 февраля 2016. Паломничество в Троице-Сергиеву Лавру.",
+      "4-8 марта 2016. Молодёжный трудовой выезд",
+      "Выезд в село Рашкино",
+      "Сбор подарков",
+      "8 мая молодёжное движение нашего храма приняло участие в пасхальных концертах.",
+      "15 мая.В гостях у храма Серафима саровского.",
+      "С 6 по 14 августа состоялся ежегодный молодёжный трудовой сбор",
+      "Молодёжное движение снова в сборе! 4 сентября возобновились встречи молодёжи при нашем храме.",
+      "Очередная встреча молодёжи.",
+      "Был отслужен молебен на возобновление деятельности молодёжного движения после летнего периода.."
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Молодежное движение Главная - Жизнь прихода - Молодежное движение В нашем приходе активно работает молодежное движение.Ребята регулярно собираются по воскресеньям после поздней литургии в кабинете редакции газеты \"Православная Москва\". На встречах за дружеским чаепитием обсуждаются актуальные проблемы современной молодежи, проходит подготовка к праздникам, широко отмечаются дни рождения участников, и, конечно, практически ни одно дело не обходится без песен. Одним из направлений нашего молодежного движения является помощь сельским приходам, раз в 1-2 месяца проходят выезды в Тверскую область, собираются подарки для детей Воскресной школы Владимирской области, летом готовится молодежный сбор-лагерь. Также молодежь принимает участие в межвикариатских мероприятиях, активно взаимодействует с другими молодежными движениями (например, с приходом ",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/molodezhnoe-dvizhenie.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/molodezhnoe-dvizhenie.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/02-novosti-i-anonsy/uXaur4X56Ek.jpg"
+      },
+      {
+        "alt": "Молодежный клуб храма свт. Иннокентия Московского в Бескудникове",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/10-molodezhnyy-klub/5XSwNDCsj0E.jpg"
+      },
+      {
+        "alt": "Молодежный клуб храма свт. Иннокентия Московского в Бескудникове",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/10-molodezhnyy-klub/1225_900.jpg"
+      },
+      {
+        "alt": "Молодежный клуб храма свт. Иннокентия Московского в Бескудникове",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/10-molodezhnyy-klub/1770_900.jpg"
+      },
+      {
+        "alt": "Молодежный клуб храма свт. Иннокентия Московского в Бескудникове",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/10-molodezhnyy-klub/2409_900.jpg"
+      },
+      {
+        "alt": "Молодежный клуб храма свт. Иннокентия Московского в Бескудникове",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/10-molodezhnyy-klub/1392_900.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/10-molodezhnyy-klub/2goda/150x150-DSC04556.TIF-%281280x906%29.2af.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru:8541/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/zhizn-prihoda/palomnichestvo.html",
+    "status": 200,
+    "title": "Паломническая служба | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Паломническая служба",
+      "2 и 3 октября состоялась паломническая поездка в Дивеево-Муром",
+      "21-22 марта 2021 состоялась паломническая поездка в Клыково-Шамордино - Оптина пустынь",
+      "9 февраля 2020 состоялась паломническая поездка в Кресто-Воздвиженский Иерусалимский монастырь.",
+      "22 декабря 2019 состоялась паломническая поездка по маршруту Хотьково-Гефсиманский Черниговский скит- Троице-Сергиева Лавра.",
+      "17 ноября 2019 состоялась паломническая поездка в Николо-Берлюковский мужской монастырь.",
+      "12 октября 2019 состоялась паломническая поездка в Дивеево-Муром.",
+      "19 мая 2019 состоялась паломническая поездка в Переславль-Залесский, Годеново.",
+      "16-17 марта 2019 состоялась паломническая поездка по маршруту Клыково-Оптина Пустынь-Шамордино",
+      "2-3 февраля 2019 состоялась паломническая поездка в Нило-Столбенскую пустынь и Богородицкий Житейный монастырь.",
+      "2 декабря 2018 состоялась паломническая поездка в г.Серпухов.",
+      "30 сентября 2018 состоялась паломническая поездка в Ново-Иерусалимский монастырь.",
+      "27 мая 2018 состоялась паломническая поездка в Свято-Пафнутий Боровский монастырь.",
+      "14-15 апреля 2018 состоялась 2-х дневная паломническая поездка по святым местам г.Костромы.",
+      "24 февраля 2018 состоялась паломническая поездка от нашего храма по маршруту Клыково,Спаса Нерукотворного Пустынь-Оптина Пустынь-Шамордино.",
+      "24 декабря 2017 состоялась паломническая поездка в Покровский Хотьков ставропигиальный женский монастырь и в Троице Сергиеву Лавру.",
+      "Покровский Хотьков ставропигиальный женский монастырь – это одна из древнейших монашеских обителей на Руси."
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Паломническая служба Главная - Жизнь прихода - Паломническая служба Предлагаем вашему вниманию увлекательные рассказы о паломничествах по святым местам России и зарубежья. Объявления о предстоящих поездках смотрите в разделе \"Анонсы\". Контактная информация: Елена 8-916-178-93-83 2 и 3 октября состоялась паломническая поездка в Дивеево-Муром Подробнее... 21-22 марта 2021 состоялась паломническая поездка в Клыково-Шамордино - Оптина пустынь Подробнее... 9 февраля 2020 состоялась паломническая поездка в Кресто-Воздвиженский Иерусалимский монастырь. Подробнее... 22 декабря 2019 состоялась паломническая поездка по маршруту Хотьково-Гефсиманский Черниговский скит- Троице-Сергиева Лавра. Подробнее... 17 ноября 2019 состоялась паломническая поездка в Николо-Берлюковский мужской монастырь. Подробнее... 12 октября 2019 состоялась паломническая поездк",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/palomnichestvo.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/palomnichestvo.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-2021/10.%D0%B4%D0%B8%D0%B2%D0%B5%D0%B5%D0%B2%D0%BE-%D0%BC%D1%83%D1%80%D0%BE%D0%BC/150x150-ytmil1antle.c79.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-2021/5.%D0%BF%D0%B0%D0%BB%D0%BE%D0%BC-%D0%BF%D0%BE%D0%B5%D0%B7%D0%B4%D0%BA%D0%B0/150x150-ieipt1q80nw.fe5.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-2020/8.%D0%BF%D0%B0%D0%BB%D0%BE%D0%BC-%D0%BF%D0%BE%D0%B5%D0%B7%D0%B4%D0%BA%D0%B0/150x150-eiscgw8aa1o.1c0.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/08-palomnichestvo/22.12.19/150x150-k0pldkwkhzk.279.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/08-palomnichestvo/17.11.2019/150x150-1v8yjjvla3e%281%29.c40.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/08-palomnichestvo/05-06.10.19/150x150-2jd6pszifum.0d2.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/08-palomnichestvo/19-%D0%BC%D0%B0%D1%8F-2019/150x150-cf2xqsyaaoy.47d.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/zhizn-prihoda/socialnaya-sluzhba.html",
+    "status": 200,
+    "title": "Социальная служба | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Социальная служба",
+      "О социальной деятельности храма святителя Иннокентия, митрополита Московского в Бескудникове",
+      "27 ноября. Семейный праздник \"Мама дорогая\"",
+      "24 мая.День Славянской письменности.",
+      "В нашем храме прошла акция \"Бесплатный магазин\".",
+      "В нашем храме прошли акции \"Бесплатный магазин\" и \"Скоро в школу\".",
+      "8 ЯНВАРЯ 2020.Итоги акции \"Рождественский подарок\""
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Социальная служба Главная - Жизнь прихода - Социальная служба «Рождественский подарок» Обращаемся к Вам, дорогие братья и сестры, к тем, кто имеет желание и возможность поддержать акцию «Рождественский подарок» для многодетных и малообеспеченных прихожан пожертвованиями в виде: Киндер-сюрпризы, конфеты, шоколадки и др.; Игрушки - елочные и мягкие; Творческие наборы и игры для детей; Денежные средства Все это Вы можете передать через свечной ящик, лавку «Свеча» или прямо в социальную службу в часы приема. Денежные средства можно передать: -через ящик Социальной службы (у западного выхода) -перевести на счет храма с пометкой «Рождественский подарок» в графе «Назначение», Заранее благодарны. Храни Вас Господь! 01 февраля О социальной деятельности храма святителя Иннокентия, митрополита Московского в Бескудникове В нашем храме ведется социальна",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/socialnaya-sluzhba.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/socialnaya-sluzhba.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/07-socialnaya-sluzhba/150x150-800x600-DSC01130-%281280x906%29.88f.381.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/16-voskresnaya-shkola/3.27.11.2016/150x150-dscf0508.tif.42d.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/07-socialnaya-sluzhba/29.11.2015/150x150-dsc06090.tif.505.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-2019/21.%D0%B1%D0%BC/150x150-dsc01611-2000x1321.cf2.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-2019/27.%D0%B1%D0%B5%D1%81%D0%BF%D0%BB%D0%B0%D1%82%D0%BD%D1%8B%D0%B9-%D0%BC%D0%B0%D0%B3%D0%B0%D0%B7%D0%B8%D0%BD/150x150-dsc04373.9b0.jpg"
+      },
+      {
+        "alt": "Подробнее...",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/cache/images/10-molodezhnyy-klub/2020/%D0%BF%D0%BE%D0%B4%D0%B0%D1%80%D0%BA%D0%B8/150x150-5kh9nfocbta.dfd.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/zhizn-prihoda/assets/images/banners/KONT2.jpg"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/прямая-трансляция-богослужений-из-храма.html",
+    "status": 200,
+    "title": "ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Главная - ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ БРАТЬЯ И СЕСТРЫ, ПО УКАЗАННОЙ ССЫЛКЕ ВЫ МОЖЕТЕ СМОТРЕТЬ ПРЯМЫЕ ТРАНСЛЯЦИИ БОГОСЛУЖЕНИЙ ИЗ НАШЕГО ХРАМА https://www.youtube.com/channel/UCZAWBWuzSLA5KcNmEXDM0gA/ Избранные трансляции Акафист Пресвятой Богородице пред иконой ея «Казанская» https://youtu.be/V4hijqTbp_8 Акафист святителю Николаю Чудотворцу https://youtu.be/7SBpW-tHyAg Детский хор Великая Вечерня 09 04 2018г https://youtu.be/ZEIxqLHqee4 Великое освящение воды (иерей Алексей Есипов, 18 января 2021) https://www.youtube.com/watch?v=N2z6j6V2o_M Великое освящение воды (иерей Сергий Правдолюбов, 19 января 2021) https://youtu.be/Kcnh_64eTQk Лития о воинах, погибших в Афганистане, Чечне и других горячих точках (иерей Алексей Есипов, 15 февраля 2021) https://youtu.be/WUOXvraJe1g (c) Храм святителя Иннокентия, митрополита Московско",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/%D0%BF%D1%80%D1%8F%D0%BC%D0%B0%D1%8F-%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BB%D1%8F%D1%86%D0%B8%D1%8F-%D0%B1%D0%BE%D0%B3%D0%BE%D1%81%D0%BB%D1%83%D0%B6%D0%B5%D0%BD%D0%B8%D0%B9-%D0%B8%D0%B7-%D1%85%D1%80%D0%B0%D0%BC%D0%B0.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/%D0%BF%D1%80%D1%8F%D0%BC%D0%B0%D1%8F-%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BB%D1%8F%D1%86%D0%B8%D1%8F-%D0%B1%D0%BE%D0%B3%D0%BE%D1%81%D0%BB%D1%83%D0%B6%D0%B5%D0%BD%D0%B8%D0%B9-%D0%B8%D0%B7-%D1%85%D1%80%D0%B0%D0%BC%D0%B0.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban4.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban5.jpg"
+      },
+      {
+        "alt": "Создание сайта - АБВ сайт",
+        "src": "https://www.sv-innokenty.ru/assets/images/black.png"
+      },
+      {
+        "alt": "",
+        "src": "https://mc.yandex.ru/watch/24265213"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru:8551/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/требы-онлайн.html",
+    "status": 200,
+    "title": "ТРЕБЫ ОНЛАЙН | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "ТРЕБЫ ОНЛАЙН",
+      "Требы переданные до 18-00 исполняются со следующей службы и при карантине"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок ТРЕБЫ ОНЛАЙН Главная - ТРЕБЫ ОНЛАЙН Требы переданные до 18-00 исполняются со следующей службы и при карантине Выберите требу О здравии (90)О упокоении (90)Молебен о здравии (130)Лития о упокоении (130)Панихида (190)1 месяц о здравии (250)1 месяц о упокоении (250)Сорокоуст о здравии (500)Сорокоуст о упокоении (500)1/2 года о здравии (1250)1/2 года о упокоении (1250)1 год о здравии (2500)1 год о упокоении (2500)Свеча (90)Свеча (120)Свеча (150)Свеча (225)Свеча (300)Свеча в алтарь (525)Свеча в алтарь (675)Кагор (1000) Рекомендованное пожертвование: Калькулятор временно не работает, посчитайте самостоятельно, используя значения указанные в колонке справо Реквизиты для перевода пожертвований: В кассу Сбербанка - квитанция здесь Банковский перевод: QR-code здесь Патриаршее Подворье Храма свт. Иннокентия г.Москва, ИНН 7713244210 р/сч. 4070381070002",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban4.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban5.jpg"
+      },
+      {
+        "alt": "Создание сайта - АБВ сайт",
+        "src": "https://www.sv-innokenty.ru/assets/images/black.png"
+      },
+      {
+        "alt": "",
+        "src": "https://mc.yandex.ru/watch/24265213"
+      }
+    ],
+    "documents": [
+      {
+        "text": "квитанция здесь",
+        "href": "http://www.sv-innokenty.ru/assets/files/list/%D0%B1%D0%BB%D0%B0%D0%BD%D0%BA-%D0%BA%D0%B2%D0%B8%D1%82%D0%B0%D0%BD%D1%86%D0%B8%D1%8F-%D0%BF%D0%B4-4709.pdf"
+      },
+      {
+        "text": "QR-code здесь",
+        "href": "http://www.sv-innokenty.ru/assets/files/list/%D0%B1%D0%BB%D0%B0%D0%BD%D0%BA-%D0%BA%D0%B2%D0%B8%D1%82%D0%B0%D0%BD%D1%86%D0%B8%D1%8F1-%D0%BF%D0%B4-4709.pdf"
+      }
+    ],
+    "forms": [
+      {
+        "action": "https://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      },
+      {
+        "action": "https://www.sv-innokenty.ru/",
+        "method": "post",
+        "fields": [
+          {
+            "name": "assigment",
+            "type": "hidden",
+            "placeholder": ""
+          },
+          {
+            "name": "note_type",
+            "type": "select-one",
+            "placeholder": ""
+          },
+          {
+            "name": "saint_name",
+            "type": "text",
+            "placeholder": "Имя святого"
+          },
+          {
+            "name": "note_names",
+            "type": "textarea",
+            "placeholder": "Введите имена (через запятую, до 10 имен.) \nИ никакие другие знаки кроме точки и запятой. \nПри успешном завершении должно появится сообщение \n\n\tЗаписка успешно отправлена.\n\nПри возникновении проблем очистите кэш браузера или используйте другой, в крайнем случае \nтел. +7 926 857-12-26"
+          },
+          {
+            "name": "treb-name[]",
+            "type": "text",
+            "placeholder": "Введите имя"
+          },
+          {
+            "name": "addName",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "removeName",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "candlesCount",
+            "type": "number",
+            "placeholder": "Количество"
+          },
+          {
+            "name": "subCandle",
+            "type": "text",
+            "placeholder": "Можно указать подсвечник (по желанию)"
+          },
+          {
+            "name": "sendTreb",
+            "type": "submit",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/kontakty.html",
+    "status": 200,
+    "title": "Контакты | Храм святителя Иннокентия, митрополита Московского в Бескудникове",
+    "headings": [
+      "Новости",
+      "Приходской листок",
+      "Контакты"
+    ],
+    "text": "О храме История Новости прихода Анонсы Духовенство Небесный покровитель Святыни храма Расписание богослужений Фотогалерея ТРЕБЫ ОНЛАЙН ТРАНСЛЯЦИЯ БОГОСЛУЖЕНИЙ Жизнь прихода Молодежное движение Молодёжный церковный хор Театральный кружок Паломническая служба Социальная служба Рукопашный бой Воскресная школа Общая информация Фотогалерея Расписание занятий <!-- function makemenu() { var ddmx = new DropDownMenuX('swmenu'); ddmx.type = 'horizontal/down'; ddmx.delay.show = 0; ddmx.iframename = 'ddmx'; ddmx.delay.hide = 500; ddmx.effect = 'fade'; ddmx.position.levelX.left = 0; ddmx.position.levelX.top = 0; ddmx.position.level1.left = 0; ddmx.position.level1.top = 0; ddmx.fixIeSelectBoxBug = true; ddmx.autoposition = false; ddmx.init(); } if (typeof window.addEventListener != \"undefined\") window.addEventListener(\"load\", makemenu, false); else if (typeof window.attachEvent != \"undefined\") { window.attachEvent(\"onload\", makemenu); } else { if (window.onload != null) { var oldOnload = window.onload; window.onload = function (e) { oldOnload(e); makemenu() } } else { window.onload = makemenu(); } } //--> <!-- jQuery('#swmenu').parents().css('overflow', 'visible'); jQuery('html').css('overflow', 'auto'); // jQuery('#swmenu').parents().css('z-index', '1'); jQuery('#swmenu').css('z-index', '501'); //--> Новости 06 Апр 2025 6 апреля в преддверии праздника Благовещения в храме открылась фотовыставка, посвященная 100-летию со дня кончины Святейшего Патриарха Тихона.15 Мар 2025 15 марта 2025 г. Поминовение усопших03 Мар 2025 03-07 марта 2025 - 1-я седмица Великого поста! Великий покаянный канон святителя Андрея Критского. Приходской листок Контакты Главная - Контакты Адрес храма: 127474, г. Москва, Бескубниковсуий б-р, д.1. Храм открыт: с понедельника по субботу с 7-00, в воскресные и праздничные дни с 6-00.Подробное расписание богослужений на каждый месяц публикуется в разделе \"РАСПИСАНИЕ БОГОСЛУЖЕНИЙ\" на главной странице храма. Проезд: м.\"Верхние Лихоборы\", (храм - на выходе из северного вестибюля, выход №3), м. «Петровско-Разумовская», авт. №№ 63, 167, 179, 191, ост. «метро Верхние Лихоборы». Телефон: (499) 480-09-89 Электронная почта: svtinnokentiy2025@yandex.ru Религиозная Организация «Подворье Патриарха Московского и всея Руси храма святителя Иннокентия Митрополита Московского в Бескудникове, г. Москвы, Русской Православной Церкви (Московский Патриархат)» 127474, Москва, Дмитровское шоссе, владение 66 ИНН 7713244210 КПП 771301001; ОГРН 1037739524932; р/сч 40703810700020",
+    "images": [
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/templates/sv/images/header.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/kontakty.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/kontakty.html"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/telegram_cvet-d23c11fa.png"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/listok/2026/148.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/KONT2.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban1.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban3.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban4.jpg"
+      },
+      {
+        "alt": "",
+        "src": "https://www.sv-innokenty.ru/assets/images/banners/ban5.jpg"
+      },
+      {
+        "alt": "Создание сайта - АБВ сайт",
+        "src": "https://www.sv-innokenty.ru/assets/images/black.png"
+      },
+      {
+        "alt": "",
+        "src": "https://mc.yandex.ru/watch/24265213"
+      }
+    ],
+    "documents": [],
+    "forms": [
+      {
+        "action": "http://www.sv-innokenty.ru/rezultaty-poiska.html",
+        "method": "post",
+        "fields": [
+          {
+            "name": "search",
+            "type": "text",
+            "placeholder": ""
+          },
+          {
+            "name": "sub",
+            "type": "submit",
+            "placeholder": ""
+          },
+          {
+            "name": "advsearch",
+            "type": "hidden",
+            "placeholder": ""
+          }
+        ]
+      }
+    ]
+  }
+]
