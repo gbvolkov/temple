@@ -115,6 +115,12 @@ def test_accidental_publication_is_reverted_and_other_content_is_untouched(tmp_p
         ).fetchone()[0] is None
         assert other["status"] == "published"
         assert other["version"] == 3
+        assert connection.execute(
+            "SELECT COUNT(*) FROM contents WHERE status='published'"
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM contents WHERE migration_review_required=1"
+        ).fetchone()[0] == 1
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute(
