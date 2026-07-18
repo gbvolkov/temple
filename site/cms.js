@@ -122,13 +122,22 @@ const editorForm = document.querySelector("[data-editor-form]");
 const preview = document.querySelector("[data-content-preview]");
 const panel = document.querySelector("[data-cms-panel]");
 let currentType = "news";
-const apiState = { available: false, csrf: "", user: null, current: null, list: [] };
+const apiState = { available: false, csrf: "", user: null, current: null, list: [], dirty: false };
 const serverTypes = { leaflet: "leaflet_issue", section: "parish_section", contact: "site_contact" };
 const uiTypes = { leaflet_issue: "leaflet", parish_section: "section", site_contact: "contact" };
+const roleLevel = { viewer: 0, editor: 1, publisher: 2, admin: 3 };
+const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
+const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
 
 function serverType(type = currentType) { return serverTypes[type] || type; }
 function escapeCms(value = "") { return String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]); }
 function safeCmsMedia(value = "") { return /^(?:assets\/|\/media\/|https:\/\/)/.test(value) ? escapeCms(value) : ""; }
+function can(role) { return Boolean(apiState.user) && roleLevel[apiState.user.role] >= roleLevel[role]; }
+function formatCmsDate(value, withTime = true) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? String(value) : date.toLocaleString("ru-RU", withTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" });
+}
 
 async function apiRequest(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -236,6 +245,59 @@ function editorValuesFromRecord(record) {
   };
 }
 
+function workflowText(record) {
+  if (!record) return { state: "Новый материал", note: "Сохраните материал, чтобы начать согласование." };
+  const working = `v${record.version}`;
+  const published = record.published_version ? `v${record.published_version}` : "";
+  if (record.is_public && record.has_unpublished_changes) {
+    const action = record.status === "in_review" ? "на проверке" : record.status === "scheduled" ? "запланирована" : "редактируется";
+    return { state: `На сайте ${published} · ${action} ${working}`, note: record.scheduled_at ? `Автопубликация: ${formatCmsDate(record.scheduled_at)}.` : "Посетители видят прежнюю опубликованную версию." };
+  }
+  if (record.is_public) return { state: `На сайте ${published}`, note: "Рабочая и опубликованная версии совпадают." };
+  if (record.status === "scheduled") return { state: `Запланирована ${working}`, note: `Автопубликация: ${formatCmsDate(record.scheduled_at)}.` };
+  return { state: `${statusLabels[record.status] || record.status} ${working}`, note: record.status === "archived" || record.status === "trash" ? "Материал скрыт с сайта. После восстановления потребуется новая проверка." : "Материал пока не виден посетителям." };
+}
+
+function workflowButton(label, action, variant = "ghost") {
+  return `<button class="button button--${variant} button--compact" type="button" data-workflow-action="${action}">${label}</button>`;
+}
+
+function renderWorkflow() {
+  const record = apiState.current;
+  const card = document.querySelector("[data-workflow-card]");
+  const state = workflowText(record);
+  card.hidden = !apiState.user;
+  document.querySelector("[data-workflow-state]").textContent = state.state;
+  document.querySelector("[data-workflow-note]").textContent = apiState.dirty ? "Есть несохранённые изменения. Публичные действия временно недоступны." : state.note;
+  document.querySelector(".editor-head__status span").textContent = record ? statusLabels[record.status] || record.status : "Черновик";
+  const actions = [];
+  if (record) actions.push(workflowButton("История", "history"));
+  if (record?.status === "draft" && !record.migration_review_required && can("editor")) actions.push(workflowButton("Отправить на проверку", "submit-review", "primary"));
+  if (record?.status === "in_review" && can("publisher")) {
+    actions.push(workflowButton("Опубликовать", "publish", "primary"));
+    actions.push(workflowButton("Запланировать", "schedule"));
+    actions.push(workflowButton("Вернуть редактору", "return-to-draft"));
+  }
+  if (record?.status === "scheduled" && can("publisher")) actions.push(workflowButton("Отменить расписание", "return-to-draft"));
+  if (record && ["draft", "in_review", "scheduled", "published"].includes(record.status) && can("publisher")) {
+    actions.push(workflowButton("В архив", "archive"));
+    actions.push(workflowButton("В корзину", "trash", "danger"));
+  }
+  if (record?.status === "archived" && can("publisher")) {
+    actions.push(workflowButton("Восстановить", "restore", "primary"));
+    actions.push(workflowButton("В корзину", "trash", "danger"));
+  }
+  if (record?.status === "trash" && can("publisher")) actions.push(workflowButton("Восстановить", "restore", "primary"));
+  if (!can("editor")) actions.push('<span class="read-only-note">Режим просмотра</span>');
+  document.querySelector("[data-workflow-actions]").innerHTML = actions.join("");
+  if (apiState.dirty) document.querySelectorAll('[data-workflow-action]:not([data-workflow-action="history"]):not([data-workflow-action="submit-review"])').forEach(button => { button.disabled = true; });
+
+  const editable = can("editor") && (!record || ["draft", "in_review", "scheduled", "published"].includes(record.status));
+  editorForm.querySelectorAll("input,textarea,select,button[data-demo-upload]").forEach(element => { element.disabled = !editable; });
+  document.querySelectorAll("[data-save-draft]").forEach(button => { button.hidden = !editable; button.disabled = !editable; });
+  document.querySelector("[data-create-current]").disabled = !can("editor");
+}
+
 function fillEditor(record) {
   if (Object.prototype.hasOwnProperty.call(record.data || {}, "body_text")) {
     editorForm.querySelector(".form-footer").insertAdjacentHTML("beforebegin", `<div class="field-card legacy-text-card"><h2>Текст со старого сайта</h2><label class="field">Проверьте и очистите текст<textarea name="legacyBody" rows="14"></textarea><small class="field-help">Удалите старое меню, футер, повторяющиеся заголовки и устаревшие сообщения. Форматирование и переносы строк сохранятся.</small></label></div>`);
@@ -249,15 +311,17 @@ function fillEditor(record) {
   });
   document.querySelector(".editor-head .eyebrow").textContent = "Редактирование материала";
   document.querySelector("[data-editor-title]").textContent = record.title;
-  document.querySelector(".editor-head__status span").textContent = record.status === "published" ? "Опубликован" : record.migration_review_required ? "Нужна проверка" : "Черновик";
   document.querySelector("[data-migration-warning]")?.remove();
   if (record.migration_review_required) {
     const rawLength = (record.data?.body_text || "").length;
     const legacyHref = record.legacy_url?.startsWith("/") ? `https://www.sv-innokenty.ru${record.legacy_url}` : record.legacy_url;
     const legacyLink = legacyHref ? `<a class="text-link" href="${escapeCms(legacyHref)}" target="_blank" rel="noopener">Сравнить со старой страницей ↗</a>` : "";
-    document.querySelector(".editor-head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-migration-warning><strong>Черновик перенесён со старого сайта</strong><span>Сравните материал с исходной страницей, проверьте заголовок, текст и изображения.${rawLength ? ` Исходный снимок сохранён в CMS (${rawLength.toLocaleString("ru-RU")} знаков).` : ""}</span><div class="migration-warning__actions"><button class="button button--primary button--compact" type="button" data-mark-reviewed>Сохранить и отметить проверенным</button>${legacyLink}</div></div>`);
+    const reviewButton = can("editor") ? '<button class="button button--primary button--compact" type="button" data-mark-reviewed>Сохранить и отметить проверенным</button>' : "";
+    document.querySelector(".editor-head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-migration-warning><strong>Черновик перенесён со старого сайта</strong><span>Сравните материал с исходной страницей, проверьте заголовок, текст и изображения.${rawLength ? ` Исходный снимок сохранён в CMS (${rawLength.toLocaleString("ru-RU")} знаков).` : ""}</span><div class="migration-warning__actions">${reviewButton}${legacyLink}</div></div>`);
   }
-  updatePreview();
+  apiState.dirty = false;
+  updatePreview(false);
+  renderWorkflow();
   document.querySelector("[data-save-status]").textContent = record.migration_review_required
     ? "Материал загружен — требуется проверка"
     : "Материал загружен";
@@ -273,7 +337,7 @@ async function loadContentList(type = currentType) {
   const picker = document.querySelector("[data-content-picker]");
   const select = document.querySelector("[data-content-select]");
   picker.hidden = false;
-  select.innerHTML = `<option value="">Новый материал</option>${apiState.list.map(item => `<option value="${escapeCms(item.id)}">${item.status === "published" ? "●" : item.migration_review_required ? "!" : "○"} ${escapeCms(item.title)}</option>`).join("")}`;
+  select.innerHTML = `<option value="">Новый материал</option>${apiState.list.map(item => `<option value="${escapeCms(item.id)}">${item.is_public ? "●" : item.migration_review_required ? "!" : "○"} ${escapeCms(item.title)} · ${escapeCms(statusLabels[item.status] || item.status)} v${item.version}</option>`).join("")}`;
   if (apiState.current) select.value = apiState.current.id;
   document.querySelector("[data-content-count]").textContent = `${apiState.list.length} из ${index.total}`;
 }
@@ -285,14 +349,21 @@ async function saveDraft() {
     toast("Черновик сохранён только в этом браузере");
     return null;
   }
+  if (apiState.current && !apiState.dirty) {
+    toast("Изменений для сохранения нет");
+    return apiState.current;
+  }
   const v = values();
   const data = apiData(v);
   const options = apiState.current
     ? { method: "PUT", body: JSON.stringify({ title: v.title, slug: apiState.current.slug, data, version: apiState.current.version }) }
     : { method: "POST", body: JSON.stringify({ content_type: serverType(), title: v.title, data }) };
   apiState.current = await apiRequest(apiState.current ? `/api/admin/contents/${apiState.current.id}` : "/api/admin/contents", options);
+  apiState.dirty = false;
+  document.querySelector(".editor-head .eyebrow").textContent = "Редактирование материала";
+  document.querySelector("[data-editor-title]").textContent = apiState.current.title;
   document.querySelector("[data-save-status]").textContent = "Черновик сохранён в CMS";
-  document.querySelector(".editor-head__status span").textContent = "Черновик";
+  renderWorkflow();
   await loadContentList();
   toast("Черновик сохранён в новой CMS");
   return apiState.current;
@@ -303,10 +374,11 @@ async function publishCurrent() {
     toast("Локальный прототип: публикация не выполнялась");
     return;
   }
-  const saved = await saveDraft();
-  apiState.current = await apiRequest(`/api/admin/contents/${saved.id}/publish`, { method: "POST", body: JSON.stringify({ version: saved.version }) });
+  if (!apiState.current || apiState.current.status !== "in_review") throw new Error("Публикация доступна только после отправки на проверку");
+  if (apiState.dirty) throw new Error("Есть несохранённые изменения. Сохраните их и снова отправьте материал на проверку");
+  apiState.current = await apiRequest(`/api/admin/contents/${apiState.current.id}/publish`, { method: "POST", body: JSON.stringify({ version: apiState.current.version }) });
   document.querySelector("[data-save-status]").textContent = "Материал опубликован";
-  document.querySelector(".editor-head__status span").textContent = "Опубликован";
+  renderWorkflow();
   await loadContentList();
   toast("Материал опубликован на новом сайте");
 }
@@ -316,10 +388,66 @@ async function markCurrentReviewed() {
   const saved = await saveDraft();
   apiState.current = await apiRequest(`/api/admin/contents/${saved.id}/review`, { method: "POST", body: JSON.stringify({ version: saved.version }) });
   document.querySelector("[data-migration-warning]")?.remove();
-  document.querySelector(".editor-head__status span").textContent = "Проверен · черновик";
+  renderWorkflow();
   document.querySelector("[data-save-status]").textContent = "Проверка редактора сохранена";
   await loadContentList();
   toast("Материал отмечен проверенным. Теперь его можно опубликовать.");
+}
+
+async function postWorkflow(action, payload = {}) {
+  if (!apiState.current) throw new Error("Сначала выберите материал");
+  if (apiState.dirty) throw new Error("Сначала сохраните изменения. После сохранения материал вернётся в черновики");
+  apiState.current = await apiRequest(`/api/admin/contents/${apiState.current.id}/${action}`, {
+    method: "POST", body: JSON.stringify({ version: apiState.current.version, ...payload }),
+  });
+  apiState.dirty = false;
+  renderWorkflow();
+  await loadContentList();
+  return apiState.current;
+}
+
+async function submitCurrentForReview() {
+  if (!apiState.current || apiState.dirty) await saveDraft();
+  await postWorkflow("submit-review");
+  document.querySelector("[data-save-status]").textContent = "Материал отправлен на проверку";
+  toast("Материал ожидает решения публикатора");
+}
+
+function openScheduleDialog() {
+  if (apiState.dirty) { toast("Сначала сохраните изменения и повторно отправьте материал на проверку"); return; }
+  const dialog = document.querySelector("[data-schedule-dialog]");
+  const input = dialog.querySelector('input[name="scheduled_at"]');
+  const soon = new Date(Date.now() + 60 * 60 * 1000);
+  soon.setMinutes(Math.ceil(soon.getMinutes() / 5) * 5, 0, 0);
+  input.value = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, "0")}-${String(soon.getDate()).padStart(2, "0")}T${String(soon.getHours()).padStart(2, "0")}:${String(soon.getMinutes()).padStart(2, "0")}`;
+  if (!dialog.open) dialog.showModal();
+}
+
+async function openHistory() {
+  if (!apiState.current) return;
+  const contentId = apiState.current.id;
+  const dialog = document.querySelector("[data-history-dialog]");
+  document.querySelector("[data-revision-list]").innerHTML = '<div class="history-empty">Загружаем версии…</div>';
+  document.querySelector("[data-audit-list]").innerHTML = '<div class="history-empty">Загружаем журнал…</div>';
+  if (!dialog.open) dialog.showModal();
+  const [revisions, audit] = await Promise.all([
+    apiRequest(`/api/admin/contents/${contentId}/revisions?limit=50`),
+    apiRequest(`/api/admin/contents/${contentId}/audit-events?limit=50`),
+  ]);
+  const canRestore = can("editor") && !["archived", "trash"].includes(apiState.current.status);
+  document.querySelector("[data-revision-list]").innerHTML = revisions.items.length ? revisions.items.map(item => `<article class="history-item"><div class="history-item__head"><div><b>Версия ${item.version}</b><p>${escapeCms(formatCmsDate(item.created_at))} · ${escapeCms(item.actor_username || "система")}</p></div>${canRestore && !item.is_current ? `<button class="button button--ghost button--compact" type="button" data-restore-revision="${item.version}">Восстановить</button>` : ""}</div><div class="history-item__badges">${item.is_current ? '<span class="history-badge">Рабочая</span>' : ""}${item.is_published ? '<span class="history-badge">На сайте</span>' : ""}<span class="history-badge">${escapeCms(statusLabels[item.status] || item.status)}</span></div></article>`).join("") : '<div class="history-empty">Ревизий пока нет</div>';
+  document.querySelector("[data-audit-list]").innerHTML = audit.items.length ? audit.items.map(item => `<article class="history-item"><div class="history-item__head"><b>${escapeCms(auditLabels[item.action] || item.action)}</b><span class="history-badge">v${item.content_version}</span></div><p>${escapeCms(formatCmsDate(item.created_at))} · ${escapeCms(item.actor_username || "система")}</p>${item.from_status || item.to_status ? `<div class="history-item__badges"><span class="history-badge">${escapeCms(statusLabels[item.from_status] || item.from_status || "создание")} → ${escapeCms(statusLabels[item.to_status] || item.to_status || "—")}</span></div>` : ""}</article>`).join("") : '<div class="history-empty">Действий пока нет</div>';
+}
+
+async function restoreRevision(version) {
+  if (apiState.dirty) throw new Error("Сохраните или отмените текущие изменения перед восстановлением версии");
+  apiState.current = await apiRequest(`/api/admin/contents/${apiState.current.id}/revisions/${version}/restore`, { method: "POST", body: JSON.stringify({ version: apiState.current.version }) });
+  apiState.dirty = false;
+  renderEditor(uiTypes[apiState.current.content_type] || apiState.current.content_type);
+  fillEditor(apiState.current);
+  await loadContentList();
+  await openHistory();
+  toast(`Версия ${version} скопирована в новый черновик v${apiState.current.version}`);
 }
 
 async function openRecord(id) {
@@ -344,6 +472,7 @@ function applySession(session) {
   document.querySelector(".cms-user small").textContent = session.user.role;
   document.querySelector("[data-save-status]").textContent = "CMS подключена — можно редактировать";
   document.querySelector("[data-publish-note]").textContent = "Материал будет опубликован на новом сайте. Старый MODX при этом не изменяется.";
+  renderWorkflow();
   loadContentList().catch(error => toast(error.message));
 }
 
@@ -383,13 +512,14 @@ function renderEditor(type = currentType) {
   document.querySelector("[data-editor-title]").textContent = def.title;
   document.querySelector("[data-editor-help]").textContent = def.help;
   document.querySelector(".editor-head .eyebrow").textContent = "Новый материал";
-  document.querySelector(".editor-head__status span").textContent = "Черновик";
   document.querySelector("[data-migration-warning]")?.remove();
   document.querySelector("[data-mobile-title]").textContent = def.label;
-  editorForm.innerHTML = `<div class="field-card"><h2>Основная информация</h2><div class="field-row">${def.fields.slice(0,2).map(fieldMarkup).join("")}</div>${def.fields.slice(2,4).map(fieldMarkup).join("")}</div><div class="field-card"><h2>Медиа и публикация</h2>${def.fields.slice(4).map(fieldMarkup).join("")}</div><div class="form-footer"><button class="button button--ghost" type="button" data-save-draft>Сохранить черновик</button><button class="button button--primary" type="button" data-publish-open>Проверить и опубликовать</button></div>`;
+  editorForm.innerHTML = `<div class="field-card"><h2>Основная информация</h2><div class="field-row">${def.fields.slice(0,2).map(fieldMarkup).join("")}</div>${def.fields.slice(2,4).map(fieldMarkup).join("")}</div><div class="field-card"><h2>Медиа и публикация</h2>${def.fields.slice(4).map(fieldMarkup).join("")}</div><div class="form-footer"><span class="field-help">Сохранение создаёт новую рабочую версию только при изменении содержимого.</span><button class="button button--primary" type="button" data-save-draft>Сохранить</button></div>`;
   document.querySelectorAll("[data-content-type]").forEach(button => button.classList.toggle("is-active", button.dataset.contentType === type));
   document.querySelectorAll("[data-panel]").forEach(button => button.classList.remove("is-active"));
-  updatePreview();
+  apiState.dirty = !apiState.current;
+  updatePreview(false);
+  renderWorkflow();
 }
 
 function values() {
@@ -399,13 +529,17 @@ function values() {
   return result;
 }
 
-function updatePreview() {
+function updatePreview(markDirty = true) {
   const v = values();
   const def = typeDefinitions[currentType];
   const image = apiState.current?.migration_review_required && !v.image ? "" : v.image || "assets/temple-history-013.jpg";
   const date = v.date ? new Date(v.date).toLocaleDateString("ru-RU", { day:"numeric", month:"long", year:"numeric" }) : "Черновик";
   preview.innerHTML = `<div class="preview-site-head"><span>✣ Храм святителя Иннокентия</span><span>☰</span></div><div class="preview-site-main"><div class="preview-meta">${escapeCms(v.category || v.serviceType || def.label)} · ${escapeCms(date)}</div>${image ? `<img src="${safeCmsMedia(image)}" alt="">` : ""}<h2>${escapeCms(v.title || def.title)}</h2><p>${escapeCms(v.summary || v.period || "Здесь появится краткое описание материала.")}</p><span class="text-link">Подробнее →</span></div>`;
-  document.querySelector("[data-save-status]").textContent = "Есть несохранённые изменения";
+  if (markDirty) {
+    apiState.dirty = true;
+    document.querySelector("[data-save-status]").textContent = "Есть несохранённые изменения";
+    renderWorkflow();
+  }
 }
 
 function showPanel(name) {
@@ -502,7 +636,6 @@ document.addEventListener("click", async event => {
     catch (error) { toast(error.message); }
     finally { target.disabled = false; }
   }
-  if (target.matches("[data-publish-open]")) document.querySelector("[data-publish-dialog]").showModal();
   if (target.matches("[data-publish-close]")) document.querySelector("[data-publish-dialog]").close();
   if (target.matches("[data-publish-confirm]")) {
     const unchecked = [...document.querySelectorAll("[data-publish-dialog] .publish-checklist input")].some(input => !input.checked);
@@ -510,6 +643,35 @@ document.addEventListener("click", async event => {
     target.disabled = true;
     try { await publishCurrent(); document.querySelector("[data-publish-dialog]").close(); }
     catch (error) { toast(error.message); }
+    finally { target.disabled = false; }
+  }
+  if (target.matches("[data-schedule-close]")) document.querySelector("[data-schedule-dialog]").close();
+  if (target.matches("[data-history-close]")) document.querySelector("[data-history-dialog]").close();
+  if (target.matches("[data-login-close]")) document.querySelector("[data-login-dialog]").close();
+  if (target.dataset.restoreRevision) {
+    target.disabled = true;
+    try { await restoreRevision(Number(target.dataset.restoreRevision)); }
+    catch (error) { toast(error.message); }
+    finally { target.disabled = false; }
+  }
+  if (target.dataset.workflowAction) {
+    const action = target.dataset.workflowAction;
+    target.disabled = true;
+    try {
+      if (action === "history") await openHistory();
+      else if (action === "submit-review") await submitCurrentForReview();
+      else if (action === "publish") {
+        if (apiState.dirty) throw new Error("Сначала сохраните изменения и повторно отправьте материал на проверку");
+        document.querySelector("[data-publish-dialog]").showModal();
+      } else if (action === "schedule") openScheduleDialog();
+      else {
+        if (["archive", "trash"].includes(action) && !window.confirm(action === "archive" ? "Переместить материал в архив и скрыть его с сайта?" : "Переместить материал в корзину и скрыть его с сайта?")) return;
+        await postWorkflow(action);
+        const messages = { "return-to-draft": "Материал возвращён в черновики", archive: "Материал перемещён в архив", trash: "Материал перемещён в корзину", restore: "Материал восстановлен как скрытый черновик" };
+        document.querySelector("[data-save-status]").textContent = messages[action] || "Состояние материала обновлено";
+        toast(messages[action] || "Состояние материала обновлено");
+      }
+    } catch (error) { toast(error.message); }
     finally { target.disabled = false; }
   }
   if (target.matches("[data-demo-upload]")) {
@@ -555,6 +717,21 @@ document.querySelector("[data-login-form]").addEventListener("submit", async eve
     applySession(session);
     document.querySelector("[data-login-dialog]").close();
   } catch (reason) { error.textContent = reason.message; }
+});
+document.querySelector("[data-schedule-form]").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  const value = new FormData(event.currentTarget).get("scheduled_at");
+  submit.disabled = true;
+  try {
+    const date = new Date(String(value));
+    if (Number.isNaN(date.valueOf())) throw new Error("Укажите корректные дату и время");
+    await postWorkflow("schedule", { scheduled_at: date.toISOString() });
+    document.querySelector("[data-schedule-dialog]").close();
+    document.querySelector("[data-save-status]").textContent = `Публикация запланирована: ${formatCmsDate(date)}`;
+    toast("Публикация запланирована");
+  } catch (error) { toast(error.message); }
+  finally { submit.disabled = false; }
 });
 renderEditor();
 initApi();

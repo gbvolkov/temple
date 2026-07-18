@@ -14,7 +14,7 @@
   <header class="cms-topbar">
     <a class="cms-logo" href="index.html#/" aria-label="На сайт"><span>✣</span><strong>Редактор сайта</strong></a>
     <div class="cms-topbar__center"><span class="status-dot"></span><span data-save-status>Проверяем подключение к CMS…</span></div>
-    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="index.html#/" target="_blank">Открыть сайт ↗</a><button class="button button--primary button--compact" type="button" data-publish-open>Опубликовать</button></div>
+    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="index.html#/" target="_blank">Открыть сайт ↗</a><button class="button button--primary button--compact" type="button" data-save-draft>Сохранить</button></div>
   </header>
   <div class="cms-shell">
     <aside class="cms-sidebar" aria-label="Типы материалов">
@@ -45,6 +45,7 @@
       <section class="editor-pane" data-editor-pane>
         <div class="content-picker" data-content-picker hidden><label>Найти материал<input type="search" data-content-search placeholder="Название или старый URL" autocomplete="off"></label><label>Открыть существующий материал<select data-content-select><option value="">Новый материал</option></select></label><label class="review-filter"><input type="checkbox" data-review-only> Только требующие проверки</label><span data-content-count></span></div>
         <div class="editor-head"><div><div class="eyebrow">Новый материал</div><h1 data-editor-title>Новая новость</h1><p data-editor-help>Заполните понятные поля — технические настройки CMS скрыты.</p></div><div class="editor-head__status"><span>Черновик</span></div></div>
+        <section class="workflow-card" data-workflow-card hidden><div><div class="eyebrow">Публикация</div><strong data-workflow-state>Черновик</strong><small data-workflow-note></small></div><div class="workflow-actions" data-workflow-actions></div></section>
         <form class="editor-form" data-editor-form autocomplete="off"></form>
       </section>
       <aside class="preview-pane" data-preview-pane>
@@ -57,14 +58,32 @@
   <dialog class="modal publish-dialog" data-publish-dialog aria-labelledby="publish-title">
     <div class="modal__surface"><button class="modal__close" type="button" aria-label="Закрыть" data-publish-close>×</button><div class="eyebrow">Проверка перед публикацией</div><h2 id="publish-title">Материал готов?</h2><div class="publish-checklist"><label><input type="checkbox" checked> Заголовок и дата проверены</label><label><input type="checkbox" checked> Предпросмотр на ПК просмотрен</label><label><input type="checkbox" checked> Предпросмотр на смартфоне просмотрен</label><label><input type="checkbox"> Alt-текст изображения заполнен</label></div><p data-publish-note>Материал будет опубликован на новом сайте. Старый MODX при этом не изменяется.</p><div class="form-actions"><button class="button button--ghost" type="button" data-publish-close>Вернуться</button><button class="button button--primary" type="button" data-publish-confirm>Подтвердить публикацию</button></div></div>
   </dialog>
+  <dialog class="modal schedule-dialog" data-schedule-dialog aria-labelledby="schedule-title">
+    <form class="modal__surface schedule-form" data-schedule-form>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-schedule-close>×</button>
+      <div class="eyebrow">Отложенная публикация</div><h2 id="schedule-title">Когда опубликовать?</h2>
+      <p>Укажите местные дату и время. CMS преобразует их в UTC. До этого момента посетители продолжат видеть прежнюю опубликованную версию.</p>
+      <label class="field">Дата и время<input type="datetime-local" name="scheduled_at" required></label>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-schedule-close>Отмена</button><button class="button button--primary" type="submit">Запланировать</button></div>
+    </form>
+  </dialog>
+  <dialog class="modal history-dialog" data-history-dialog aria-labelledby="history-title">
+    <div class="modal__surface history-surface">
+      <button class="modal__close" type="button" aria-label="Закрыть" data-history-close>×</button>
+      <div class="eyebrow">История материала</div><h2 id="history-title">Версии и журнал действий</h2>
+      <div class="history-grid"><section><h3>Ревизии</h3><div class="history-list" data-revision-list></div></section><section><h3>Действия</h3><div class="history-list" data-audit-list></div></section></div>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-history-close>Закрыть</button></div>
+    </div>
+  </dialog>
   <dialog class="modal login-dialog" data-login-dialog aria-labelledby="login-title">
     <form class="modal__surface login-form" data-login-form>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-login-close>×</button>
       <div class="eyebrow">Защищённый вход</div><h2 id="login-title">Войти в редактор</h2>
       <p>Учётная запись редактора новой CMS. Данные старой админ-панели сюда не передаются.</p>
       <label class="field">Имя пользователя<input name="username" autocomplete="username" required value="admin"></label>
       <label class="field">Пароль<input name="password" type="password" autocomplete="current-password" required></label>
       <p class="form-error" data-login-error role="alert"></p>
-      <button class="button button--primary" type="submit">Войти</button>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-login-close>Отмена</button><button class="button button--primary" type="submit">Войти</button></div>
       <small class="login-hint">Локальный режим разработки: admin / temple-demo</small>
     </form>
   </dialog>

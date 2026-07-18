@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from .config import Settings
 from .db import init_database, row_to_content, slugify, transaction, utc_now
+from .workflow import record_audit
 
 
 MONTHS = {
@@ -215,7 +216,7 @@ def unique_slug(connection: sqlite3.Connection, desired: str, legacy_url: str) -
     return candidate
 
 
-def upsert_record(connection: sqlite3.Connection, record: dict) -> str:
+def upsert_record(connection: sqlite3.Connection, record: dict, actor_id: str | None = None) -> str:
     now = utc_now()
     old = connection.execute("SELECT * FROM contents WHERE legacy_url = ?", (record["legacy_url"],)).fetchone()
     payload = json.dumps(record["data"], ensure_ascii=False, sort_keys=True)
@@ -234,6 +235,11 @@ def upsert_record(connection: sqlite3.Connection, record: dict) -> str:
             "INSERT INTO revisions(content_id, version, snapshot_json, actor_id, created_at) VALUES(?,?,?,?,?)",
             (old["id"], version, json.dumps(snapshot, ensure_ascii=False), None, now),
         )
+        after = connection.execute("SELECT * FROM contents WHERE id=?", (old["id"],)).fetchone()
+        record_audit(
+            connection, content_id=old["id"], actor_id=actor_id, action="import_update",
+            before=old, after=after, details={"source": "legacy_import"},
+        )
         return "updated"
 
     content_id = str(uuid.uuid4())
@@ -249,10 +255,23 @@ def upsert_record(connection: sqlite3.Connection, record: dict) -> str:
         "INSERT INTO revisions(content_id, version, snapshot_json, actor_id, created_at) VALUES(?,?,?,?,?)",
         (content_id, 1, json.dumps(snapshot, ensure_ascii=False), None, now),
     )
+    after = connection.execute("SELECT * FROM contents WHERE id=?", (content_id,)).fetchone()
+    record_audit(
+        connection, content_id=content_id, actor_id=actor_id, action="import_create",
+        before=None, after=after, details={"source": "legacy_import"},
+    )
     return "imported"
 
 
-def run_import(database: Path, source: Path, *, dry_run: bool = False, media_manifest: Path | None = None, leaflets_only: bool = False) -> dict:
+def run_import(
+    database: Path,
+    source: Path,
+    *,
+    dry_run: bool = False,
+    media_manifest: Path | None = None,
+    leaflets_only: bool = False,
+    actor_id: str | None = None,
+) -> dict:
     sections = json.loads(source.read_text(encoding="utf-8"))
     records, rejected = build_records(sections)
     if leaflets_only:
@@ -283,7 +302,7 @@ def run_import(database: Path, source: Path, *, dry_run: bool = False, media_man
     started_at = utc_now()
     with transaction(database) as connection:
         for record in records:
-            result = upsert_record(connection, record)
+            result = upsert_record(connection, record, actor_id)
             report[result] += 1
             if record["legacy_url"].startswith("/"):
                 connection.execute(

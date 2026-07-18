@@ -226,14 +226,14 @@ def build_full_plan(crawl: dict, mapping: dict[str, str] | None = None, failed_u
     }
 
 
-def execute_plan(database: Path, source: Path, plan: dict) -> dict:
+def execute_plan(database: Path, source: Path, plan: dict, *, actor_id: str | None = None) -> dict:
     init_database(database)
     counters = Counter()
     started = utc_now()
     run_id = str(uuid.uuid4())
     with transaction(database) as connection:
         for record in plan["records"]:
-            counters[upsert_record(connection, record)] += 1
+            counters[upsert_record(connection, record, actor_id)] += 1
             legacy_type = classify_path(record["legacy_url"], 200)
             redirect_target = (
                 spa_redirect_target(record["legacy_url"])

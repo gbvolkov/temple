@@ -62,6 +62,7 @@ class Migration:
     name: str
     apply: Callable[[sqlite3.Connection], str]
     signature: str = ""
+    foreign_keys_off: bool = False
 
     @property
     def checksum(self) -> str:
@@ -153,6 +154,137 @@ def revert_accidental_publication(connection: sqlite3.Connection) -> str:
     return f"target reverted to draft version {next_version}"
 
 
+PUBLICATION_MODEL_SQL = """
+CREATE TABLE contents_v3 (
+  id TEXT PRIMARY KEY,
+  content_type TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  published_slug TEXT,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('draft','in_review','scheduled','published','archived','trash')),
+  data_json TEXT NOT NULL,
+  legacy_id TEXT,
+  legacy_url TEXT UNIQUE,
+  migration_review_required INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  published_version INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  published_at TEXT,
+  scheduled_at TEXT,
+  reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at TEXT,
+  deleted_at TEXT,
+  FOREIGN KEY(id, published_version) REFERENCES revisions(content_id, version),
+  CHECK(published_version IS NULL OR (published_version >= 1 AND published_version <= version)),
+  CHECK(published_version IS NULL OR published_slug IS NOT NULL),
+  CHECK(status <> 'published' OR published_version IS NOT NULL),
+  CHECK((status = 'scheduled' AND scheduled_at IS NOT NULL) OR (status <> 'scheduled' AND scheduled_at IS NULL)),
+  CHECK((status = 'trash' AND deleted_at IS NOT NULL) OR (status <> 'trash' AND deleted_at IS NULL))
+);
+CREATE UNIQUE INDEX idx_contents_published_slug ON contents_v3(published_slug) WHERE published_slug IS NOT NULL;
+CREATE INDEX idx_contents_public ON contents_v3(published_version, content_type, published_at);
+CREATE INDEX idx_contents_status ON contents_v3(status, updated_at);
+CREATE INDEX idx_contents_legacy_id ON contents_v3(legacy_id);
+CREATE TABLE audit_events (
+  id TEXT PRIMARY KEY,
+  content_id TEXT NOT NULL REFERENCES contents(id) ON DELETE CASCADE,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  from_status TEXT,
+  to_status TEXT,
+  content_version INTEGER NOT NULL,
+  published_version INTEGER,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_audit_events_content ON audit_events(content_id, created_at DESC);
+CREATE INDEX idx_audit_events_actor ON audit_events(actor_id, created_at DESC);
+"""
+
+PUBLICATION_REQUIRED_COLUMNS = {
+    "contents": {
+        "id", "content_type", "slug", "published_slug", "title", "status", "data_json",
+        "legacy_id", "legacy_url", "migration_review_required", "version", "published_version",
+        "created_at", "updated_at", "published_at", "scheduled_at", "reviewed_by", "reviewed_at",
+        "deleted_at",
+    },
+    "audit_events": {
+        "id", "content_id", "actor_id", "action", "from_status", "to_status", "content_version",
+        "published_version", "details_json", "created_at",
+    },
+}
+
+
+def validate_publication_schema(connection: sqlite3.Connection) -> None:
+    for table, required in PUBLICATION_REQUIRED_COLUMNS.items():
+        exists = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if not exists:
+            raise MigrationError(f"После миграции модели публикации отсутствует таблица {table}")
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(required - columns)
+        if missing:
+            raise MigrationError(f"Таблица {table} не завершена; отсутствуют поля: {', '.join(missing)}")
+    indexes = {
+        row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")
+    }
+    required_indexes = {
+        "idx_contents_published_slug", "idx_contents_public", "idx_contents_status",
+        "idx_contents_legacy_id", "idx_audit_events_content", "idx_audit_events_actor",
+    }
+    missing_indexes = sorted(required_indexes - indexes)
+    if missing_indexes:
+        raise MigrationError(f"После миграции отсутствуют индексы: {', '.join(missing_indexes)}")
+    broken_pointers = connection.execute(
+        """SELECT COUNT(*) FROM contents c
+           LEFT JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
+           WHERE c.published_version IS NOT NULL AND r.id IS NULL"""
+    ).fetchone()[0]
+    if broken_pointers:
+        raise MigrationError(f"Найдены публикации без ревизии: {broken_pointers}")
+
+
+def apply_publication_model(connection: sqlite3.Connection) -> str:
+    before_count = connection.execute("SELECT COUNT(*) FROM contents").fetchone()[0]
+    published_rows = connection.execute(
+        "SELECT id FROM contents WHERE status='published' ORDER BY id"
+    ).fetchall()
+    for row in published_rows:
+        _snapshot_if_missing(connection, row["id"])
+
+    connection.execute(PUBLICATION_MODEL_SQL.split(";", 1)[0])
+    connection.execute(
+        """INSERT INTO contents_v3(
+             id,content_type,slug,published_slug,title,status,data_json,legacy_id,legacy_url,
+             migration_review_required,version,published_version,created_at,updated_at,published_at,
+             scheduled_at,reviewed_by,reviewed_at,deleted_at
+           )
+           SELECT id,content_type,slug,
+                  CASE WHEN status='published' THEN slug ELSE NULL END,
+                  title,
+                  CASE WHEN status='scheduled' THEN 'draft' ELSE status END,
+                  data_json,legacy_id,legacy_url,migration_review_required,version,
+                  CASE WHEN status='published' THEN version ELSE NULL END,
+                  created_at,updated_at,published_at,NULL,NULL,NULL,NULL
+           FROM contents"""
+    )
+    connection.execute("DROP TABLE contents")
+    connection.execute("ALTER TABLE contents_v3 RENAME TO contents")
+    statements = PUBLICATION_MODEL_SQL.split(";")[1:]
+    for statement in statements:
+        sql = statement.strip()
+        if sql:
+            connection.execute(sql.replace("contents_v3", "contents"))
+
+    after_count = connection.execute("SELECT COUNT(*) FROM contents").fetchone()[0]
+    if after_count != before_count:
+        raise MigrationError(f"Количество материалов изменилось: {before_count} -> {after_count}")
+    validate_publication_schema(connection)
+    return f"publication model created for {after_count} contents; published pointers: {len(published_rows)}"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -166,6 +298,17 @@ MIGRATIONS = (
             "system_actor=NULL",
             inspect.getsource(_snapshot_if_missing),
         )),
+    ),
+    Migration(
+        3,
+        "publication_model_and_audit",
+        apply_publication_model,
+        "\n".join((
+            PUBLICATION_MODEL_SQL,
+            inspect.getsource(validate_publication_schema),
+            inspect.getsource(_snapshot_if_missing),
+        )),
+        foreign_keys_off=True,
     ),
 )
 
@@ -234,6 +377,8 @@ def verify_migrations(path: Path) -> list[dict]:
         connection = _connect_readonly(path)
         try:
             validate_baseline_schema(connection, create_if_empty=False)
+            if any(item.get("version") == 3 and item["state"] == "applied" for item in status):
+                validate_publication_schema(connection)
         finally:
             connection.close()
     return status
@@ -246,13 +391,24 @@ def migrate(path: Path, *, dry_run: bool = False) -> list[dict]:
     connection = _connect(path)
     results: list[dict] = []
     try:
+        applied_before = _applied(connection)
+        known_versions = {migration.version for migration in MIGRATIONS}
+        unknown = sorted(set(applied_before) - known_versions)
+        if unknown:
+            raise MigrationError(f"В БД есть неизвестные версии миграций: {unknown}")
+        for migration in MIGRATIONS:
+            record = applied_before.get(migration.version)
+            if record and record["checksum"] != migration.checksum:
+                raise MigrationError(
+                    f"Checksum применённой миграции {migration.version} {migration.name} изменён"
+                )
+        pending = [migration for migration in MIGRATIONS if migration.version not in applied_before]
+        foreign_keys_off = any(migration.foreign_keys_off for migration in pending)
+        if foreign_keys_off:
+            connection.execute("PRAGMA foreign_keys = OFF")
         connection.execute("BEGIN IMMEDIATE")
         connection.execute(MIGRATION_TABLE_SQL)
         applied = _applied(connection)
-        known_versions = {migration.version for migration in MIGRATIONS}
-        unknown = sorted(set(applied) - known_versions)
-        if unknown:
-            raise MigrationError(f"В БД есть неизвестные версии миграций: {unknown}")
         for migration in MIGRATIONS:
             record = applied.get(migration.version)
             if record:
@@ -269,11 +425,18 @@ def migrate(path: Path, *, dry_run: bool = False) -> list[dict]:
                 (migration.version, migration.name, migration.checksum, applied_at),
             )
             results.append({"version": migration.version, "name": migration.name, "state": "applied", "detail": detail})
+        if foreign_keys_off:
+            foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if foreign_key_errors:
+                raise MigrationError(f"Миграция нарушила внешние ключи: {len(foreign_key_errors)}")
         connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
+        if connection.in_transaction:
+            connection.rollback()
+        connection.execute("PRAGMA foreign_keys = ON")
         connection.close()
     return results
 

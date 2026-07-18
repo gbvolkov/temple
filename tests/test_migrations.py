@@ -27,9 +27,9 @@ def legacy_database(path):
 def test_fresh_database_and_repeat_are_idempotent(tmp_path):
     database = tmp_path / "fresh.sqlite3"
     first = migrate(database)
-    assert [item["state"] for item in first] == ["applied", "applied"]
+    assert [item["state"] for item in first] == ["applied", "applied", "applied"]
     second = migrate(database)
-    assert [item["state"] for item in second] == ["unchanged", "unchanged"]
+    assert [item["state"] for item in second] == ["unchanged", "unchanged", "unchanged"]
     assert all(item["state"] == "applied" for item in migration_status(database))
     verify_migrations(database)
 
@@ -44,7 +44,7 @@ def test_existing_legacy_schema_is_stamped_without_losing_data(tmp_path):
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 2
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 3
 
 
 def test_dry_run_does_not_create_or_change_database(tmp_path):
@@ -52,7 +52,7 @@ def test_dry_run_does_not_create_or_change_database(tmp_path):
     legacy_database(database)
     before = database.read_bytes()
     pending = migrate(database, dry_run=True)
-    assert [item["version"] for item in pending] == [1, 2]
+    assert [item["version"] for item in pending] == [1, 2, 3]
     assert database.read_bytes() == before
     with sqlite3.connect(database) as connection:
         assert connection.execute(
@@ -126,3 +126,35 @@ def test_accidental_publication_is_reverted_and_other_content_is_untouched(tmp_p
         assert connection.execute(
             "SELECT COUNT(*) FROM revisions WHERE content_id=?", (ACCIDENTAL_CONTENT_ID,)
         ).fetchone()[0] == 2
+
+
+def test_publication_model_backfills_existing_publication_and_preserves_foreign_keys(tmp_path):
+    database = tmp_path / "published.sqlite3"
+    legacy_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """INSERT INTO contents(id,content_type,slug,title,status,data_json,legacy_id,legacy_url,
+               migration_review_required,version,created_at,updated_at,published_at)
+               VALUES('clergy','clergy','pavel','Павел Николаев','published','{}',NULL,NULL,0,8,
+               'created','updated','published')"""
+        )
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        connection.row_factory = sqlite3.Row
+        row = connection.execute("SELECT * FROM contents WHERE id='clergy'").fetchone()
+        assert row["status"] == "published"
+        assert row["published_version"] == 8
+        assert row["published_slug"] == "pavel"
+        assert connection.execute(
+            "SELECT COUNT(*) FROM revisions WHERE content_id='clergy' AND version=8"
+        ).fetchone()[0] == 1
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='audit_events'"
+        ).fetchone()[0] == 1
+        connection.execute("PRAGMA foreign_keys=ON")
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute("UPDATE contents SET published_version=7 WHERE id='clergy'")
+        connection.execute(
+            "UPDATE contents SET status='in_review' WHERE id='clergy'"
+        )
