@@ -75,7 +75,10 @@ CURRENT_SHA="$(git rev-parse HEAD)"
 BACKUP_SHA="$(report_value source.git_sha)"
 require_equal "deployment branch" "$(git branch --show-current)" "main"
 require_equal "origin/main SHA" "$(git rev-parse origin/main)" "$CURRENT_SHA"
-require_equal "backup git SHA" "$BACKUP_SHA" "$CURRENT_SHA"
+git merge-base --is-ancestor "$BACKUP_SHA" "$CURRENT_SHA" || {
+  echo "The backup checkout $BACKUP_SHA is not an ancestor of deployment $CURRENT_SHA" >&2
+  exit 1
+}
 require_equal "backup schema version" "$(report_value database.schema_version)" "$EXPECTED_SCHEMA_BEFORE"
 
 BACKUP_EPOCH="$(date -u -d "$(report_value generated_at)" +%s)"
