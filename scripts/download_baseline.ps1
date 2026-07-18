@@ -16,6 +16,7 @@ if (Test-Path -LiteralPath $destination) {
     throw "Destination already exists: $destination"
 }
 
+New-Item -ItemType Directory -Path $LocalRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $destination | Out-Null
 $principal = "$env:USERDOMAIN\$env:USERNAME"
 & icacls $destination /inheritance:r /grant:r "${principal}:(OI)(CI)F" | Out-Null
