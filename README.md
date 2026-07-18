@@ -67,6 +67,50 @@ node --check site/app.js
 node --check site/cms.js
 ```
 
+## Baseline перед изменением схемы
+
+Исходный код до завершения CMS закреплён аннотированным тегом
+`baseline-before-completion-20260718`. Версионированные миграции можно
+проверять без записи в рабочую БД:
+
+```powershell
+uv run python -m server.migrations status --database data/cms.sqlite3
+uv run python -m server.migrations verify --database data/cms.sqlite3
+uv run python -m server.migrations up --dry-run --database data/cms.sqlite3
+```
+
+На production сначала выполняется согласованное резервирование и restore
+drill. Скрипт делает предварительный `rsync`, останавливает только контейнер
+CMS, создаёт SQLite `.backup`, запускает сайт и затем проверяет архив в
+отдельном временном контейнере:
+
+```bash
+cd ~/temple
+bash scripts/production_baseline.sh
+```
+
+После успешного выполнения скрипт печатает `BACKUP_ID`, пути архива и отчёта,
+SHA-256 и длительность остановки. Вторая копия скачивается на Windows вне
+репозитория:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/download_baseline.ps1 `
+  -RemoteHost volkov@cheetan `
+  -BackupId baseline-YYYYMMDDTHHMMSSZ
+```
+
+Содержимое `.env` не печатается и не попадает в git; оно хранится только в
+архиве baseline с правами `600` и в локальном каталоге с ограниченными ACL.
+
+После проверки SHA-256 второй копии на Windows пункт 1 применяется отдельной
+командой. Перед рабочей БД новый образ сначала запускается на восстановленной
+копии архива:
+
+```bash
+cd ~/temple
+bash scripts/production_apply_point1.sh baseline-YYYYMMDDTHHMMSSZ
+```
+
 ## Docker
 
 ```powershell

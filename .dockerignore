@@ -1,0 +1,11 @@
+.git
+.venv
+.pytest_cache
+.uv-cache
+__pycache__
+*.py[cod]
+.env
+data
+work
+baseline-*.tar.gz
+baseline-*.tar.gz.sha256

@@ -123,16 +123,11 @@ function updateHeaderService() {
 }
 
 function homeNewsItems() {
-  const live = state.published.filter(item => item.content_type === "news").slice(0, 3).map(item => ({
+  return state.published.filter(item => item.content_type === "news").slice(0, 3).map(item => ({
     date: item.data?.publication_date ? new Date(item.data.publication_date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) : "Сегодня",
     title: item.title,
     href: `#/news/${encodeURIComponent(item.slug)}`,
   }));
-  return live.length ? live : [
-    { date: "6 апреля 2026", title: "Фотовыставка памяти Святейшего Патриарха Тихона", href: "#/gallery" },
-    { date: "30 марта 2026", title: "Новая встреча молодёжного движения прихода", href: "#/parish" },
-    { date: "22 марта 2026", title: "Занятия воскресной школы перед Пасхой", href: "#/school" },
-  ];
 }
 
 function publishedContact() {
@@ -169,6 +164,9 @@ function renderHome() {
   const featureData = feature.data || {};
   const service = nextServiceSummary();
   const news = homeNewsItems();
+  const newsMarkup = news.length
+    ? news.map(item => `<article><time>${escapeHtml(item.date)}</time><h3><a href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a></h3><a class="text-link" href="${escapeHtml(item.href)}">Подробнее</a></article>`).join("")
+    : `<div class="empty home-news__empty"><h3>Новости готовятся к публикации</h3><p>Проверенные материалы появятся здесь после редакторской приёмки.</p></div>`;
   return `
     <section class="home-hero">
       <img class="home-hero__image" src="${contentImage(featureData.cover || "assets/home-hero.jpg")}" alt="${escapeHtml(featureData.cover_alt || feature.title)}">
@@ -198,7 +196,7 @@ function renderHome() {
       <div class="home-section-head"><div><div class="eyebrow">Дела милосердия</div><h2>Приход помогает тем, кто рядом</h2></div><p>Социальная служба принимает одежду, продукты и школьные принадлежности для семей, которым сейчас необходима поддержка.</p></div>
       <article class="home-story"><img src="assets/parish-social.jpg" alt="Социальная служба прихода"><div class="home-story__copy"><div class="eyebrow">Социальная служба</div><h3>Продолжается сбор помощи многодетным семьям</h3><p>Вещи можно принести по воскресеньям после поздней литургии. Перед поездкой проверьте актуальный список необходимого.</p><a class="text-link" href="#/parish">Что сейчас необходимо</a></div></article>
     </div></section>
-    <section class="home-news"><div class="shell"><div class="home-section-head"><div><div class="eyebrow">Новости и анонсы</div><h2>Жизнь прихода</h2></div><a class="text-link" href="#/parish">Все материалы</a></div><div class="home-news-list">${news.map(item => `<article><time>${escapeHtml(item.date)}</time><h3><a href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a></h3><a class="text-link" href="${escapeHtml(item.href)}">Подробнее</a></article>`).join("")}</div></div></section>
+    <section class="home-news"><div class="shell"><div class="home-section-head"><div><div class="eyebrow">Новости и анонсы</div><h2>Жизнь прихода</h2></div><a class="text-link" href="#/parish">Все материалы</a></div><div class="home-news-list">${newsMarkup}</div></div></section>
     <section class="home-photo-band"><img src="assets/parish-youth.jpg" alt="Молодёжное движение прихода"><div class="home-photo-band__copy"><div class="eyebrow eyebrow--light">Жизнь прихода</div><h2>Храм — это люди</h2><p>Молодёжные встречи, социальное служение, воскресная школа, паломничества и общие праздники.</p><a class="button button--light" href="#/parish">Все направления</a></div></section>
     <section class="home-leaflet"><div class="shell home-leaflet__inner"><img src="assets/leaflet-148.jpg" alt="Обложка Иннокентиевского листка №148"><div><div class="eyebrow">Иннокентиевский листок</div><h2>№ 148 · май — июль 2026</h2><p>Новый выпуск приходского издания и полный PDF-архив с 2006 года.</p><div class="home-leaflet__actions"><a class="button button--primary" href="#/leaflet">Открыть выпуск</a><a class="text-link" href="#/leaflet">Весь архив</a></div></div></div></section>
     <section class="home-contact"><div class="shell home-contact__inner"><div><div class="eyebrow">Контакты</div><h2>Рядом с метро Верхние Лихоборы</h2><p>${escapeHtml(publishedContact().address)}</p></div><div class="home-contact__details"><div><small>Телефон</small><a href="${phoneHref(publishedContact().phone)}">${escapeHtml(publishedContact().phone)}</a></div><div><small>Социальные сети</small>${socialLinksHtml()}</div><a class="button button--primary" href="#/about#contacts">Маршрут и реквизиты</a></div></div></section>`;

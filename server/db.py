@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Iterator
 
 
+# This definition is part of migration 1's checksum. Never edit it after that
+# migration has shipped; extend the database with a new numbered migration.
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
@@ -99,8 +101,11 @@ def connect(path: Path) -> sqlite3.Connection:
 
 
 def init_database(path: Path) -> None:
-    with connect(path) as connection:
-        connection.executescript(SCHEMA)
+    # Imported lazily to avoid a module cycle: migrations need the canonical
+    # schema and row conversion helpers from this module.
+    from .migrations import migrate
+
+    migrate(path)
 
 
 @contextmanager
@@ -135,4 +140,3 @@ def row_to_content(row: sqlite3.Row) -> dict:
     result["data"] = json.loads(result.pop("data_json"))
     result["migration_review_required"] = bool(result["migration_review_required"])
     return result
-
