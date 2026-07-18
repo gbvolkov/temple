@@ -5,12 +5,22 @@ __pycache__/
 .uv-cache/
 work/
 .env
+.env.*
+!.env.example
 baseline-*.tar.gz
 baseline-*.tar.gz.sha256
-data/*.sqlite3-shm
-data/*.sqlite3-wal
-data/legacy-crawl-checkpoint.json
-data/legacy-media-manifest.json
-data/full-import-plan.json
-data/media/legacy/
-data/qa-*.sqlite3*
+
+# Runtime state. Keep the mount point in Git, never its contents.
+/data/*
+!/data/.gitkeep
+
+# Defence in depth for databases, uploads, and local backup copies.
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+/media/
+/uploads/
+/temple-backups/
