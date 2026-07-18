@@ -18,7 +18,7 @@
         "cover": { "type": "image", "required": true, "aspect_ratio": "16:9" },
         "cover_alt": { "type": "string", "required": true },
         "cta_label": { "type": "string", "required": true, "default": "Прочитать", "max_length": 40 },
-        "target_url": { "type": "string", "required": false },
+        "target_url": { "type": "string", "required": false, "help": "Внутренняя ссылка начинается с /, внешняя — с https://" },
         "content_slug": { "type": "relation", "target": "any_publishable", "required": false },
         "starts_at": { "type": "datetime", "required": false },
         "ends_at": { "type": "datetime", "required": false },

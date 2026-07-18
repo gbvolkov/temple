@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir "fastapi>=0.115,<1" "python-multipart>=0.0.20,<1" "uvicorn[standard]>=0.32,<1"
+RUN pip install --no-cache-dir "fastapi>=0.115,<1" "jinja2>=3.1,<4" "python-multipart>=0.0.20,<1" "tzdata>=2025.2" "uvicorn[standard]>=0.32,<1"
 
 COPY server ./server
 COPY site ./site

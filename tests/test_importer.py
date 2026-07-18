@@ -47,7 +47,7 @@ def test_import_is_idempotent_and_creates_redirects(tmp_path):
         assert connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0] == 16
         assert connection.execute("SELECT COUNT(*) FROM contents WHERE status='draft'").fetchone()[0] == 167
         assert connection.execute("SELECT COUNT(*) FROM contents WHERE migration_review_required=1").fetchone()[0] == 167
-        assert connection.execute("SELECT new_path FROM redirects WHERE old_path='/o-hrame/raspisanie-bogosluzheniy.html'").fetchone()[0] == "/#/schedule"
+        assert connection.execute("SELECT new_path FROM redirects WHERE old_path='/o-hrame/raspisanie-bogosluzheniy.html'").fetchone()[0] == "/schedule"
 
 
 def test_reimport_never_overwrites_editor_review(tmp_path):

@@ -27,9 +27,9 @@ def legacy_database(path):
 def test_fresh_database_and_repeat_are_idempotent(tmp_path):
     database = tmp_path / "fresh.sqlite3"
     first = migrate(database)
-    assert [item["state"] for item in first] == ["applied", "applied", "applied"]
+    assert [item["state"] for item in first] == ["applied", "applied", "applied", "applied"]
     second = migrate(database)
-    assert [item["state"] for item in second] == ["unchanged", "unchanged", "unchanged"]
+    assert [item["state"] for item in second] == ["unchanged", "unchanged", "unchanged", "unchanged"]
     assert all(item["state"] == "applied" for item in migration_status(database))
     verify_migrations(database)
 
@@ -44,7 +44,7 @@ def test_existing_legacy_schema_is_stamped_without_losing_data(tmp_path):
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 3
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 4
 
 
 def test_dry_run_does_not_create_or_change_database(tmp_path):
@@ -52,7 +52,7 @@ def test_dry_run_does_not_create_or_change_database(tmp_path):
     legacy_database(database)
     before = database.read_bytes()
     pending = migrate(database, dry_run=True)
-    assert [item["version"] for item in pending] == [1, 2, 3]
+    assert [item["version"] for item in pending] == [1, 2, 3, 4]
     assert database.read_bytes() == before
     with sqlite3.connect(database) as connection:
         assert connection.execute(
@@ -158,3 +158,65 @@ def test_publication_model_backfills_existing_publication_and_preserves_foreign_
         connection.execute(
             "UPDATE contents SET status='in_review' WHERE id='clergy'"
         )
+
+
+def test_clean_url_migration_converts_static_detail_and_year_redirects(tmp_path):
+    database = tmp_path / "redirects.sqlite3"
+    legacy_database(database)
+    with sqlite3.connect(database) as connection:
+        for index, (content_type, slug) in enumerate((
+            ("news", "news-one"),
+            ("gallery", "gallery-one"),
+            ("parish_section", "parish-one"),
+            ("clergy", "clergy-one"),
+            ("page", "page-one"),
+        )):
+            connection.execute(
+                """INSERT INTO contents(id,content_type,slug,title,status,data_json,legacy_id,legacy_url,
+                   migration_review_required,version,created_at,updated_at,published_at)
+                   VALUES(?,?,?,?,?,'{}',NULL,NULL,1,1,'created','updated',NULL)""",
+                (f"content-{index}", content_type, slug, slug, "draft"),
+            )
+            connection.execute(
+                "INSERT INTO redirects(old_path,new_path,status_code,created_at) VALUES(?,?,301,'now')",
+                (f"/legacy/{content_type}-{index}.html", f"/#/content/{slug}"),
+            )
+        for old_path, old_target in (
+            ("/o-hrame/novosti-prihoda.html", "/#/about"),
+            ("/kontakty.html", "/#/about"),
+            ("/o-hrame/duhovenstvo.html", "/#/about"),
+            ("/o-hrame/raspisanie-bogosluzheniy.html", "/#/schedule"),
+            ("/o-hrame/fotogalereya/20241.html", "/#/gallery"),
+        ):
+            connection.execute(
+                "INSERT INTO redirects(old_path,new_path,status_code,created_at) VALUES(?,?,301,'now')",
+                (old_path, old_target),
+            )
+
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        destinations = dict(connection.execute("SELECT old_path,new_path FROM redirects"))
+        assert destinations["/legacy/news-0.html"] == "/news/news-one"
+        assert destinations["/legacy/gallery-1.html"] == "/gallery/gallery-one"
+        assert destinations["/legacy/parish_section-2.html"] == "/parish/parish-one"
+        assert destinations["/legacy/clergy-3.html"] == "/about/clergy/clergy-one"
+        assert destinations["/legacy/page-4.html"] == "/pages/page-one"
+        assert destinations["/o-hrame/novosti-prihoda.html"] == "/news"
+        assert destinations["/kontakty.html"] == "/about#contacts"
+        assert destinations["/o-hrame/duhovenstvo.html"] == "/about#clergy"
+        assert destinations["/o-hrame/raspisanie-bogosluzheniy.html"] == "/schedule"
+        assert destinations["/o-hrame/fotogalereya/20241.html"] == "/gallery?year=2024"
+        assert connection.execute("SELECT COUNT(*) FROM redirects WHERE new_path LIKE '/#/%'").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM contents").fetchone()[0] == 5
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_clean_url_migration_rejects_unknown_hash_index(tmp_path):
+    database = tmp_path / "unknown-redirect.sqlite3"
+    legacy_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO redirects(old_path,new_path,status_code,created_at) VALUES('/unexpected.html','/#/about',301,'now')"
+        )
+    with pytest.raises(MigrationError, match="legacy-URL"):
+        migrate(database)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,21 @@ class Settings:
     bootstrap_user: str
     bootstrap_password: str | None
     session_hours: int = 12
+    public_base_url: str = "https://temple.gbvolkoff.name:8443"
+
+    @staticmethod
+    def normalize_public_base_url(value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("PUBLIC_BASE_URL должен быть абсолютным http/https URL без пути")
+        return normalized
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -42,4 +58,7 @@ class Settings:
             bootstrap_user=os.getenv("CMS_BOOTSTRAP_USER", "admin"),
             bootstrap_password=password,
             session_hours=int(os.getenv("CMS_SESSION_HOURS", "12")),
+            public_base_url=cls.normalize_public_base_url(
+                os.getenv("PUBLIC_BASE_URL", "https://temple.gbvolkoff.name:8443")
+            ),
         )

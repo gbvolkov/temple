@@ -418,3 +418,24 @@ body.is-home .home-hero__content{padding-top:120px;padding-bottom:64px}
   .menu-close-button{min-height:46px;padding:0 16px}
   .menu-open .header-schedule,.menu-open .icon-button{display:none!important}
 }
+
+/* Server-rendered collection and detail pages */
+.empty{grid-column:1/-1;padding:38px;border:1px solid var(--stone);background:var(--paper-2)}
+.empty h3{margin:0 0 10px;font:700 clamp(24px,3vw,34px)/1.12 var(--serif)}
+.empty p{max-width:720px;margin:0;color:var(--ink-500)}
+.album-grid>[data-filter-item]{min-width:0}
+.album-grid>[data-filter-item]>.album-card{height:100%}
+.clergy-card{display:block;color:inherit;text-decoration:none}
+.clergy-card__photo{width:100%;height:280px;margin-bottom:24px;object-fit:cover}
+.media-placeholder{display:grid;min-height:240px;place-items:center;background:var(--ink-900);color:var(--white);font:700 22px/1.2 var(--serif)}
+.article-cover{width:100%;max-height:660px;margin-bottom:28px;object-fit:cover}
+.article-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:30px}
+.article-gallery button{padding:0;border:0;background:transparent;cursor:zoom-in}
+.article-gallery img{width:100%;height:220px;object-fit:cover}
+.search-result small{display:block;margin-top:4px;color:var(--ink-500)}
+
+@media(max-width:760px){
+  .article-gallery{grid-template-columns:1fr 1fr}
+  .article-gallery img{height:160px}
+  .clergy-card__photo{height:320px}
+}

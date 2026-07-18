@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from .config import Settings
 from .db import init_database, row_to_content, slugify, transaction, utc_now
 from .workflow import record_audit
+from .public_urls import legacy_redirect_target
 
 
 MONTHS = {
@@ -39,24 +40,6 @@ def canonical_target(old_path: str) -> str:
     if old_path.endswith(".html"):
         return old_path[:-5].rstrip("/") + "/"
     return old_path
-
-
-def spa_redirect_target(old_path: str) -> str:
-    if "raspisanie-bogosluzheniy" in old_path:
-        return "/#/schedule"
-    if "fotogalereya" in old_path and old_path.startswith("/o-hrame/"):
-        return "/#/gallery"
-    if "prihodskoy-listok" in old_path:
-        return "/#/leaflet"
-    if old_path.startswith("/voskresnaya-shkola/"):
-        return "/#/school"
-    if old_path.startswith("/zhizn-prihoda/"):
-        return "/#/parish"
-    if old_path.startswith("/o-hrame/") or old_path == "/kontakty.html":
-        return "/#/about"
-    if "трансляция" in old_path:
-        return "/#/media"
-    return "/#/"
 
 
 def page_type(path: str) -> str:
@@ -308,7 +291,11 @@ def run_import(
                 connection.execute(
                     "INSERT INTO redirects(old_path,new_path,status_code,created_at) VALUES(?,?,301,?) "
                     "ON CONFLICT(old_path) DO UPDATE SET new_path=excluded.new_path",
-                    (record["legacy_url"], spa_redirect_target(record["legacy_url"]), started_at),
+                    (
+                        record["legacy_url"],
+                        legacy_redirect_target(record["legacy_url"], record["content_type"], record["slug"]),
+                        started_at,
+                    ),
                 )
         connection.execute(
             """INSERT INTO migration_runs(id,source_name,source_fingerprint,status,imported,updated,skipped,errors,

@@ -1,0 +1,16 @@
+{% macro hero(title, description, eyebrow='Храм святителя Иннокентия') -%}
+<section class="inner-hero"><div class="shell inner-hero__grid"><div><div class="eyebrow">{{ eyebrow }}</div><h1>{{ title }}</h1></div><p>{{ description }}</p></div></section>
+{%- endmacro %}
+
+{% macro empty_state(title, description) -%}
+<div class="empty"><h3>{{ title }}</h3><p>{{ description }}</p></div>
+{%- endmacro %}
+
+{% macro album_card(item) -%}
+<a class="album-card" href="{{ item.url }}">
+  <div class="album-card__media">
+    {% if item.cover %}<img src="{{ item.cover }}" alt="{{ item.cover_alt }}">{% else %}<span class="media-placeholder" aria-hidden="true">✣</span>{% endif %}
+  </div>
+  <div class="album-card__body">{% if item.date %}<div class="meta">{{ item.date }}</div>{% endif %}<h3>{{ item.title }}</h3>{% if item.summary %}<p>{{ item.summary }}</p>{% endif %}</div>
+</a>
+{%- endmacro %}

@@ -12,6 +12,15 @@ from typing import Callable
 
 from .config import Settings
 from .db import SCHEMA, row_to_content
+from .public_urls import (
+    DETAIL_PREFIXES,
+    LEGACY_INDEX_PATHS,
+    STATIC_HASH_TARGETS,
+    clean_hash_target,
+    content_path,
+    is_legacy_index,
+    legacy_index_target,
+)
 
 
 MIGRATION_TABLE_SQL = """
@@ -285,6 +294,63 @@ def apply_publication_model(connection: sqlite3.Connection) -> str:
     return f"publication model created for {after_count} contents; published pointers: {len(published_rows)}"
 
 
+def validate_clean_redirects(connection: sqlite3.Connection) -> None:
+    rows = connection.execute(
+        "SELECT old_path,new_path,status_code FROM redirects ORDER BY old_path"
+    ).fetchall()
+    hash_targets = [row["old_path"] for row in rows if row["new_path"].startswith("/#/")]
+    if hash_targets:
+        raise MigrationError(f"Остались hash-редиректы: {len(hash_targets)}")
+    invalid_statuses = [row["old_path"] for row in rows if row["status_code"] != 301]
+    if invalid_statuses:
+        raise MigrationError(f"Найдены legacy-редиректы не со статусом 301: {len(invalid_statuses)}")
+    old_paths = {row["old_path"] for row in rows}
+    chains = []
+    for row in rows:
+        target_path = row["new_path"].split("#", 1)[0].split("?", 1)[0]
+        # The historical root row is never dispatched by middleware and is
+        # retained solely to keep the imported row count stable.
+        if row["old_path"] != "/" and target_path != "/" and target_path in old_paths:
+            chains.append((row["old_path"], target_path))
+    if chains:
+        raise MigrationError(f"Найдены цепочки legacy-редиректов: {len(chains)}")
+
+
+def apply_clean_public_urls(connection: sqlite3.Connection) -> str:
+    before_count = connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0]
+    rows = connection.execute("SELECT old_path,new_path FROM redirects ORDER BY old_path").fetchall()
+    updates: list[tuple[str, str]] = []
+    for row in rows:
+        old_path = row["old_path"]
+        new_path = row["new_path"]
+        if new_path.startswith("/#/content/"):
+            slug = new_path.removeprefix("/#/content/")
+            content = connection.execute(
+                "SELECT content_type,slug FROM contents WHERE slug=? OR published_slug=?",
+                (slug, slug),
+            ).fetchall()
+            if len(content) != 1:
+                raise MigrationError(
+                    f"Detail-редирект {old_path} ссылается на неоднозначный или отсутствующий slug {slug}"
+                )
+            target = clean_hash_target(
+                new_path, content_type=content[0]["content_type"], slug=content[0]["slug"]
+            )
+        elif new_path.startswith("/#/"):
+            if not is_legacy_index(old_path):
+                raise MigrationError(f"Неизвестный индексный legacy-URL {old_path} -> {new_path}")
+            target = legacy_index_target(old_path)
+        else:
+            target = new_path
+        updates.append((target, old_path))
+    connection.executemany("UPDATE redirects SET new_path=? WHERE old_path=?", updates)
+    after_count = connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0]
+    if after_count != before_count:
+        raise MigrationError(f"Количество редиректов изменилось: {before_count} -> {after_count}")
+    validate_clean_redirects(connection)
+    return f"converted {after_count} redirects to clean public URLs"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -309,6 +375,21 @@ MIGRATIONS = (
             inspect.getsource(_snapshot_if_missing),
         )),
         foreign_keys_off=True,
+    ),
+    Migration(
+        4,
+        "clean_public_urls",
+        apply_clean_public_urls,
+        "\n".join((
+            repr(sorted(DETAIL_PREFIXES.items())),
+            repr(sorted(LEGACY_INDEX_PATHS)),
+            repr(sorted(STATIC_HASH_TARGETS.items())),
+            inspect.getsource(clean_hash_target),
+            inspect.getsource(content_path),
+            inspect.getsource(legacy_index_target),
+            inspect.getsource(is_legacy_index),
+            inspect.getsource(validate_clean_redirects),
+        )),
     ),
 )
 
@@ -379,6 +460,8 @@ def verify_migrations(path: Path) -> list[dict]:
             validate_baseline_schema(connection, create_if_empty=False)
             if any(item.get("version") == 3 and item["state"] == "applied" for item in status):
                 validate_publication_schema(connection)
+            if any(item.get("version") == 4 and item["state"] == "applied" for item in status):
+                validate_clean_redirects(connection)
         finally:
             connection.close()
     return status

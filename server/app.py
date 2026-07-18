@@ -9,10 +9,12 @@ from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -20,6 +22,17 @@ from .db import connect, init_database, row_to_content, slugify, transaction, ut
 from .full_import import build_full_plan, execute_plan
 from .importer import media_mapping, run_import
 from .security import hash_password, token_hash, verify_password
+from .public_site import (
+    active_feature,
+    base_context,
+    content_view,
+    external_url,
+    feature_href,
+    is_school_item,
+    published_by_slug,
+    published_item,
+    published_items,
+)
 from .workflow import (
     admin_content as serialize_admin_content,
     publication_scheduler,
@@ -119,6 +132,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     schema = load_schema(settings)
     settings.media_dir.mkdir(parents=True, exist_ok=True)
+    templates = Jinja2Templates(directory=settings.site_dir / "templates")
+    cms_templates = Jinja2Templates(directory=settings.site_dir)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -140,11 +155,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def legacy_redirects(request: Request, call_next):
         path = request.url.path
-        if path != "/" and not path.startswith(("/api/", "/media/")) and settings.database_path.exists():
+        static_paths = {"/styles.css", "/app.js", "/cms.html", "/cms.css", "/cms.js", "/cms-schema.json"}
+        if (
+            path != "/"
+            and path.endswith("/")
+            and not path.startswith(("/api/", "/assets/"))
+            and not (path.startswith("/media/") and path != "/media/")
+        ):
+            target = path.rstrip("/") or "/"
+            if request.url.query:
+                target += "?" + request.url.query
+            return RedirectResponse(target, status_code=308)
+        if (
+            path != "/"
+            and path not in static_paths
+            and not path.startswith(("/api/", "/media/", "/assets/"))
+            and settings.database_path.exists()
+        ):
             with connect(settings.database_path) as connection:
                 row = connection.execute("SELECT new_path,status_code FROM redirects WHERE old_path=?", (path,)).fetchone()
             if row:
-                return RedirectResponse(row["new_path"], status_code=row["status_code"])
+                target = row["new_path"]
+                if request.url.query:
+                    base, marker, fragment = target.partition("#")
+                    base += ("&" if "?" in base else "?") + request.url.query
+                    target = base + (marker + fragment if marker else "")
+                return RedirectResponse(target, status_code=row["status_code"])
         return await call_next(request)
 
     def current_user(request: Request) -> dict:
@@ -745,8 +781,223 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             dry_run=dry_run, media_manifest=manifest_path, actor_id=user["id"],
         )
 
+    def public_context(active_nav: str, page_title: str, **values: Any) -> dict[str, Any]:
+        return {
+            **base_context(settings.database_path, active_nav=active_nav, page_title=page_title),
+            **values,
+        }
+
+    def render_public(request: Request, template_name: str, context: dict[str, Any], status_code: int = 200):
+        return templates.TemplateResponse(
+            request=request,
+            name=template_name,
+            context=context,
+            status_code=status_code,
+        )
+
+    def render_not_found(request: Request):
+        return render_public(
+            request,
+            "404.html",
+            public_context("", "Страница не найдена"),
+            status_code=404,
+        )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def public_home(request: Request):
+        news_raw = published_items(settings.database_path, "news")
+        features = published_items(settings.database_path, "home_feature")
+        feature_raw = active_feature(features, news_raw)
+        feature = content_view(feature_raw) if feature_raw else None
+        if feature:
+            feature_data = feature_raw.get("data") or {}
+            content_slug = feature_data.get("content_slug")
+            legacy_target = str(feature_data.get("target_url") or "").strip()
+            if legacy_target.startswith("#/content/"):
+                legacy_target = "/" + legacy_target
+            if not content_slug and legacy_target.startswith("/#/content/"):
+                content_slug = unquote(legacy_target.removeprefix("/#/content/").split("?", 1)[0].split("#", 1)[0])
+            linked = published_by_slug(settings.database_path, content_slug) if content_slug else None
+            feature["href"] = feature_href(feature_raw, linked)
+        return render_public(
+            request,
+            "home.html",
+            public_context(
+                "home",
+                "Главная",
+                feature=feature,
+                news=[content_view(item) for item in news_raw],
+            ),
+        )
+
+    @app.get("/schedule", response_class=HTMLResponse, include_in_schema=False)
+    def public_schedule(request: Request):
+        services = [content_view(item) for item in published_items(settings.database_path, "service")]
+        services.sort(key=lambda item: (item["data"].get("starts_at") or "", item["title"]))
+        return render_public(
+            request, "schedule.html", public_context("schedule", "Расписание богослужений", services=services)
+        )
+
+    @app.get("/about", response_class=HTMLResponse, include_in_schema=False)
+    def public_about(request: Request):
+        clergy = [content_view(item) for item in published_items(settings.database_path, "clergy")]
+        clergy.sort(key=lambda item: (int(item["data"].get("order") or 9999), item["title"]))
+        return render_public(request, "about.html", public_context("about", "О храме", clergy=clergy))
+
+    @app.get("/parish", response_class=HTMLResponse, include_in_schema=False)
+    def public_parish(request: Request):
+        sections = [content_view(item) for item in published_items(settings.database_path, "parish_section")]
+        return render_public(
+            request, "parish.html", public_context("parish", "Жизнь прихода", sections=sections)
+        )
+
+    @app.get("/school", response_class=HTMLResponse, include_in_schema=False)
+    def public_school(request: Request):
+        sections = [
+            content_view(item)
+            for content_type in ("parish_section", "page")
+            for item in published_items(settings.database_path, content_type)
+            if is_school_item(item)
+        ]
+        news = [
+            content_view(item)
+            for item in published_items(settings.database_path, "news")
+            if is_school_item(item)
+        ]
+        albums = [
+            content_view(item)
+            for item in published_items(settings.database_path, "gallery")
+            if is_school_item(item)
+        ]
+        return render_public(
+            request,
+            "school.html",
+            public_context(
+                "school",
+                "Воскресная школа",
+                sections=sections,
+                news=news,
+                albums=albums,
+            ),
+        )
+
+    @app.get("/news", response_class=HTMLResponse, include_in_schema=False)
+    def public_news(request: Request):
+        news = [content_view(item) for item in published_items(settings.database_path, "news")]
+        return render_public(request, "news.html", public_context("parish", "Новости и анонсы", news=news))
+
+    @app.get("/gallery", response_class=HTMLResponse, include_in_schema=False)
+    def public_gallery(request: Request, year: str | None = None):
+        albums = [content_view(item) for item in published_items(settings.database_path, "gallery")]
+        years = sorted({item["year"] for item in albums if item["year"]}, reverse=True)
+        selected_year = year if year in years else ""
+        return render_public(
+            request,
+            "gallery.html",
+            public_context("media", "Фотогалерея", albums=albums, years=years, selected_year=selected_year),
+        )
+
+    @app.get("/leaflet", response_class=HTMLResponse, include_in_schema=False)
+    def public_leaflet(request: Request):
+        issues = [content_view(item) for item in published_items(settings.database_path, "leaflet_issue")]
+        years = sorted(
+            {str(item["data"].get("year") or item["year"]) for item in issues if item["data"].get("year") or item["year"]},
+            reverse=True,
+        )
+        return render_public(
+            request, "leaflet.html", public_context("media", "Иннокентиевский листок", issues=issues, years=years)
+        )
+
+    @app.get("/media", response_class=HTMLResponse, include_in_schema=False)
+    def public_media(request: Request):
+        videos = []
+        for raw in published_items(settings.database_path, "video"):
+            item = content_view(raw)
+            item["external_url"] = external_url(item["data"].get("external_url"))
+            videos.append(item)
+        return render_public(request, "media.html", public_context("media", "Медиа и архив", videos=videos))
+
+    def public_detail_response(
+        request: Request,
+        slug: str,
+        content_types: tuple[str, ...],
+        active_nav: str,
+        back_url: str,
+    ):
+        raw = published_item(settings.database_path, slug, content_types)
+        if raw is None:
+            return render_not_found(request)
+        item = content_view(raw)
+        return render_public(
+            request,
+            "detail.html",
+            public_context(active_nav, item["title"], item=item, back_url=back_url),
+        )
+
+    @app.get("/about/clergy/{slug}", response_class=HTMLResponse, include_in_schema=False)
+    def public_clergy_detail(request: Request, slug: str):
+        return public_detail_response(request, slug, ("clergy",), "about", "/about#clergy")
+
+    @app.get("/parish/{slug}", response_class=HTMLResponse, include_in_schema=False)
+    def public_parish_detail(request: Request, slug: str):
+        return public_detail_response(request, slug, ("parish_section",), "parish", "/parish")
+
+    @app.get("/news/{slug}", response_class=HTMLResponse, include_in_schema=False)
+    def public_news_detail(request: Request, slug: str):
+        return public_detail_response(request, slug, ("news",), "parish", "/news")
+
+    @app.get("/gallery/{slug}", response_class=HTMLResponse, include_in_schema=False)
+    def public_gallery_detail(request: Request, slug: str):
+        return public_detail_response(request, slug, ("gallery",), "media", "/gallery")
+
+    @app.get("/pages/{slug}", response_class=HTMLResponse, include_in_schema=False)
+    def public_page_detail(request: Request, slug: str):
+        return public_detail_response(request, slug, ("page",), "about", "/about")
+
+    @app.get("/index.html", include_in_schema=False)
+    def old_index():
+        return RedirectResponse("/", status_code=308)
+
+    @app.get("/cms.html", response_class=HTMLResponse, include_in_schema=False)
+    def cms_page(request: Request):
+        return cms_templates.TemplateResponse(
+            request=request,
+            name="cms.html",
+            context={"public_base_url": settings.public_base_url},
+        )
+
+    def static_file(name: str) -> FileResponse:
+        return FileResponse(settings.site_dir / name)
+
+    @app.get("/styles.css", include_in_schema=False)
+    def public_styles():
+        return static_file("styles.css")
+
+    @app.get("/app.js", include_in_schema=False)
+    def public_script():
+        return static_file("app.js")
+
+    @app.get("/cms.css", include_in_schema=False)
+    def cms_styles():
+        return static_file("cms.css")
+
+    @app.get("/cms.js", include_in_schema=False)
+    def cms_script():
+        return static_file("cms.js")
+
+    @app.get("/cms-schema.json", include_in_schema=False)
+    def cms_schema_file():
+        return static_file("cms-schema.json")
+
+    app.mount("/assets", StaticFiles(directory=settings.site_dir / "assets"), name="assets")
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
-    app.mount("/", StaticFiles(directory=settings.site_dir, html=True), name="site")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def public_unknown(request: Request, path: str):
+        if path == "api" or path.startswith("api/"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return render_not_found(request)
+
     return app
 
 

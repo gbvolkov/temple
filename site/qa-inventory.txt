@@ -1,13 +1,13 @@
-PLAYWRIGHT QA INVENTORY — RESPONSIVE SITE + WORKING CMS
+PLAYWRIGHT QA INVENTORY — SERVER-RENDERED PUBLIC SITE + WORKING CMS
 
 USER-VISIBLE CLAIMS
-- Public prototype contains the complete top-level structure needed for the parish.
+- Public SSR site contains the complete top-level structure needed for the parish.
 - Gallery, Innokentievsky leaflet, Sunday school, and social links are prominent and usable.
 - Schedule is structured and readable without a wide HTML table.
 - Public prototype fits desktop, tablet, 390 px mobile, and 320 px mobile without horizontal overflow.
 - Mobile navigation exposes every top-level route and returns to its initial state after selection.
 - Search finds key sections and can open the note flow.
-- Note form is a three-step local demonstration and explicitly sends nothing.
+- Note form is a three-step local preview and explicitly sends nothing.
 - Gallery filters by year and opens/closes a lightbox.
 - Leaflet filters by year.
 - CMS requires a separate authenticated session and exposes content-specific fields, desktop/mobile preview, real draft save, and controlled publication.
@@ -24,11 +24,11 @@ PUBLIC CONTROLS AND STATES
 - Mobile menu: closed -> open -> route selection -> closed.
 - Search: closed -> open -> populated results -> no-results -> closed.
 - Note form: step 1 -> step 2 validation -> step 3 summary -> closed.
-- Schedule day tabs: Sunday, Wednesday, Saturday.
-- Gallery year filters: 2025, 2024, 2023.
+- Schedule shows only published services.
+- Gallery year filters are derived from published albums.
 - Gallery lightbox: open -> closed by button and backdrop.
-- Migrated detail: old URL -> 301 -> generic content page -> gallery lightbox -> closed.
-- Leaflet year filters: 2026, 2025, 2024.
+- Migrated detail: old URL -> one 301 -> typed clean detail page -> gallery lightbox -> closed.
+- Leaflet year filters are derived from published issues.
 - Toast messages for prototype-only actions.
 
 CMS CONTROLS AND STATES
@@ -64,7 +64,7 @@ VISUAL CHECKS
 EXPLORATORY / OFF-HAPPY-PATH
 - Empty note names at step 2 must block progression and focus the field.
 - Search nonsense query must show a useful empty state.
-- Rapid route switching while mobile menu is open must leave menu closed.
+- Following a route while the mobile menu is open must load the clean URL with the menu closed.
 - Very long content title in CMS preview must wrap without overflowing.
 - Gallery year with fewer items must preserve balanced layout.
 - Missing CSRF token must block mutation; stale version must return a conflict instead of overwriting work.
@@ -73,4 +73,4 @@ EXPLORATORY / OFF-HAPPY-PATH
 - Invalid login must keep the CMS locked and explain the error.
 - Reviewing an imported gallery must preserve every photo object and create a new revision.
 - Imported text cleanup must remove legacy boilerplate while preserving the gallery and publication metadata.
-- Hash-based redirects must serve the SPA root without a redirect loop in a fresh browser context.
+- Legacy hash bookmarks must replace themselves with the matching clean URL without a redirect loop.

@@ -75,10 +75,10 @@ def test_full_plan_execution_is_draft_only_and_idempotent(tmp_path):
         assert connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0] == 2
         assert connection.execute(
             "SELECT new_path FROM redirects WHERE old_path='/o-hrame/novosti-prihoda/event.html'"
-        ).fetchone()[0] == "/#/content/o-hrame-novosti-prihoda-event"
+        ).fetchone()[0] == "/news/o-hrame-novosti-prihoda-event"
         assert connection.execute(
             "SELECT new_path FROM redirects WHERE old_path='/kontakty.html'"
-        ).fetchone()[0] == "/#/about"
+        ).fetchone()[0] == "/about#contacts"
 
 
 def test_full_import_can_refine_type_of_unreviewed_legacy_record(tmp_path):

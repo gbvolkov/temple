@@ -10,10 +10,11 @@ from urllib.parse import unquote, urlsplit
 
 from .config import ROOT, Settings
 from .db import init_database, slugify, transaction, utc_now
-from .importer import canonical_target, fingerprint, media_mapping, rewrite_media_urls, spa_redirect_target, upsert_record
+from .importer import canonical_target, fingerprint, media_mapping, rewrite_media_urls, upsert_record
 from .legacy_crawl import atomic_json
 from .legacy_inventory import classify_path
 from .media_mirror import canonical_asset_url
+from .public_urls import content_path, legacy_index_target
 
 
 IMAGE_RE = re.compile(r"\.(?:jpe?g|png|webp|gif)(?:\?|$)", re.I)
@@ -236,9 +237,9 @@ def execute_plan(database: Path, source: Path, plan: dict, *, actor_id: str | No
             counters[upsert_record(connection, record, actor_id)] += 1
             legacy_type = classify_path(record["legacy_url"], 200)
             redirect_target = (
-                spa_redirect_target(record["legacy_url"])
+                legacy_index_target(record["legacy_url"])
                 if is_index(record["legacy_url"], legacy_type)
-                else f"/#/content/{record['slug']}"
+                else content_path(record["content_type"], record["slug"])
             )
             connection.execute(
                 "INSERT INTO redirects(old_path,new_path,status_code,created_at) VALUES(?,?,301,?) "

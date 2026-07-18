@@ -177,7 +177,7 @@ def test_csrf_media_and_migration(tmp_path):
         assert imported.json()["imported"] == 167
         redirect = client.get("/o-hrame/raspisanie-bogosluzheniy.html", follow_redirects=False)
         assert redirect.status_code == 301
-        assert redirect.headers["location"] == "/#/schedule"
+        assert redirect.headers["location"] == "/schedule"
         assert client.get("/", follow_redirects=False).status_code == 200
         status = client.get("/api/admin/migration").json()
         assert status["totals"]["review_required"] == 167
@@ -229,6 +229,84 @@ def test_csrf_media_and_migration(tmp_path):
         assert [event["action"] for event in reviewed_events[:2]] == ["migration_review", "import_create"]
         remaining = client.get("/api/admin/content-index", params={"review_required": "true", "limit": 200}).json()
         assert remaining["total"] == 166
+
+
+def test_server_rendered_public_routes_use_published_snapshot(tmp_path):
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        for route in ("/", "/schedule", "/about", "/parish", "/school", "/news", "/gallery", "/leaflet", "/media"):
+            response = client.get(route)
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/html")
+
+        csrf = login(client)
+        headers = {"X-CSRF-Token": csrf}
+        item = client.post(
+            "/api/admin/contents",
+            headers=headers,
+            json={"content_type": "news", "title": "Опубликованная SSR-новость", "data": {}},
+        ).json()
+        payload = ready_news(item)
+        payload["data"]["category"] = "Воскресная школа"
+        payload["data"]["summary"] = "<script>не исполнять</script>"
+        payload["data"]["body"] = "Первый абзац\n\nВторой абзац"
+        item = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json=payload).json()
+        item = client.post(
+            f"/api/admin/contents/{item['id']}/submit-review",
+            headers=headers,
+            json={"version": item["version"]},
+        ).json()
+        item = client.post(
+            f"/api/admin/contents/{item['id']}/publish",
+            headers=headers,
+            json={"version": item["version"]},
+        ).json()
+
+        clean_url = f"/news/{item['published_slug']}"
+        listing = client.get("/news")
+        detail = client.get(clean_url)
+        assert listing.status_code == detail.status_code == 200
+        assert "Опубликованная SSR-новость" in listing.text
+        assert "Опубликованная SSR-новость" in detail.text
+        assert "Опубликованная SSR-новость" in client.get("/school").text
+        assert 'href="/styles.css"' in detail.text
+        assert 'src="/app.js"' in detail.text
+        assert "&lt;script&gt;не исполнять&lt;/script&gt;" in detail.text
+        assert "<script>не исполнять</script>" not in detail.text
+        assert client.get(f"/gallery/{item['published_slug']}").status_code == 404
+        assert client.get("/news/not-a-real-slug").status_code == 404
+
+        edited_payload = ready_news(item, title="Неопубликованная новая редакция")
+        edited = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json=edited_payload)
+        assert edited.status_code == 200
+        live = client.get(clean_url)
+        assert "Опубликованная SSR-новость" in live.text
+        assert "Неопубликованная новая редакция" not in live.text
+
+        trailing = client.get("/news/?source=test", follow_redirects=False)
+        assert trailing.status_code == 308
+        assert trailing.headers["location"] == "/news?source=test"
+        missing = client.get("/unknown-public-page")
+        assert missing.status_code == 404
+        assert missing.headers["content-type"].startswith("text/html")
+        api_missing = client.get("/api/unknown-public-page")
+        assert api_missing.status_code == 404
+        assert api_missing.headers["content-type"].startswith("application/json")
+
+        cms = client.get("/cms.html")
+        assert cms.status_code == 200
+        assert f'href="{settings.public_base_url}/"' in cms.text
+
+
+def test_public_base_url_is_normalized_and_validated():
+    assert Settings.normalize_public_base_url("https://example.test:8443/") == "https://example.test:8443"
+    for invalid in ("example.test", "ftp://example.test", "https://example.test/path", "https://example.test?x=1"):
+        try:
+            Settings.normalize_public_base_url(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"PUBLIC_BASE_URL accepted invalid value: {invalid}")
 
 
 def test_scheduled_publication_archive_trash_restore_and_audit(tmp_path):

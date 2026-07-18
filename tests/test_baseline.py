@@ -81,7 +81,7 @@ def test_restore_verification_checks_migration_artifacts(tmp_path):
 
 
 def test_public_home_has_honest_empty_news_state():
-    source = (Path(__file__).parents[1] / "site" / "app.js").read_text(encoding="utf-8")
+    source = (Path(__file__).parents[1] / "site" / "templates" / "home.html").read_text(encoding="utf-8")
     assert "Новости готовятся к публикации" in source
     assert "Фотовыставка памяти Святейшего Патриарха Тихона" not in source
     assert "Новая встреча молодёжного движения прихода" not in source
