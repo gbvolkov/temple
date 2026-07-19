@@ -13,7 +13,8 @@ DEPLOYMENT_ENTRYPOINT="${DEPLOYMENT_ENTRYPOINT:-$0}"
 TEST_PORT="${TEST_PORT:-18004}"
 PAVEL_ID="56871da9-3f57-4ff0-b405-3127668f7cad"
 PUBLIC_BASE_URL_EXPECTED="https://temple.gbvolkoff.name:8443"
-EXPECTED_SCHEMA="4"
+SOURCE_SCHEMA="${SOURCE_SCHEMA:-4}"
+EXPECTED_SCHEMA="${EXPECTED_SCHEMA:-4}"
 EXPECTED_REDIRECTS="1606"
 
 case "$BACKUP_ID" in
@@ -21,7 +22,7 @@ case "$BACKUP_ID" in
   *) echo "Usage: LOCAL_BACKUP_SHA256=<sha256> $DEPLOYMENT_ENTRYPOINT baseline-YYYYMMDDTHHMMSSZ" >&2; exit 1 ;;
 esac
 
-for command_name in git curl sqlite3 tar sha256sum python3 sudo docker grep seq date awk tr; do
+for command_name in git curl sqlite3 tar sha256sum python3 sudo docker grep seq date awk tr find; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is missing: $command_name" >&2
     exit 1
@@ -88,9 +89,10 @@ PY
 
 validate_database() {
   local database="$1" label="$2"
+  local expected_schema="${3:-$EXPECTED_SCHEMA}"
   test "$(database_value "$database" 'PRAGMA quick_check;')" = "ok"
   test -z "$(database_value "$database" 'PRAGMA foreign_key_check;')"
-  require_equal "$label schema" "$(database_value "$database" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;')" "$EXPECTED_SCHEMA"
+  require_equal "$label schema" "$(database_value "$database" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;')" "$expected_schema"
   require_equal "$label contents" "$(database_value "$database" 'SELECT COUNT(*) FROM contents;')" "$CONTENTS"
   require_equal "$label revisions" "$(database_value "$database" 'SELECT COUNT(*) FROM revisions;')" "$REVISIONS"
   require_equal "$label public materials" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash');")" "$PUBLISHED"
@@ -117,7 +119,7 @@ git merge-base --is-ancestor "$BACKUP_SHA" "$CURRENT_SHA" || {
   echo "The backup checkout $BACKUP_SHA is not an ancestor of deployment $CURRENT_SHA" >&2
   exit 1
 }
-require_equal "backup schema version" "$(report_value database.schema_version)" "$EXPECTED_SCHEMA"
+require_equal "backup schema version" "$(report_value database.schema_version)" "$SOURCE_SCHEMA"
 BACKUP_EPOCH="$(date -u -d "$(report_value generated_at)" +%s)"
 NOW_EPOCH="$(date -u +%s)"
 if (( NOW_EPOCH - BACKUP_EPOCH > 86400 )); then
@@ -136,7 +138,7 @@ validate_public_base_url .env || {
   echo "PUBLIC_BASE_URL must be $PUBLIC_BASE_URL_EXPECTED in .env" >&2
   exit 1
 }
-validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE"
+validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE" "$SOURCE_SCHEMA"
 
 CONTACT_ADDRESS="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.address') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
 CONTACT_PHONE="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.phone') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
@@ -167,7 +169,7 @@ validate_public_base_url "$TEST_DATA/.env" || {
 }
 
 TEST_ADMIN_CREDENTIALS="$TEST_ROOT/stage5-test-admin.json"
-if [[ "$DEPLOYMENT_STAGE" == "5" ]]; then
+if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" ]]; then
   # Create an isolated administrator in the disposable restored database.
   # This avoids depending on the real administrator password from production.
   python3 - "$TEST_DATA/data/cms.sqlite3" "$TEST_ADMIN_CREDENTIALS" <<'PY'
@@ -228,8 +230,20 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 curl -fsS "http://127.0.0.1:$TEST_PORT/api/health" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
+if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+  sudo docker exec "$TEST_CONTAINER" python -m server.media_library index \
+    --database /data/cms.sqlite3 \
+    --media-dir /data/media \
+    --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
+fi
 python3 -m server.migrations verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
 validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage $DEPLOYMENT_STAGE image"
+if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+  TEST_MEDIA_FILES="$(find "$TEST_DATA/data/media" -type f ! -path '*/.*' | wc -l | tr -d ' ')"
+  require_equal "restored media index" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status='ready';")" "$TEST_MEDIA_FILES"
+  require_equal "restored invalid media" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
+  require_equal "restored missing legacy queue" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
@@ -332,7 +346,7 @@ esac
 trap - EXIT
 
 # Production is changed only after the restored copy passes every check.
-validate_database data/cms.sqlite3 "production immediately before deployment"
+validate_database data/cms.sqlite3 "production immediately before deployment" "$SOURCE_SCHEMA"
 DEPLOYMENT_STARTED="$(date +%s)"
 sudo docker compose up -d --no-deps "$SERVICE"
 for _ in $(seq 1 60); do
@@ -340,8 +354,20 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 curl -fsS http://127.0.0.1:8000/api/health | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
+if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+  sudo docker compose exec -T "$SERVICE" python -m server.media_library index \
+    --database /data/cms.sqlite3 \
+    --media-dir /data/media \
+    --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
+fi
 python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
+if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+  PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
+  require_equal "production media index" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status='ready';")" "$PRODUCTION_MEDIA_FILES"
+  require_equal "production invalid media" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
+  require_equal "production missing legacy queue" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+fi
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_ADDRESS"
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_PHONE"
 

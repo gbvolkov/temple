@@ -351,6 +351,116 @@ def apply_clean_public_urls(connection: sqlite3.Connection) -> str:
     return f"converted {after_count} redirects to clean public URLs"
 
 
+MEDIA_LIBRARY_SQL = """
+CREATE TABLE media_usages (
+  media_id TEXT NOT NULL REFERENCES media(id) ON DELETE RESTRICT,
+  content_id TEXT NOT NULL REFERENCES contents(id) ON DELETE CASCADE,
+  revision_version INTEGER NOT NULL DEFAULT 0,
+  field_path TEXT NOT NULL,
+  is_published INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(media_id, content_id, revision_version, field_path)
+);
+CREATE INDEX idx_media_usages_content ON media_usages(content_id, revision_version);
+CREATE INDEX idx_media_usages_published ON media_usages(media_id, is_published);
+CREATE TABLE media_events (
+  id TEXT PRIMARY KEY,
+  media_id TEXT,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_media_events_media ON media_events(media_id, created_at DESC);
+CREATE TABLE missing_media_issues (
+  id TEXT PRIMARY KEY,
+  source_url TEXT NOT NULL UNIQUE,
+  error TEXT NOT NULL,
+  source_directory TEXT NOT NULL DEFAULT '',
+  reference_count INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','resolved')),
+  replacement_media_id TEXT REFERENCES media(id) ON DELETE SET NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE INDEX idx_missing_media_status ON missing_media_issues(status, updated_at DESC);
+CREATE TABLE missing_media_issue_contents (
+  issue_id TEXT NOT NULL REFERENCES missing_media_issues(id) ON DELETE CASCADE,
+  content_id TEXT NOT NULL REFERENCES contents(id) ON DELETE CASCADE,
+  PRIMARY KEY(issue_id, content_id)
+);
+CREATE INDEX idx_missing_media_contents ON missing_media_issue_contents(content_id);
+"""
+
+MEDIA_LIBRARY_COLUMNS = {
+    "sha256": "TEXT",
+    "kind": "TEXT NOT NULL DEFAULT 'document'",
+    "source": "TEXT NOT NULL DEFAULT 'upload'",
+    "status": "TEXT NOT NULL DEFAULT 'pending'",
+    "width": "INTEGER",
+    "height": "INTEGER",
+    "duration_seconds": "REAL",
+    "version": "INTEGER NOT NULL DEFAULT 1",
+    "updated_at": "TEXT",
+    "replaces_media_id": "TEXT",
+    "metadata_json": "TEXT NOT NULL DEFAULT '{}'",
+}
+
+MEDIA_LIBRARY_REQUIRED_COLUMNS = {
+    "media": set(REQUIRED_COLUMNS["media"]) | set(MEDIA_LIBRARY_COLUMNS),
+    "media_usages": {"media_id", "content_id", "revision_version", "field_path", "is_published", "created_at"},
+    "media_events": {"id", "media_id", "actor_id", "action", "details_json", "created_at"},
+    "missing_media_issues": {
+        "id", "source_url", "error", "source_directory", "reference_count", "status",
+        "replacement_media_id", "version", "created_at", "updated_at", "resolved_at",
+    },
+    "missing_media_issue_contents": {"issue_id", "content_id"},
+}
+
+
+def validate_media_library_schema(connection: sqlite3.Connection) -> None:
+    for table, required in MEDIA_LIBRARY_REQUIRED_COLUMNS.items():
+        exists = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if not exists:
+            raise MigrationError(f"После миграции медиатеки отсутствует таблица {table}")
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(required - columns)
+        if missing:
+            raise MigrationError(f"Таблица {table} не завершена; отсутствуют поля: {', '.join(missing)}")
+    required_indexes = {
+        "idx_media_sha256", "idx_media_library", "idx_media_usages_content",
+        "idx_media_usages_published", "idx_media_events_media", "idx_missing_media_status",
+        "idx_missing_media_contents",
+    }
+    indexes = {row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+    missing_indexes = sorted(required_indexes - indexes)
+    if missing_indexes:
+        raise MigrationError(f"После миграции медиатеки отсутствуют индексы: {', '.join(missing_indexes)}")
+
+
+def apply_media_library(connection: sqlite3.Connection) -> str:
+    before = connection.execute("SELECT COUNT(*) FROM media").fetchone()[0]
+    existing_columns = {row["name"] for row in connection.execute("PRAGMA table_info(media)")}
+    for name, definition in MEDIA_LIBRARY_COLUMNS.items():
+        if name not in existing_columns:
+            connection.execute(f"ALTER TABLE media ADD COLUMN {name} {definition}")
+    connection.execute("UPDATE media SET updated_at=COALESCE(updated_at,created_at)")
+    for statement in MEDIA_LIBRARY_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    connection.execute("CREATE INDEX idx_media_sha256 ON media(sha256)")
+    connection.execute("CREATE INDEX idx_media_library ON media(kind,status,source,created_at DESC)")
+    after = connection.execute("SELECT COUNT(*) FROM media").fetchone()[0]
+    if after != before:
+        raise MigrationError(f"Количество media-записей изменилось во время schema migration: {before} -> {after}")
+    validate_media_library_schema(connection)
+    return f"media library schema created; preserved media rows: {after}"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -389,6 +499,16 @@ MIGRATIONS = (
             inspect.getsource(legacy_index_target),
             inspect.getsource(is_legacy_index),
             inspect.getsource(validate_clean_redirects),
+        )),
+    ),
+    Migration(
+        5,
+        "media_library",
+        apply_media_library,
+        "\n".join((
+            MEDIA_LIBRARY_SQL,
+            repr(sorted(MEDIA_LIBRARY_COLUMNS.items())),
+            inspect.getsource(validate_media_library_schema),
         )),
     ),
 )
@@ -462,6 +582,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_publication_schema(connection)
             if any(item.get("version") == 4 and item["state"] == "applied" for item in status):
                 validate_clean_redirects(connection)
+            if any(item.get("version") == 5 and item["state"] == "applied" for item in status):
+                validate_media_library_schema(connection)
         finally:
             connection.close()
     return status

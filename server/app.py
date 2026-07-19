@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 import secrets
+import shutil
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager, suppress
@@ -23,6 +24,19 @@ from .content_blocks import ContentDataError, EDITABLE_RELATION_TYPES, prepare_c
 from .db import connect, init_database, row_to_content, slugify, transaction, utc_now
 from .full_import import build_full_plan, execute_plan
 from .importer import media_mapping, run_import
+from .media_library import (
+    MediaError,
+    ensure_derivative,
+    index_library,
+    media_reference_problems,
+    media_row,
+    rebuild_usages,
+    record_media_event,
+    refresh_content_usages,
+    resolve_media_path,
+    serialize_media,
+    store_upload,
+)
 from .security import hash_password, token_hash, verify_password
 from .public_site import (
     PAGE_PLACEMENTS,
@@ -51,11 +65,6 @@ from .workflow import (
 
 ROLE_LEVEL = {"viewer": 0, "editor": 1, "publisher": 2, "admin": 3}
 TYPE_ALIASES = {"leaflet": "leaflet_issue", "section": "parish_section"}
-MAX_MEDIA_BYTES = 15 * 1024 * 1024
-ALLOWED_MEDIA = {
-    "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
-    "application/pdf": ".pdf", "video/mp4": ".mp4",
-}
 
 
 class LoginPayload(BaseModel):
@@ -93,6 +102,11 @@ class PreviewPayload(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
 
 
+class MediaUpdate(BaseModel):
+    version: int = Field(ge=1)
+    alt_text: str = Field(default="", max_length=300)
+
+
 def load_schema(settings: Settings) -> dict:
     return json.loads(settings.schema_path.read_text(encoding="utf-8"))
 
@@ -116,6 +130,7 @@ def snapshot(connection: sqlite3.Connection, content_id: str, actor_id: str | No
         "INSERT INTO revisions(content_id,version,snapshot_json,actor_id,created_at) VALUES(?,?,?,?,?)",
         (content_id, content["version"], json.dumps(content, ensure_ascii=False), actor_id, utc_now()),
     )
+    refresh_content_usages(connection, content_id)
 
 
 def available_slug(connection: sqlite3.Connection, desired: str, content_id: str | None = None) -> str:
@@ -148,15 +163,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     schema = load_schema(settings)
     settings.media_dir.mkdir(parents=True, exist_ok=True)
+    settings.derivatives_dir.mkdir(parents=True, exist_ok=True)
     templates = Jinja2Templates(directory=settings.site_dir / "templates")
     cms_templates = Jinja2Templates(directory=settings.site_dir)
+
+    def public_media_variant(url: object, variant: str = "web") -> str:
+        """Return a stable derivative URL only for indexed local images."""
+        value = str(url or "")
+        if variant not in {"thumb", "web"} or not value.startswith("/media/"):
+            return ""
+        stored_name = unquote(value.removeprefix("/media/")).replace("\\", "/")
+        with connect(settings.database_path) as connection:
+            row = connection.execute(
+                "SELECT id FROM media WHERE stored_name=? AND kind='image' AND status='ready'",
+                (stored_name,),
+            ).fetchone()
+        return f"/media-derivatives/{row['id']}/{variant}.webp" if row else ""
+
+    templates.env.globals["media_variant_url"] = public_media_variant
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         init_database(settings.database_path)
         settings.media_dir.mkdir(parents=True, exist_ok=True)
+        settings.derivatives_dir.mkdir(parents=True, exist_ok=True)
         ensure_bootstrap_admin(settings)
-        scheduler_task = asyncio.create_task(publication_scheduler(settings.database_path))
+        scheduler_task = asyncio.create_task(
+            publication_scheduler(settings.database_path, media_dir=settings.media_dir)
+        )
         try:
             yield
         finally:
@@ -240,12 +274,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if row["status"] not in allowed:
             raise HTTPException(409, f"Действие «{action}» недоступно из состояния {row['status']}")
 
-    def require_ready(content: dict[str, Any]) -> None:
+    def require_ready(connection: sqlite3.Connection, content: dict[str, Any]) -> None:
         if content["migration_review_required"]:
             raise HTTPException(409, "Сначала проверьте импортированный материал и отметьте его проверенным")
         missing = missing_required(schema, content)
         if missing:
             raise HTTPException(422, {"message": "Заполните обязательные поля", "fields": missing})
+        media_problems = media_reference_problems(connection, content, settings.media_dir)
+        if media_problems:
+            raise HTTPException(
+                422,
+                {"message": "Исправьте отсутствующие или повреждённые файлы", "media": media_problems},
+            )
 
     def prepare_data(
         connection: sqlite3.Connection,
@@ -586,7 +626,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             before = content_or_404(connection, content_id)
             require_version(before, payload.version)
             require_state(before, {"draft"}, "отправка на проверку")
-            require_ready(serialize_admin_content(before))
+            require_ready(connection, serialize_admin_content(before))
             connection.execute(
                 """UPDATE contents SET status='in_review',scheduled_at=NULL,reviewed_by=NULL,
                    reviewed_at=NULL,deleted_at=NULL,updated_at=? WHERE id=?""",
@@ -624,7 +664,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             before = content_or_404(connection, content_id)
             require_version(before, payload.version)
             require_state(before, {"in_review"}, "публикация")
-            require_ready(serialize_admin_content(before))
+            require_ready(connection, serialize_admin_content(before))
             require_public_slot(connection, before)
             now = utc_now()
             connection.execute(
@@ -634,6 +674,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 (now, user["id"], now, now, content_id),
             )
             row = content_or_404(connection, content_id)
+            refresh_content_usages(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="publish",
                 before=before, after=row,
@@ -652,7 +693,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             before = content_or_404(connection, content_id)
             require_version(before, payload.version)
             require_state(before, {"in_review"}, "планирование")
-            require_ready(serialize_admin_content(before))
+            require_ready(connection, serialize_admin_content(before))
             require_public_slot(connection, before)
             now = utc_now()
             connection.execute(
@@ -679,6 +720,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 (utc_now(), content_id),
             )
             row = content_or_404(connection, content_id)
+            refresh_content_usages(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="archive",
                 before=before, after=row,
@@ -698,6 +740,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 (now, now, content_id),
             )
             row = content_or_404(connection, content_id)
+            refresh_content_usages(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="trash",
                 before=before, after=row,
@@ -721,6 +764,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 (utc_now(), content_id),
             )
             row = content_or_404(connection, content_id)
+            refresh_content_usages(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="restore",
                 before=before, after=row,
@@ -839,26 +883,262 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             items.append(item)
         return {"items": items, "total": total, "limit": limit, "offset": offset}
 
+    @app.get("/api/admin/media")
+    def list_media(
+        q: str = "",
+        kind: str | None = Query(default=None, pattern="^(image|video|document)$"),
+        source: str | None = Query(default=None, pattern="^(legacy|upload)$"),
+        status: str | None = Query(default=None, pattern="^(pending|ready|invalid|missing)$"),
+        usage: str | None = Query(default=None, pattern="^(used|unused)$"),
+        sort: str = Query(default="newest", pattern="^(newest|oldest|name|size)$"),
+        limit: int = Query(48, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        conditions: list[str] = []
+        params: list[Any] = []
+        if q.strip():
+            needle = f"%{q.strip().lower()}%"
+            conditions.append(
+                "(LOWER(m.original_name) LIKE ? OR LOWER(m.alt_text) LIKE ? OR LOWER(m.stored_name) LIKE ? "
+                "OR EXISTS(SELECT 1 FROM media_usages su JOIN contents sc ON sc.id=su.content_id "
+                "WHERE su.media_id=m.id AND LOWER(sc.title) LIKE ?))"
+            )
+            params.extend([needle, needle, needle, needle])
+        for column, value in (("kind", kind), ("source", source), ("status", status)):
+            if value:
+                conditions.append(f"m.{column}=?")
+                params.append(value)
+        if usage == "used":
+            conditions.append("EXISTS(SELECT 1 FROM media_usages ux WHERE ux.media_id=m.id)")
+        elif usage == "unused":
+            conditions.append("NOT EXISTS(SELECT 1 FROM media_usages ux WHERE ux.media_id=m.id)")
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        order = {
+            "newest": "COALESCE(m.updated_at,m.created_at) DESC,m.id DESC",
+            "oldest": "m.created_at,m.id",
+            "name": "LOWER(m.original_name),m.id",
+            "size": "m.size_bytes DESC,m.id",
+        }[sort]
+        with connect(settings.database_path) as connection:
+            total = connection.execute(f"SELECT COUNT(*) FROM media m{where}", params).fetchone()[0]
+            rows = connection.execute(
+                f"""SELECT m.*,COUNT(DISTINCT u.content_id) AS content_count,COUNT(u.media_id) AS usage_count
+                    FROM media m LEFT JOIN media_usages u ON u.media_id=m.id
+                    {where} GROUP BY m.id ORDER BY {order} LIMIT ? OFFSET ?""",
+                [*params, limit, offset],
+            ).fetchall()
+        return {"items": [serialize_media(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+    @app.get("/api/admin/media/{media_id}")
+    def get_media(media_id: str, _: dict = Depends(require("viewer"))):
+        with connect(settings.database_path) as connection:
+            row = media_row(connection, media_id)
+            if not row:
+                raise HTTPException(404, "Медиафайл не найден")
+            events = connection.execute(
+                """SELECT e.*,u.username AS actor_username FROM media_events e
+                   LEFT JOIN users u ON u.id=e.actor_id WHERE e.media_id=?
+                   ORDER BY e.created_at DESC,e.id DESC LIMIT 50""",
+                (media_id,),
+            ).fetchall()
+        item = serialize_media(row)
+        item["events"] = [
+            {**dict(event), "details": json.loads(event["details_json"] or "{}")}
+            for event in events
+        ]
+        for event in item["events"]:
+            event.pop("details_json", None)
+        return item
+
+    @app.get("/api/admin/media/{media_id}/usages")
+    def media_usages(
+        media_id: str,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        with connect(settings.database_path) as connection:
+            if not connection.execute("SELECT 1 FROM media WHERE id=?", (media_id,)).fetchone():
+                raise HTTPException(404, "Медиафайл не найден")
+            total = connection.execute("SELECT COUNT(*) FROM media_usages WHERE media_id=?", (media_id,)).fetchone()[0]
+            rows = connection.execute(
+                """SELECT u.*,c.title,c.content_type,c.status,c.version AS current_version
+                   FROM media_usages u JOIN contents c ON c.id=u.content_id
+                   WHERE u.media_id=? ORDER BY u.is_published DESC,c.title,u.revision_version DESC
+                   LIMIT ? OFFSET ?""",
+                (media_id, limit, offset),
+            ).fetchall()
+        return {"items": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
     @app.post("/api/admin/media", status_code=201)
     async def upload_media(
+        response: Response,
         file: UploadFile = File(...),
         alt_text: str = "",
         user: dict = Depends(require("editor", mutation=True)),
     ):
-        if file.content_type not in ALLOWED_MEDIA:
-            raise HTTPException(415, "Разрешены JPG, PNG, WebP, PDF и MP4")
-        body = await file.read(MAX_MEDIA_BYTES + 1)
-        if len(body) > MAX_MEDIA_BYTES:
-            raise HTTPException(413, "Файл больше 15 МБ")
-        media_id = str(uuid.uuid4())
-        stored_name = f"{media_id}{ALLOWED_MEDIA[file.content_type]}"
-        (settings.media_dir / stored_name).write_bytes(body)
-        with transaction(settings.database_path) as connection:
-            connection.execute(
-                "INSERT INTO media(id,original_name,stored_name,mime_type,size_bytes,alt_text,uploaded_by,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                (media_id, file.filename or stored_name, stored_name, file.content_type, len(body), alt_text, user["id"], utc_now()),
+        try:
+            item, deduplicated = await asyncio.to_thread(
+                store_upload, file.file, file.filename or "file", settings, user["id"], alt_text=alt_text
             )
-        return {"id": media_id, "url": f"/media/{stored_name}", "name": file.filename, "mime_type": file.content_type}
+        except MediaError as error:
+            raise HTTPException(error.status_code, str(error)) from error
+        if deduplicated:
+            response.status_code = 200
+        return {**item, "deduplicated": deduplicated}
+
+    @app.patch("/api/admin/media/{media_id}")
+    def update_media(
+        media_id: str,
+        payload: MediaUpdate,
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        with transaction(settings.database_path) as connection:
+            before = connection.execute("SELECT * FROM media WHERE id=?", (media_id,)).fetchone()
+            if not before:
+                raise HTTPException(404, "Медиафайл не найден")
+            if before["version"] != payload.version:
+                raise HTTPException(409, "Медиафайл уже изменён; обновите список")
+            alt_text = payload.alt_text.strip()
+            if alt_text == before["alt_text"]:
+                row = media_row(connection, media_id)
+            else:
+                connection.execute(
+                    "UPDATE media SET alt_text=?,version=version+1,updated_at=? WHERE id=?",
+                    (alt_text, utc_now(), media_id),
+                )
+                record_media_event(connection, media_id, user["id"], "metadata_update", {"field": "alt_text"})
+                row = media_row(connection, media_id)
+        return serialize_media(row)
+
+    @app.post("/api/admin/media/{media_id}/replacement", status_code=201)
+    async def replace_media(
+        media_id: str,
+        file: UploadFile = File(...),
+        alt_text: str = "",
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        with connect(settings.database_path) as connection:
+            if not connection.execute("SELECT 1 FROM media WHERE id=?", (media_id,)).fetchone():
+                raise HTTPException(404, "Исходный медиафайл не найден")
+        try:
+            item, deduplicated = await asyncio.to_thread(
+                store_upload,
+                file.file,
+                file.filename or "file",
+                settings,
+                user["id"],
+                alt_text=alt_text,
+                replaces_media_id=media_id,
+            )
+        except MediaError as error:
+            raise HTTPException(error.status_code, str(error)) from error
+        return {**item, "deduplicated": deduplicated, "replaces_media_id": media_id}
+
+    @app.delete("/api/admin/media/{media_id}", status_code=204)
+    def delete_media(
+        media_id: str,
+        version: int = Query(ge=1),
+        user: dict = Depends(require("admin", mutation=True)),
+    ):
+        rebuild_usages(settings.database_path)
+        with transaction(settings.database_path) as connection:
+            row = connection.execute("SELECT * FROM media WHERE id=?", (media_id,)).fetchone()
+            if not row:
+                raise HTTPException(404, "Медиафайл не найден")
+            if row["version"] != version:
+                raise HTTPException(409, "Медиафайл уже изменён; обновите список")
+            usages = connection.execute("SELECT COUNT(*) FROM media_usages WHERE media_id=?", (media_id,)).fetchone()[0]
+            if usages:
+                raise HTTPException(409, f"Файл используется в {usages} местах и не может быть удалён")
+            record_media_event(connection, media_id, user["id"], "delete", {"stored_name": row["stored_name"]})
+            connection.execute("DELETE FROM media WHERE id=?", (media_id,))
+        resolve_media_path(settings.media_dir, row["stored_name"]).unlink(missing_ok=True)
+        shutil.rmtree(settings.derivatives_dir / media_id, ignore_errors=True)
+        return Response(status_code=204)
+
+    @app.post("/api/admin/media/reindex")
+    async def reindex_media(
+        dry_run: bool = True,
+        _: dict = Depends(require("admin", mutation=True)),
+    ):
+        return await asyncio.to_thread(
+            index_library,
+            settings.database_path,
+            settings.media_dir,
+            missing_report=settings.root / "outputs" / "missing-legacy-media.csv",
+            dry_run=dry_run,
+        )
+
+    @app.get("/api/admin/media-issues")
+    def list_media_issues(
+        q: str = "",
+        status: str | None = Query(default=None, pattern="^(pending|resolved)$"),
+        limit: int = Query(48, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        conditions = []
+        params: list[Any] = []
+        if q.strip():
+            conditions.append("(LOWER(i.source_url) LIKE ? OR LOWER(i.source_directory) LIKE ? OR LOWER(i.error) LIKE ?)")
+            needle = f"%{q.strip().lower()}%"
+            params.extend([needle, needle, needle])
+        if status:
+            conditions.append("i.status=?")
+            params.append(status)
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        with connect(settings.database_path) as connection:
+            total = connection.execute(f"SELECT COUNT(*) FROM missing_media_issues i{where}", params).fetchone()[0]
+            rows = connection.execute(
+                f"""SELECT i.*,COUNT(ic.content_id) AS content_count
+                    FROM missing_media_issues i LEFT JOIN missing_media_issue_contents ic ON ic.issue_id=i.id
+                    {where} GROUP BY i.id ORDER BY (i.status='pending') DESC,i.source_url LIMIT ? OFFSET ?""",
+                [*params, limit, offset],
+            ).fetchall()
+            items = []
+            for row in rows:
+                item = dict(row)
+                item["contents"] = [
+                    dict(content) for content in connection.execute(
+                        """SELECT c.id,c.title,c.content_type,c.status FROM missing_media_issue_contents ic
+                           JOIN contents c ON c.id=ic.content_id WHERE ic.issue_id=? ORDER BY c.title""",
+                        (row["id"],),
+                    ).fetchall()
+                ]
+                items.append(item)
+        return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+    @app.post("/api/admin/media-issues/{issue_id}/replacement", status_code=201)
+    async def resolve_media_issue(
+        issue_id: str,
+        file: UploadFile = File(...),
+        alt_text: str = "",
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        with connect(settings.database_path) as connection:
+            issue = connection.execute("SELECT * FROM missing_media_issues WHERE id=?", (issue_id,)).fetchone()
+        if not issue:
+            raise HTTPException(404, "Запись об утраченном файле не найдена")
+        try:
+            item, deduplicated = await asyncio.to_thread(
+                store_upload, file.file, file.filename or "file", settings, user["id"], alt_text=alt_text
+            )
+        except MediaError as error:
+            raise HTTPException(error.status_code, str(error)) from error
+        with transaction(settings.database_path) as connection:
+            current = connection.execute("SELECT * FROM missing_media_issues WHERE id=?", (issue_id,)).fetchone()
+            connection.execute(
+                """UPDATE missing_media_issues SET status='resolved',replacement_media_id=?,
+                   version=version+1,updated_at=?,resolved_at=? WHERE id=?""",
+                (item["id"], utc_now(), utc_now(), issue_id),
+            )
+            record_media_event(
+                connection, item["id"], user["id"], "resolve_missing",
+                {"issue_id": issue_id, "source_url": current["source_url"]},
+            )
+        return {"media": item, "deduplicated": deduplicated, "issue_id": issue_id}
 
     @app.get("/api/admin/migration")
     def migration_status(_: dict = Depends(require("viewer"))):
@@ -918,6 +1198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 settings.database_path, settings.legacy_sections_path,
                 media_manifest=manifest_path, leaflets_only=True, actor_id=user["id"],
             )
+            rebuild_usages(settings.database_path)
             return {
                 "dry_run": False,
                 "records_found": full_result["records_found"] + leaflet_result["records_found"],
@@ -927,10 +1208,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "errors": full_result["errors"] + leaflet_result["errors"],
                 "broken_pages": full_result["broken"],
             }
-        return run_import(
+        result = run_import(
             settings.database_path, settings.legacy_sections_path,
             dry_run=dry_run, media_manifest=manifest_path, actor_id=user["id"],
         )
+        if not dry_run:
+            rebuild_usages(settings.database_path)
+        return result
 
     def public_context(active_nav: str, page_title: str, **values: Any) -> dict[str, Any]:
         return {
@@ -1278,8 +1562,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def cms_schema_file():
         return static_file("cms-schema.json")
 
+    @app.get("/media-derivatives/{media_id}/{variant}.webp", include_in_schema=False)
+    def media_derivative(media_id: str, variant: str):
+        try:
+            path = ensure_derivative(settings, media_id, variant)
+        except MediaError as error:
+            raise HTTPException(error.status_code, str(error)) from error
+        return FileResponse(
+            path,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
+        )
+
+    @app.get("/media/{media_path:path}", include_in_schema=False)
+    def media_original(media_path: str):
+        try:
+            path = resolve_media_path(settings.media_dir, media_path)
+        except MediaError as error:
+            raise HTTPException(error.status_code, str(error)) from error
+        if not path.is_file():
+            raise HTTPException(404, "Медиафайл не найден")
+        with connect(settings.database_path) as connection:
+            row = connection.execute("SELECT * FROM media WHERE stored_name=?", (media_path,)).fetchone()
+        media_type = row["mime_type"] if row else None
+        headers = {"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"}
+        if row and row["kind"] == "document" and row["mime_type"] != "application/pdf":
+            safe_name = row["original_name"].replace('"', "")
+            headers["Content-Disposition"] = f'attachment; filename="{safe_name.encode("ascii", "ignore").decode() or "document"}"'
+        return FileResponse(path, media_type=media_type, headers=headers)
+
     app.mount("/assets", StaticFiles(directory=settings.site_dir / "assets"), name="assets")
-    app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
     @app.get("/{path:path}", include_in_schema=False)
     def public_unknown(request: Request, path: str):

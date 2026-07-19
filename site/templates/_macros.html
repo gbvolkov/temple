@@ -6,10 +6,15 @@
 <div class="empty"><h3>{{ title }}</h3><p>{{ description }}</p></div>
 {%- endmacro %}
 
+{% macro responsive_image(src, alt='', class_name='', loading='lazy') -%}
+{% set webp = media_variant_url(src, 'web') %}
+<picture class="responsive-picture">{% if webp %}<source srcset="{{ webp }}" type="image/webp">{% endif %}<img src="{{ src }}" alt="{{ alt }}"{% if class_name %} class="{{ class_name }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}></picture>
+{%- endmacro %}
+
 {% macro album_card(item) -%}
 <a class="album-card" href="{{ item.url }}">
   <div class="album-card__media">
-    {% if item.cover %}<img src="{{ item.cover }}" alt="{{ item.cover_alt }}">{% else %}<span class="media-placeholder" aria-hidden="true">✣</span>{% endif %}
+    {% if item.cover %}{{ responsive_image(item.cover,item.cover_alt) }}{% else %}<span class="media-placeholder" aria-hidden="true">✣</span>{% endif %}
   </div>
   <div class="album-card__body">{% if item.date %}<div class="meta">{{ item.date }}</div>{% endif %}<h3>{{ item.title }}</h3>{% if item.summary %}<p>{{ item.summary }}</p>{% endif %}</div>
 </a>
@@ -35,8 +40,8 @@
   {% elif block.type == 'heading' and data.level == 2 %}<h2 class="content-block content-block--heading">{{ inline_runs(data.runs) }}</h2>
   {% elif block.type == 'heading' %}<h3 class="content-block content-block--heading">{{ inline_runs(data.runs) }}</h3>
   {% elif block.type == 'list' %}{% if data.style == 'numbered' %}<ol class="content-block content-block--list">{% else %}<ul class="content-block content-block--list">{% endif %}{% for item in data['items'] %}<li>{{ inline_runs(item.runs) }}</li>{% endfor %}{% if data.style == 'numbered' %}</ol>{% else %}</ul>{% endif %}
-  {% elif block.type == 'image' %}<figure class="content-block content-block--image"><img src="{{ data.image }}" alt="{{ data.alt }}" loading="lazy">{% if data.caption %}<figcaption>{{ data.caption }}</figcaption>{% endif %}</figure>
-  {% elif block.type == 'gallery' %}<div class="content-block content-block--gallery">{% for photo in data['items'] %}<figure><button type="button" data-lightbox-src="{{ photo.image }}" data-lightbox-caption="{{ photo.caption }}"><img src="{{ photo.image }}" alt="{{ photo.alt }}" loading="lazy"></button>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
+  {% elif block.type == 'image' %}<figure class="content-block content-block--image">{{ responsive_image(data.image,data.alt) }}{% if data.caption %}<figcaption>{{ data.caption }}</figcaption>{% endif %}</figure>
+  {% elif block.type == 'gallery' %}<div class="content-block content-block--gallery">{% for photo in data['items'] %}<figure><button type="button" data-lightbox-src="{{ photo.image }}" data-lightbox-caption="{{ photo.caption }}">{{ responsive_image(photo.image,photo.alt) }}</button>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
   {% elif block.type == 'quote' %}<figure class="content-block content-block--quote"><blockquote>{{ inline_runs(data.runs) }}</blockquote>{% if data.author or data.source %}<figcaption>{% if data.author %}{{ data.author }}{% endif %}{% if data.author and data.source %}, {% endif %}{% if data.source %}<cite>{{ data.source }}</cite>{% endif %}</figcaption>{% endif %}</figure>
   {% elif block.type == 'video' %}<figure class="content-block content-block--video">{% if data.embed_url %}<div class="video-frame"><iframe src="{{ data.embed_url }}" title="{{ data.caption or 'Видео' }}" loading="lazy" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>{% else %}<a class="button button--primary" href="{{ data.url }}" target="_blank" rel="noopener noreferrer">Открыть видео ↗</a>{% endif %}{% if data.caption %}<figcaption>{{ data.caption }}</figcaption>{% endif %}</figure>
   {% elif block.type == 'file' %}<a class="content-block content-block--file" href="{{ data.url }}" target="_blank" rel="noopener"><span aria-hidden="true">↓</span><span><strong>{{ data.label }}</strong>{% if data.description %}<small>{{ data.description }}</small>{% endif %}</span></a>

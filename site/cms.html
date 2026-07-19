@@ -83,6 +83,23 @@
       <div class="form-actions"><button class="button button--ghost" type="button" data-link-close>Отмена</button><button class="button button--primary" type="submit">Применить</button></div>
     </form>
   </dialog>
+  <dialog class="modal media-dialog" data-media-dialog aria-labelledby="media-dialog-title">
+    <div class="modal__surface media-dialog__surface">
+      <button class="modal__close" type="button" aria-label="Закрыть" data-media-close>×</button>
+      <div class="media-dialog__head"><div><div class="eyebrow">Медиатека</div><h2 id="media-dialog-title" data-media-dialog-title>Выбрать файл</h2></div><label class="button button--primary button--compact" data-media-upload-label>Загрузить<input class="cms-file-input" type="file" multiple data-library-upload></label></div>
+      <div class="media-toolbar"><label>Поиск<input type="search" placeholder="Имя, alt или материал" data-media-search></label><label>Тип<select data-media-kind><option value="">Все файлы</option><option value="image">Изображения</option><option value="video">Видео</option><option value="document">Документы</option></select></label><label>Использование<select data-media-usage><option value="">Любое</option><option value="used">Используется</option><option value="unused">Не используется</option></select></label></div>
+      <div class="media-grid" data-media-grid></div>
+      <div class="media-pagination"><span data-media-count></span><button class="button button--ghost button--compact" type="button" data-media-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-media-next>Дальше →</button></div>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-media-close>Отмена</button><button class="button button--primary" type="button" data-media-use hidden>Использовать выбранное</button></div>
+    </div>
+  </dialog>
+  <dialog class="modal media-detail-dialog" data-media-detail-dialog aria-labelledby="media-detail-title">
+    <div class="modal__surface media-detail__surface">
+      <button class="modal__close" type="button" aria-label="Закрыть" data-media-detail-close>×</button>
+      <div data-media-detail></div>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-media-detail-close>Закрыть</button></div>
+    </div>
+  </dialog>
   <div class="toast" role="status" aria-live="polite" data-toast></div>
   <script src="/cms.js"></script>
 </body>

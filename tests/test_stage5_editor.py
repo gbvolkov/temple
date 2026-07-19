@@ -81,7 +81,7 @@ def test_content_schema_is_the_single_editor_source() -> None:
     schema = json.loads((ROOT / "site" / "cms-schema.json").read_text(encoding="utf-8"))
     cms_js = (ROOT / "site" / "cms.js").read_text(encoding="utf-8")
 
-    assert schema["schema_version"] == "1.2.0"
+    assert schema["schema_version"] == "1.3.0"
     assert set(schema["ui"]["block_types"]) == {
         "paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout",
     }
@@ -110,7 +110,7 @@ def test_all_canonical_blocks_preview_and_public_rendering(tmp_path: Path) -> No
             {"id": "gallery-1", "type": "gallery", "data": {"items": [{"id": "photo-1", "image": "/assets/school-maslenitsa.jpg", "alt": "Фото галереи", "caption": "Галерея", "order": 7}]}},
             {"id": "quote-1", "type": "quote", "data": {"runs": [{"text": "Текст цитаты", "marks": []}], "author": "Автор", "source": "Источник"}},
             {"id": "video-1", "type": "video", "data": {"url": "https://www.youtube.com/watch?v=abc123", "caption": "Видео"}},
-            {"id": "file-1", "type": "file", "data": {"url": "/media/document.pdf", "label": "Документ", "description": "Описание файла"}},
+            {"id": "file-1", "type": "file", "data": {"url": "/assets/document.pdf", "label": "Документ", "description": "Описание файла"}},
             {"id": "callout-1", "type": "callout", "data": {"tone": "important", "title": "Важно", "runs": [{"text": "Текст плашки", "marks": []}]}},
         ]
         source = create_page(

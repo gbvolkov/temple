@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .db import row_to_content, transaction, utc_now
+from .media_library import media_reference_problems, refresh_content_usages
 
 
 LOGGER = logging.getLogger(__name__)
@@ -91,7 +92,12 @@ def normalize_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def publish_due_content(database_path: Path, *, now: datetime | None = None) -> list[str]:
+def publish_due_content(
+    database_path: Path,
+    *,
+    now: datetime | None = None,
+    media_dir: Path | None = None,
+) -> list[str]:
     instant = normalize_utc(now or datetime.now(UTC))
     instant_text = instant.isoformat(timespec="seconds")
     published: list[str] = []
@@ -103,6 +109,25 @@ def publish_due_content(database_path: Path, *, now: datetime | None = None) -> 
             (instant_text,),
         ).fetchall()
         for before in rows:
+            if media_dir is not None:
+                problems = media_reference_problems(connection, admin_content(before), media_dir)
+                if problems:
+                    connection.execute(
+                        """UPDATE contents SET status='in_review',scheduled_at=NULL,updated_at=?
+                           WHERE id=? AND status='scheduled' AND version=?""",
+                        (instant_text, before["id"], before["version"]),
+                    )
+                    after = connection.execute("SELECT * FROM contents WHERE id=?", (before["id"],)).fetchone()
+                    record_audit(
+                        connection,
+                        content_id=before["id"],
+                        actor_id=None,
+                        action="schedule_cancelled_media_error",
+                        before=before,
+                        after=after,
+                        details={"media_errors": len(problems)},
+                    )
+                    continue
             changed = connection.execute(
                 """UPDATE contents
                    SET status='published',published_version=version,
@@ -114,6 +139,7 @@ def publish_due_content(database_path: Path, *, now: datetime | None = None) -> 
             if changed.rowcount != 1:
                 continue
             after = connection.execute("SELECT * FROM contents WHERE id=?", (before["id"],)).fetchone()
+            refresh_content_usages(connection, before["id"])
             record_audit(
                 connection,
                 content_id=before["id"],
@@ -127,10 +153,15 @@ def publish_due_content(database_path: Path, *, now: datetime | None = None) -> 
     return published
 
 
-async def publication_scheduler(database_path: Path, *, interval_seconds: int = 60) -> None:
+async def publication_scheduler(
+    database_path: Path,
+    *,
+    media_dir: Path | None = None,
+    interval_seconds: int = 60,
+) -> None:
     while True:
         try:
-            published = publish_due_content(database_path)
+            published = publish_due_content(database_path, media_dir=media_dir)
             if published:
                 LOGGER.info("Published %d scheduled contents", len(published))
         except asyncio.CancelledError:

@@ -7,7 +7,7 @@
   const roleLevel = { viewer: 0, editor: 1, publisher: 2, admin: 3 };
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" } };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -110,20 +110,20 @@
       const listId = `list-${name}-${Math.random().toString(16).slice(2)}`;
       return fieldShell(name, field, `<input name="${escapeHtml(name)}" list="${listId}" value="${escapeHtml(value)}"><datalist id="${listId}">${(field.values || []).map(option => optionMarkup(option, "")).join("")}</datalist>`);
     },
-    image: (name, field, value) => mediaField(name, field, value, "image/*"),
-    file: (name, field, value) => mediaField(name, field, value, "application/pdf,video/mp4"),
-    media: (name, field, value) => mediaField(name, field, value, field.accept || "image/*,application/pdf,video/mp4"),
+    image: (name, field, value) => mediaField(name, field, value, "image", ".jpg,.jpeg,.png,.webp"),
+    file: (name, field, value) => mediaField(name, field, value, "document", ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt"),
+    media: (name, field, value) => mediaField(name, field, value, "", field.accept || ".jpg,.jpeg,.png,.webp,.mp4,.pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt"),
     schedule: (name, field, value) => fieldShell(name, field, `<div class="schedule-editor" data-schedule-editor><div class="schedule-editor__rows" data-schedule-rows></div><button class="button button--ghost button--compact" type="button" data-schedule-add>Добавить строку</button></div>`),
     blocks: (name, field) => fieldShell(name, field, `<div class="block-editor" data-block-editor><div class="block-list" data-block-list></div><div class="block-palette" data-block-palette></div></div>`),
     relation_list: (name, field) => relationField(name, field, false),
     "relation-list": (name, field) => relationField(name, field, false),
     relation: (name, field) => relationField(name, field, true),
-    image_list: (name, field) => fieldShell(name, field, `<div class="image-list-editor" data-image-list><div class="image-list-editor__items" data-image-list-items></div><label class="button button--ghost button--compact">Загрузить фотографии<input class="cms-file-input" type="file" accept="image/*" multiple data-image-list-upload></label></div>`),
+    image_list: (name, field) => fieldShell(name, field, `<div class="image-list-editor" data-image-list><div class="image-list-editor__items" data-image-list-items></div><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="image-list">Выбрать из медиатеки</button><label class="button button--ghost button--compact">Загрузить фотографии<input class="cms-file-input" type="file" accept=".jpg,.jpeg,.png,.webp" multiple data-image-list-upload></label></div></div>`),
     social_links: (name, field, value) => fieldShell(name, field, `<textarea name="${escapeHtml(name)}" rows="5" placeholder="Одна HTTPS-ссылка на строку">${escapeHtml((value || []).map(item => item.url || item).join("\n"))}</textarea>`),
   };
 
-  function mediaField(name, field, value, accept) {
-    return fieldShell(name, field, `<div class="media-field"><input name="${escapeHtml(name)}" type="text" value="${escapeHtml(value || "")}" readonly><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${accept}" data-media-upload></label></div>`);
+  function mediaField(name, field, value, kind, accept) {
+    return fieldShell(name, field, `<div class="media-field"><input name="${escapeHtml(name)}" type="text" value="${escapeHtml(value || "")}" readonly><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="field" data-media-kind="${escapeHtml(kind)}">Выбрать</button><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${escapeHtml(accept)}" data-media-upload></label></div></div>`);
   }
 
   function relationField(name, field, single) {
@@ -189,7 +189,7 @@
     else if (block.type === "heading") body = `<label class="compact-field">Уровень<select data-block-value="level"><option value="2"${block.data.level === 2 ? " selected" : ""}>H2</option><option value="3"${block.data.level === 3 ? " selected" : ""}>H3</option></select></label>${inlineEditor(block.data.runs, "Заголовок")}`;
     else if (block.type === "list") body = `<label class="compact-field">Вид<select data-block-value="style"><option value="bulleted"${block.data.style === "bulleted" ? " selected" : ""}>Маркированный</option><option value="numbered"${block.data.style === "numbered" ? " selected" : ""}>Нумерованный</option></select></label><div data-list-items>${block.data.items.map(listItemMarkup).join("")}</div><button class="button button--ghost button--compact" type="button" data-list-add>Добавить пункт</button>`;
     else if (block.type === "image") body = mediaBlockMarkup(block.data, "image");
-    else if (block.type === "gallery") body = `<div class="block-gallery" data-block-gallery>${imageCards(block.data.items)}</div><label class="button button--ghost button--compact">Загрузить фотографии<input class="cms-file-input" type="file" accept="image/*" multiple data-block-upload="gallery"></label>`;
+    else if (block.type === "gallery") body = `<div class="block-gallery" data-block-gallery>${imageCards(block.data.items)}</div><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="block-gallery">Выбрать из медиатеки</button><label class="button button--ghost button--compact">Загрузить фотографии<input class="cms-file-input" type="file" accept=".jpg,.jpeg,.png,.webp" multiple data-block-upload="gallery"></label></div>`;
     else if (block.type === "quote") body = `${inlineEditor(block.data.runs, "Текст цитаты")}<div class="field-row"><label class="field">Автор<input data-block-value="author" value="${escapeHtml(block.data.author)}"></label><label class="field">Источник<input data-block-value="source" value="${escapeHtml(block.data.source)}"></label></div>`;
     else if (block.type === "video") body = `<label class="field">HTTPS-ссылка<input type="url" data-block-value="url" value="${escapeHtml(block.data.url)}"></label><label class="field">Подпись<input data-block-value="caption" value="${escapeHtml(block.data.caption)}"></label>`;
     else if (block.type === "file") body = `${mediaBlockMarkup(block.data, "file")}<label class="field">Название файла<input data-block-value="label" value="${escapeHtml(block.data.label)}"></label><label class="field">Описание<textarea data-block-value="description">${escapeHtml(block.data.description)}</textarea></label>`;
@@ -203,8 +203,9 @@
 
   function mediaBlockMarkup(data, kind) {
     const key = kind === "image" ? "image" : "url";
-    const accept = kind === "image" ? "image/*" : "application/pdf,video/mp4";
-    return `<div class="media-field"><input type="text" data-block-value="${key}" value="${escapeHtml(data[key] || "")}" readonly><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${accept}" data-block-upload="${kind}"></label></div>${kind === "image" ? `<label class="field">Alt-текст<input data-block-value="alt" value="${escapeHtml(data.alt || "")}"></label><label class="field">Подпись<input data-block-value="caption" value="${escapeHtml(data.caption || "")}"></label>` : ""}`;
+    const accept = kind === "image" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt,.mp4";
+    const mediaKind = kind === "image" ? "image" : "document";
+    return `<div class="media-field"><input type="text" data-block-value="${key}" value="${escapeHtml(data[key] || "")}" readonly><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="block-${kind}" data-media-kind="${mediaKind}">Выбрать</button><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${accept}" data-block-upload="${kind}"></label></div></div>${kind === "image" ? `<label class="field">Alt-текст<input data-block-value="alt" value="${escapeHtml(data.alt || "")}"></label><label class="field">Подпись<input data-block-value="caption" value="${escapeHtml(data.caption || "")}"></label>` : ""}`;
   }
 
   function normalizeImages(images) {
@@ -448,7 +449,9 @@
   async function openRecord(id) {
     if (!id) { state.current = null; renderEditor(state.currentType, null); return; }
     state.current = await apiRequest(`/api/admin/contents/${encodeURIComponent(id)}`);
+    state.currentType = state.current.content_type;
     state.dirty = false;
+    renderNavigation();
     renderEditor(state.currentType, state.current);
   }
 
@@ -491,13 +494,131 @@
     } finally { previewFrame.classList.remove("is-loading"); }
   }
 
-  async function uploadFiles(files, alt = "") {
-    const uploaded = [];
-    for (const file of files) {
+  function uploadFile(file, alt = "", path = "/api/admin/media") {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
       const form = new FormData(); form.append("file", file); form.append("alt_text", alt);
-      uploaded.push(await apiRequest("/api/admin/media", { method: "POST", body: form }));
-    }
+      request.open("POST", path); request.withCredentials = true;
+      if (state.csrf) request.setRequestHeader("X-CSRF-Token", state.csrf);
+      request.upload.addEventListener("progress", event => {
+        if (!event.lengthComputable) return;
+        document.querySelector("[data-save-status]").textContent = `Загрузка ${file.name}: ${Math.round(event.loaded / event.total * 100)}%`;
+      });
+      request.addEventListener("load", () => {
+        const body = (() => { try { return JSON.parse(request.responseText || "{}"); } catch { return {}; } })();
+        if (request.status >= 200 && request.status < 300) { resolve(body); return; }
+        const detail = body.detail;
+        reject(new Error(typeof detail === "string" ? detail : detail?.message || `Ошибка загрузки (${request.status})`));
+      });
+      request.addEventListener("error", () => reject(new Error("Сеть прервала загрузку файла")));
+      request.send(form);
+    });
+  }
+
+  async function uploadFiles(files, alt = "", path = "/api/admin/media") {
+    const uploaded = [];
+    for (const file of files) uploaded.push(await uploadFile(file, alt, path));
+    document.querySelector("[data-save-status]").textContent = "Файлы загружены в медиатеку";
     return uploaded;
+  }
+
+  function humanSize(bytes) {
+    const value = Number(bytes || 0);
+    if (value < 1024) return `${value} Б`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} КБ`;
+    return `${(value / 1024 / 1024).toFixed(1)} МБ`;
+  }
+
+  function mediaIcon(item) {
+    const extension = String(item.original_name || item.stored_name || "").split(".").pop().toUpperCase();
+    return `<span class="media-file-icon" aria-hidden="true">${escapeHtml(extension.slice(0, 5) || "FILE")}</span>`;
+  }
+
+  function mediaCard(item, selectable = false) {
+    state.media.items.set(item.id, item);
+    const selected = state.media.selected.has(item.id);
+    const preview = item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="">` : mediaIcon(item);
+    const source = item.source === "legacy" ? "Архив" : "Загрузка";
+    return `<article class="media-card${selected ? " is-selected" : ""}" data-media-id="${escapeHtml(item.id)}"><button class="media-card__preview" type="button" ${selectable ? "data-media-select" : "data-media-open"} aria-label="${selectable ? "Выбрать" : "Открыть"} ${escapeHtml(item.original_name)}">${preview}${selectable ? `<span class="media-card__check" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}</button><div class="media-card__body"><strong title="${escapeHtml(item.original_name)}">${escapeHtml(item.original_name)}</strong><small>${escapeHtml(source)} · ${humanSize(item.size_bytes)}</small><small>${item.content_count ? `В ${item.content_count} материалах` : "Не используется"}</small></div>${!selectable ? '<button class="media-card__more" type="button" data-media-open aria-label="Подробности">•••</button>' : ""}</article>`;
+  }
+
+  function mediaQuery() {
+    const params = new URLSearchParams({ limit: "48", offset: String(state.media.offset), sort: "newest" });
+    if (state.media.q) params.set("q", state.media.q);
+    if (state.media.kind) params.set("kind", state.media.kind);
+    if (state.media.usage) params.set("usage", state.media.usage);
+    return params;
+  }
+
+  async function loadMediaDialog() {
+    const grid = document.querySelector("[data-media-grid]");
+    grid.innerHTML = '<p class="media-loading">Загружаем файлы…</p>';
+    const result = await apiRequest(`/api/admin/media?${mediaQuery()}`);
+    state.media.total = result.total;
+    grid.innerHTML = result.items.map(item => mediaCard(item, Boolean(state.media.chooser))).join("") || '<div class="history-empty">Файлы не найдены</div>';
+    document.querySelector("[data-media-count]").textContent = `${Math.min(state.media.offset + 1, result.total)}–${Math.min(state.media.offset + result.items.length, result.total)} из ${result.total}`;
+    document.querySelector("[data-media-prev]").disabled = state.media.offset === 0;
+    document.querySelector("[data-media-next]").disabled = state.media.offset + result.items.length >= result.total;
+    document.querySelector("[data-media-use]").hidden = !state.media.chooser;
+    document.querySelector("[data-media-use]").disabled = state.media.selected.size === 0;
+  }
+
+  function openMediaChooser({ kind = "", multiple = false, apply }) {
+    state.media.chooser = { multiple, apply };
+    state.media.kind = kind;
+    state.media.offset = 0;
+    state.media.selected.clear();
+    document.querySelector("[data-media-kind]").value = kind;
+    document.querySelector("[data-media-search]").value = "";
+    document.querySelector("[data-media-usage]").value = "";
+    document.querySelector("[data-media-dialog-title]").textContent = multiple ? "Выбрать несколько файлов" : "Выбрать файл";
+    document.querySelector("[data-library-upload]").accept = kind === "image" ? ".jpg,.jpeg,.png,.webp" : kind === "video" ? ".mp4" : ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt,.mp4";
+    document.querySelector("[data-library-upload]").multiple = multiple;
+    document.querySelector("[data-media-dialog]").showModal();
+    loadMediaDialog().catch(error => toast(error.message));
+  }
+
+  function closeMediaDialog() {
+    const dialog = document.querySelector("[data-media-dialog]");
+    if (dialog.open) dialog.close();
+    state.media.chooser = null; state.media.selected.clear();
+  }
+
+  function renderMediaPanel() {
+    panel.innerHTML = `<div class="media-panel-head"><div><div class="eyebrow">Управление файлами</div><h1>Медиатека</h1><p>Оригиналы сохраняют постоянные URL. Повторное использование не создаёт копий.</p></div>${can("editor") ? '<label class="button button--primary">Загрузить файлы<input class="cms-file-input" type="file" multiple data-panel-media-upload accept=".jpg,.jpeg,.png,.webp,.mp4,.pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt"></label>' : ""}</div><nav class="media-tabs"><button class="is-active" type="button" data-media-tab="files">Файлы</button><button type="button" data-media-tab="issues">Утрачено</button></nav><div class="media-panel-toolbar"><input type="search" placeholder="Поиск по имени, alt или материалу" data-panel-media-search><select data-panel-media-kind><option value="">Все типы</option><option value="image">Изображения</option><option value="video">Видео</option><option value="document">Документы</option></select><select data-panel-media-usage><option value="">Любое использование</option><option value="used">Используется</option><option value="unused">Не используется</option></select>${can("admin") ? '<button class="button button--ghost button--compact" type="button" data-media-reindex>Проверить индекс</button>' : ""}</div><div class="media-grid media-grid--panel" data-panel-media-grid></div><div class="media-pagination"><span data-panel-media-count></span><button class="button button--ghost button--compact" type="button" data-panel-media-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-panel-media-next>Дальше →</button></div>`;
+    panel.querySelector(".media-panel-head")?.setAttribute("data-media-dropzone", "");
+    state.media.offset = 0; state.media.q = ""; state.media.kind = ""; state.media.usage = ""; state.media.panelTab = "files";
+    loadMediaPanel().catch(error => toast(error.message));
+  }
+
+  async function loadMediaPanel() {
+    const grid = document.querySelector("[data-panel-media-grid]");
+    if (!grid) return;
+    grid.innerHTML = '<p class="media-loading">Загружаем…</p>';
+    if (state.media.panelTab === "issues") {
+      const params = new URLSearchParams({ limit: "48", offset: String(state.media.offset) });
+      if (state.media.q) params.set("q", state.media.q);
+      const result = await apiRequest(`/api/admin/media-issues?${params}`);
+      state.media.total = result.total;
+      grid.innerHTML = result.items.map(item => `<article class="missing-media-card"><div class="missing-media-card__icon">!</div><div><strong>${escapeHtml(item.source_url.split("/").pop())}</strong><p>${escapeHtml(item.source_directory)}</p><small>${item.content_count ? `Связано с ${item.content_count} материалами` : "Связанные материалы не определены"}</small><small class="media-status media-status--${escapeHtml(item.status)}">${item.status === "resolved" ? "Замена загружена" : "Файл утрачен"}</small></div>${can("editor") && item.status === "pending" ? `<label class="button button--ghost button--compact">Загрузить замену<input class="cms-file-input" type="file" data-issue-upload="${escapeHtml(item.id)}"></label>` : ""}</article>`).join("") || '<div class="history-empty">Записей нет</div>';
+      document.querySelector("[data-panel-media-count]").textContent = `${result.total} утраченных файлов`;
+      document.querySelector("[data-panel-media-prev]").disabled = state.media.offset === 0;
+      document.querySelector("[data-panel-media-next]").disabled = state.media.offset + result.items.length >= result.total;
+      return;
+    }
+    const result = await apiRequest(`/api/admin/media?${mediaQuery()}`);
+    state.media.total = result.total;
+    grid.innerHTML = result.items.map(item => mediaCard(item)).join("") || '<div class="history-empty">Файлы не найдены</div>';
+    document.querySelector("[data-panel-media-count]").textContent = `${Math.min(state.media.offset + 1, result.total)}–${Math.min(state.media.offset + result.items.length, result.total)} из ${result.total}`;
+    document.querySelector("[data-panel-media-prev]").disabled = state.media.offset === 0;
+    document.querySelector("[data-panel-media-next]").disabled = state.media.offset + result.items.length >= result.total;
+  }
+
+  async function openMediaDetail(mediaId) {
+    const [item, usages] = await Promise.all([apiRequest(`/api/admin/media/${mediaId}`), apiRequest(`/api/admin/media/${mediaId}/usages?limit=50`)]);
+    const preview = item.preview_url ? `<img class="media-detail__preview" src="${escapeHtml(item.preview_url)}" alt="">` : mediaIcon(item);
+    document.querySelector("[data-media-detail]").innerHTML = `<div class="eyebrow">${escapeHtml(item.kind === "image" ? "Изображение" : item.kind === "video" ? "Видео" : "Документ")}</div><h2 id="media-detail-title">${escapeHtml(item.original_name)}</h2><div class="media-detail-grid"><div>${preview}<dl><div><dt>Размер</dt><dd>${humanSize(item.size_bytes)}</dd></div><div><dt>URL</dt><dd><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a></dd></div><div><dt>Источник</dt><dd>${item.source === "legacy" ? "Архив старого сайта" : "Загружен в CMS"}</dd></div></dl></div><div>${item.kind === "image" ? `<label class="field">Alt-текст<textarea rows="3" data-media-alt ${can("editor") ? "" : "readonly"}>${escapeHtml(item.alt_text || "")}</textarea></label>` : ""}<h3>Использование</h3><div class="media-usage-list">${usages.items.map(use => `<a href="/cms.html?content=${escapeHtml(use.content_id)}"><b>${escapeHtml(use.title)}</b><small>${use.revision_version ? `Версия ${use.revision_version}` : "Рабочая версия"}${use.is_published ? " · на сайте" : ""}</small></a>`).join("") || "<p>Файл не используется.</p>"}</div>${can("editor") ? `<div class="media-detail-actions"><button class="button button--primary button--compact" type="button" data-media-save="${escapeHtml(item.id)}" data-version="${item.version}">Сохранить alt</button><label class="button button--ghost button--compact">Загрузить замену<input class="cms-file-input" type="file" data-media-replace="${escapeHtml(item.id)}"></label>${can("admin") && item.usage_count === 0 ? `<button class="button button--danger button--compact" type="button" data-media-delete="${escapeHtml(item.id)}" data-version="${item.version}">Удалить</button>` : ""}</div>` : ""}</div></div>`;
+    document.querySelector("[data-media-detail-dialog]").showModal();
   }
 
   async function postWorkflow(action, payload = {}) {
@@ -535,8 +656,8 @@
     panel.hidden = false;
     document.querySelectorAll("[data-content-type]").forEach(button => button.classList.remove("is-active"));
     document.querySelectorAll("[data-panel]").forEach(button => button.classList.toggle("is-active", button.dataset.panel === name));
-    if (name === "media") panel.innerHTML = '<div class="eyebrow">Следующий этап</div><h1>Медиатека</h1><p>На этапе 5 файлы загружаются непосредственно из полей и блоков. Повторный выбор и управление файлами появятся на этапе 6.</p>';
-    if (name === "settings") panel.innerHTML = '<div class="eyebrow">Настройки</div><h1>Контентная схема 1.2</h1><p>Поля и типы материалов формируются из единой серверной схемы. Управление пользователями остаётся этапу 7.</p>';
+    if (name === "media") renderMediaPanel();
+    if (name === "settings") panel.innerHTML = '<div class="eyebrow">Настройки</div><h1>Контентная схема 1.3</h1><p>Поля, типы материалов и настройки медиатеки формируются из единой серверной схемы. Управление пользователями остаётся этапу 7.</p>';
     if (name === "migration") { panel.innerHTML = '<div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><section class="review-dashboard" data-review-dashboard><p class="review-summary" data-review-summary>Загружаем прогресс…</p><div class="review-progress"><span data-review-progress></span></div><div class="review-types" data-review-types></div><button class="button button--primary" type="button" data-review-start>Начать проверку</button></section>'; refreshMigrationStatus().catch(error => toast(error.message)); }
   }
 
@@ -556,6 +677,19 @@
   }
 
   function closeDialog(selector) { const dialog = document.querySelector(selector); if (dialog.open) dialog.close(); }
+
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    const dialogs = [...document.querySelectorAll("dialog[open]")];
+    const dialog = dialogs[dialogs.length - 1];
+    if (!dialog) return;
+    event.preventDefault();
+    dialog.close();
+    if (dialog.matches("[data-media-dialog]")) {
+      state.media.chooser = null;
+      state.media.selected.clear();
+    }
+  });
 
   function selectRange(range) {
     const selection = getSelection();
@@ -598,6 +732,45 @@
     if (target.matches("[data-history-close]")) closeDialog("[data-history-dialog]");
     if (target.matches("[data-login-close]")) closeDialog("[data-login-dialog]");
     if (target.matches("[data-link-close]")) closeDialog("[data-link-dialog]");
+    if (target.matches("[data-media-close]")) closeMediaDialog();
+    if (target.matches("[data-media-detail-close]")) closeDialog("[data-media-detail-dialog]");
+    if (target.matches("[data-media-prev]")) { state.media.offset = Math.max(0, state.media.offset - 48); await loadMediaDialog().catch(error => toast(error.message)); }
+    if (target.matches("[data-media-next]")) { state.media.offset += 48; await loadMediaDialog().catch(error => toast(error.message)); }
+    if (target.matches("[data-media-select]")) {
+      const id = target.closest("[data-media-id]").dataset.mediaId;
+      if (!state.media.chooser?.multiple) state.media.selected.clear();
+      if (state.media.selected.has(id)) state.media.selected.delete(id); else state.media.selected.add(id);
+      await loadMediaDialog().catch(error => toast(error.message));
+    }
+    if (target.matches("[data-media-use]")) {
+      const items = [...state.media.selected].map(id => state.media.items.get(id)).filter(Boolean);
+      state.media.chooser?.apply(items);
+      closeMediaDialog();
+    }
+    if (target.matches("[data-media-open]")) await openMediaDetail(target.closest("[data-media-id]").dataset.mediaId).catch(error => toast(error.message));
+    if (target.dataset.mediaTab) {
+      state.media.panelTab = target.dataset.mediaTab; state.media.offset = 0;
+      document.querySelectorAll("[data-media-tab]").forEach(button => button.classList.toggle("is-active", button === target));
+      const toolbar = document.querySelector(".media-panel-toolbar"); if (toolbar) toolbar.hidden = state.media.panelTab === "issues";
+      await loadMediaPanel().catch(error => toast(error.message));
+    }
+    if (target.matches("[data-panel-media-prev]")) { state.media.offset = Math.max(0, state.media.offset - 48); await loadMediaPanel().catch(error => toast(error.message)); }
+    if (target.matches("[data-panel-media-next]")) { state.media.offset += 48; await loadMediaPanel().catch(error => toast(error.message)); }
+    if (target.matches("[data-media-reindex]")) {
+      target.disabled = true; target.textContent = "Проверяем…";
+      try { const result = await apiRequest("/api/admin/media/reindex?dry_run=false", { method: "POST" }); toast(`Проверено файлов: ${result.files}`); await loadMediaPanel(); }
+      catch (error) { toast(error.message); } finally { target.disabled = false; target.textContent = "Проверить индекс"; }
+    }
+    if (target.dataset.mediaSave) {
+      try {
+        const item = await apiRequest(`/api/admin/media/${target.dataset.mediaSave}`, { method: "PATCH", body: JSON.stringify({ version: Number(target.dataset.version), alt_text: document.querySelector("[data-media-alt]")?.value || "" }) });
+        toast("Alt-текст сохранён"); closeDialog("[data-media-detail-dialog]"); state.media.items.set(item.id, item); await loadMediaPanel();
+      } catch (error) { toast(error.message); }
+    }
+    if (target.dataset.mediaDelete && confirm("Удалить этот неиспользуемый файл без возможности восстановления?")) {
+      try { await apiRequest(`/api/admin/media/${target.dataset.mediaDelete}?version=${target.dataset.version}`, { method: "DELETE" }); closeDialog("[data-media-detail-dialog]"); toast("Файл удалён"); await loadMediaPanel(); }
+      catch (error) { toast(error.message); }
+    }
     if (target.matches("[data-publish-confirm]")) {
       if ([...document.querySelectorAll("[data-publish-dialog] input")].some(input => !input.checked)) { toast("Подтвердите все пункты проверки"); return; }
       await publishCurrent().then(() => closeDialog("[data-publish-dialog]")).catch(error => toast(error.message));
@@ -614,6 +787,34 @@
     }
     if (target.dataset.restoreRevision) await restoreRevision(Number(target.dataset.restoreRevision)).catch(error => toast(error.message));
     if (target.matches("[data-review-start]")) { const result = await apiRequest("/api/admin/migration"); const next = Object.entries(result.review_by_type || {}).find(([, counts]) => counts.review_required > 0); if (next) selectContentType(next[0]); }
+  });
+
+  let mediaSearchTimer;
+  document.addEventListener("input", event => {
+    if (!event.target.matches("[data-media-search],[data-panel-media-search]")) return;
+    clearTimeout(mediaSearchTimer);
+    mediaSearchTimer = setTimeout(() => {
+      state.media.q = event.target.value.trim(); state.media.offset = 0;
+      (event.target.matches("[data-media-search]") ? loadMediaDialog() : loadMediaPanel()).catch(error => toast(error.message));
+    }, 250);
+  });
+
+  document.addEventListener("change", async event => {
+    const input = event.target;
+    try {
+      if (input.matches("[data-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaDialog(); }
+      if (input.matches("[data-media-usage]")) { state.media.usage = input.value; state.media.offset = 0; await loadMediaDialog(); }
+      if (input.matches("[data-panel-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaPanel(); }
+      if (input.matches("[data-panel-media-usage]")) { state.media.usage = input.value; state.media.offset = 0; await loadMediaPanel(); }
+      if (input.matches("[data-library-upload]")) {
+        const uploaded = await uploadFiles([...input.files]);
+        uploaded.forEach(item => state.media.selected.add(item.id));
+        await loadMediaDialog();
+      }
+      if (input.matches("[data-panel-media-upload]")) { await uploadFiles([...input.files]); await loadMediaPanel(); toast("Файлы добавлены в медиатеку"); }
+      if (input.matches("[data-issue-upload]")) { await uploadFiles([...input.files], "", `/api/admin/media-issues/${input.dataset.issueUpload}/replacement`); await loadMediaPanel(); toast("Замена сохранена; откройте связанный материал и разместите её вручную"); }
+      if (input.matches("[data-media-replace]")) { const [replacement] = await uploadFiles([...input.files], "", `/api/admin/media/${input.dataset.mediaReplace}/replacement`); closeDialog("[data-media-detail-dialog]"); await loadMediaPanel(); toast(`Создан новый файл ${replacement.original_name}`); }
+    } catch (error) { toast(error.message); }
   });
 
   editorForm.addEventListener("input", event => {
@@ -651,6 +852,24 @@
   editorForm.addEventListener("click", async event => {
     const target = event.target.closest("button,label"); if (!target) return;
     const wrapper = target.closest("[data-schema-field]");
+    if (target.dataset.mediaChoose) {
+      const kind = target.hasAttribute("data-media-kind") ? target.dataset.mediaKind : "image";
+      const mode = target.dataset.mediaChoose;
+      const multiple = ["image-list", "block-gallery"].includes(mode);
+      openMediaChooser({ kind, multiple, apply: items => {
+        if (!items.length) return;
+        if (mode === "field") wrapper.querySelector('.media-field input[type="text"]').value = items[0].url;
+        if (mode === "image-list") wrapper.querySelector("[data-image-list-items]").insertAdjacentHTML("beforeend", imageCards(items.map(item => ({ id: uuid(), image: item.url, alt: item.alt_text || "", caption: "" }))));
+        if (mode === "block-gallery") target.closest("[data-block-id]").querySelector("[data-block-gallery]").insertAdjacentHTML("beforeend", imageCards(items.map(item => ({ id: uuid(), image: item.url, alt: item.alt_text || "", caption: "" }))));
+        if (mode === "block-image" || mode === "block-file") {
+          const card = target.closest("[data-block-id]");
+          card.querySelector(`[data-block-value="${mode === "block-image" ? "image" : "url"}"]`).value = items[0].url;
+          if (mode === "block-image" && !card.querySelector('[data-block-value="alt"]').value) card.querySelector('[data-block-value="alt"]').value = items[0].alt_text || "";
+        }
+        markDirty(wrapper);
+      }});
+      return;
+    }
     if (target.dataset.addBlock) { const list = wrapper.querySelector("[data-block-list]"); list.insertAdjacentHTML("beforeend", blockCard(emptyBlock(target.dataset.addBlock))); markDirty(wrapper); }
     if (target.dataset.blockAction) {
       const card = target.closest("[data-block-id]"), list = card.parentElement;
@@ -722,6 +941,35 @@
   document.querySelector("[data-content-search]").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadContentList().catch(error => toast(error.message)), 220); });
   document.querySelector("[data-review-only]").addEventListener("change", () => loadContentList().catch(error => toast(error.message)));
   document.querySelector("[data-login-form]").addEventListener("submit", async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { const session = await apiRequest("/api/admin/login", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password") }) }); state.user = session.user; state.csrf = session.csrf_token; closeDialog("[data-login-dialog]"); document.querySelector("[data-save-status]").textContent = "CMS подключена"; document.querySelector(".cms-user strong").textContent = state.user.username; document.querySelector(".cms-user small").textContent = state.user.role; renderEditor(); await loadContentList(); } catch (error) { document.querySelector("[data-login-error]").textContent = error.message; } });
+  document.querySelector("[data-media-dialog]").addEventListener("close", () => {
+    state.media.chooser = null;
+    state.media.selected.clear();
+  });
+  for (const eventName of ["dragenter", "dragover"]) {
+    document.addEventListener(eventName, event => {
+      const zone = event.target.closest?.("[data-media-dropzone]");
+      if (!zone || !can("editor") || !event.dataTransfer?.types.includes("Files")) return;
+      event.preventDefault();
+      zone.classList.add("is-dragover");
+    });
+  }
+  document.addEventListener("dragleave", event => {
+    const zone = event.target.closest?.("[data-media-dropzone]");
+    if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("is-dragover");
+  });
+  document.addEventListener("drop", async event => {
+    const zone = event.target.closest?.("[data-media-dropzone]");
+    if (!zone || !can("editor")) return;
+    event.preventDefault();
+    zone.classList.remove("is-dragover");
+    const files = [...(event.dataTransfer?.files || [])];
+    if (!files.length) return;
+    try {
+      await uploadFiles(files);
+      await loadMediaPanel();
+      toast("Файлы добавлены в медиатеку");
+    } catch (error) { toast(error.message); }
+  });
   window.addEventListener("resize", () => applyPreviewSize());
 
   async function initialize() {
@@ -734,6 +982,8 @@
     document.querySelector(".cms-user strong").textContent = state.user.username; document.querySelector(".cms-user small").textContent = state.user.role;
     document.querySelector("[data-save-status]").textContent = `CMS подключена · схема ${state.schema.schema_version}`;
     renderEditor(); await loadContentList();
+    const linkedContent = new URLSearchParams(location.search).get("content");
+    if (linkedContent) await openRecord(linkedContent);
   }
 
   initialize().catch(error => { document.querySelector("[data-save-status]").textContent = "Ошибка подключения"; toast(error.message); });

@@ -22,8 +22,16 @@ class Settings:
     environment: str
     bootstrap_user: str
     bootstrap_password: str | None
+    media_derivatives_dir: Path | None = None
     session_hours: int = 12
     public_base_url: str = "https://temple.gbvolkoff.name:8443"
+    max_image_bytes: int = 15 * 1024 * 1024
+    max_video_bytes: int = 200 * 1024 * 1024
+    max_document_bytes: int = 50 * 1024 * 1024
+
+    @property
+    def derivatives_dir(self) -> Path:
+        return self.media_derivatives_dir or self.media_dir.parent / "media-derivatives"
 
     @staticmethod
     def normalize_public_base_url(value: str) -> str:
@@ -50,6 +58,9 @@ class Settings:
             site_dir=ROOT / "site",
             database_path=Path(os.getenv("CMS_DATABASE", ROOT / "data" / "cms.sqlite3")),
             media_dir=Path(os.getenv("CMS_MEDIA_DIR", ROOT / "data" / "media")),
+            media_derivatives_dir=Path(
+                os.getenv("CMS_MEDIA_DERIVATIVES_DIR", ROOT / "data" / "media-derivatives")
+            ),
             schema_path=ROOT / "site" / "cms-schema.json",
             legacy_sections_path=ROOT / "current-sections.json",
             legacy_crawl_path=Path(os.getenv("CMS_LEGACY_CRAWL", ROOT / "data" / "legacy-crawl-checkpoint.json")),
@@ -61,4 +72,7 @@ class Settings:
             public_base_url=cls.normalize_public_base_url(
                 os.getenv("PUBLIC_BASE_URL", "https://temple.gbvolkoff.name:8443")
             ),
+            max_image_bytes=int(os.getenv("CMS_MAX_IMAGE_BYTES", str(15 * 1024 * 1024))),
+            max_video_bytes=int(os.getenv("CMS_MAX_VIDEO_BYTES", str(200 * 1024 * 1024))),
+            max_document_bytes=int(os.getenv("CMS_MAX_DOCUMENT_BYTES", str(50 * 1024 * 1024))),
         )

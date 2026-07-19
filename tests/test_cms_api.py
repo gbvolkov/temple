@@ -1,9 +1,11 @@
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 
 import sqlite3
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from server.app import create_app
 from server.config import Settings
@@ -12,6 +14,12 @@ from server.workflow import publish_due_content
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def image_bytes(format_name: str = "JPEG") -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (24, 16), "#936739").save(output, format_name)
+    return output.getvalue()
 
 
 def settings_for(tmp_path: Path) -> Settings:
@@ -181,7 +189,7 @@ def test_csrf_media_and_migration(tmp_path):
         media = client.post(
             "/api/admin/media",
             headers={"X-CSRF-Token": csrf},
-            files={"file": ("cover.jpg", b"small-jpeg-payload", "image/jpeg")},
+            files={"file": ("cover.jpg", image_bytes(), "image/jpeg")},
             data={"alt_text": "Обложка"},
         )
         assert media.status_code == 201
@@ -378,7 +386,7 @@ def test_stage4_public_sections_use_only_published_cms_data(tmp_path):
         schedule_info = publish_item(client, headers, "page", "Пояснение к расписанию", {
             "placement": "schedule_info",
             "body": [{"type": "paragraph", "data": {"text": "Расписание может меняться в праздники."}}],
-            "pdf": "/media/schedule.pdf",
+            "pdf": "https://example.test/schedule.pdf",
         })
         section = publish_item(client, headers, "parish_section", "Социальная служба", {
             "summary": "Помощь прихожанам",
@@ -528,7 +536,7 @@ def test_stage4_gallery_and_leaflet_server_pagination(tmp_path):
                 "period": "Проверенный выпуск",
                 "publication_date": f"2024-02-{index % 28 + 1:02d}",
                 "cover": "assets/school-maslenitsa.jpg",
-                "pdf": "/media/leaflet.pdf",
+                "pdf": "https://example.test/leaflet.pdf",
             })
 
         gallery_first = client.get("/gallery")
