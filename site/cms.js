@@ -9,7 +9,7 @@
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" }, bulk: { action: "review", q: "", offset: 0, total: 0, items: [], selected: new Set() }, users: [] };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" }, bulk: { action: "review", q: "", offset: 0, total: 0, items: [], selected: new Set() }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -23,6 +23,7 @@
     document.querySelector(".cms-user small").textContent = user ? roleLabels[user.role] || user.role : "";
     document.querySelector(".cms-user__avatar").textContent = (user?.username || "?").slice(0, 1).toUpperCase();
     document.querySelectorAll("[data-admin-only]").forEach(element => { element.hidden = !can("admin"); });
+    document.querySelectorAll("[data-publisher-only]").forEach(element => { element.hidden = !can("publisher"); });
     document.querySelectorAll("[data-open-profile],[data-logout]").forEach(element => { element.hidden = !user; });
   }
 
@@ -713,6 +714,100 @@
     toast(`Обновлено материалов: ${result.updated}`);
   }
 
+  const submissionTypeLabels = { prayer_note: "Записка", school_enrollment: "Воскресная школа" };
+  const submissionStatusLabels = { new: "Новая", in_progress: "В работе", done: "Завершена", spam: "Спам" };
+  const notificationStatusLabels = { pending: "Ожидает отправки", sending: "Отправляется", sent: "Отправлено", failed: "Ошибка отправки" };
+  let submissionOpener = null;
+
+  function submissionQuery() {
+    const params = new URLSearchParams({ limit: "50", offset: String(state.submissions.offset) });
+    if (state.submissions.q) params.set("q", state.submissions.q);
+    if (state.submissions.type) params.set("type", state.submissions.type);
+    if (state.submissions.status) params.set("status", state.submissions.status);
+    return params.toString();
+  }
+
+  function updateSubmissionBadge(amount) {
+    const badge = document.querySelector("[data-submissions-badge]");
+    if (!badge) return;
+    badge.textContent = String(amount || 0);
+    badge.hidden = !amount || !can("publisher");
+  }
+
+  async function refreshSubmissionBadge() {
+    if (!can("publisher")) { updateSubmissionBadge(0); return; }
+    const result = await apiRequest("/api/admin/submissions?limit=1");
+    updateSubmissionBadge(result.new_total);
+  }
+
+  function renderSubmissionsPanel() {
+    if (!can("publisher")) {
+      panel.innerHTML = '<div class="history-empty">Заявки посетителей доступны только выпускающему и администратору.</div>';
+      return;
+    }
+    panel.innerHTML = `<div class="submissions-panel"><div class="submissions-panel__head"><div><div class="eyebrow">Обращения посетителей</div><h1>Заявки</h1><p>Персональные данные показываются только при открытии карточки. Закрытые записки удаляются через 30 дней, школьные заявки — через 180 дней.</p></div></div><div class="submissions-toolbar"><input type="search" value="${escapeHtml(state.submissions.q)}" placeholder="Номер заявки" data-submission-search><select data-submission-type><option value="">Все виды</option><option value="prayer_note"${state.submissions.type === "prayer_note" ? " selected" : ""}>Записки</option><option value="school_enrollment"${state.submissions.type === "school_enrollment" ? " selected" : ""}>Воскресная школа</option></select><select data-submission-status><option value="">Все статусы</option>${Object.entries(submissionStatusLabels).map(([value, label]) => `<option value="${value}"${state.submissions.status === value ? " selected" : ""}>${label}</option>`).join("")}</select></div><div class="submission-list" data-submission-list><div class="history-empty">Загружаем очередь…</div></div><div class="media-pagination"><span data-submission-count></span><button class="button button--ghost button--compact" type="button" data-submission-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-submission-next>Дальше →</button></div></div>`;
+    loadSubmissions().catch(error => toast(error.message));
+  }
+
+  async function loadSubmissions() {
+    const result = await apiRequest(`/api/admin/submissions?${submissionQuery()}`);
+    state.submissions.items = result.items;
+    state.submissions.total = result.total;
+    updateSubmissionBadge(result.new_total);
+    const list = document.querySelector("[data-submission-list]");
+    if (!list) return;
+    list.innerHTML = result.items.map(item => `<button class="submission-row" type="button" data-submission-open="${escapeHtml(item.id)}"><span class="submission-row__reference">${escapeHtml(item.reference_code)}</span><span><strong>${escapeHtml(submissionTypeLabels[item.submission_type] || item.submission_type)}</strong><small>${escapeHtml(formatDate(item.created_at))}</small></span><span class="submission-state submission-state--${escapeHtml(item.status)}">${escapeHtml(submissionStatusLabels[item.status] || item.status)}</span><span class="notification-state notification-state--${escapeHtml(item.notification.status || "pending")}">${escapeHtml(notificationStatusLabels[item.notification.status] || item.notification.status || "Неизвестно")}</span></button>`).join("") || '<div class="history-empty">Заявки не найдены</div>';
+    document.querySelector("[data-submission-count]").textContent = result.total ? `${state.submissions.offset + 1}–${Math.min(state.submissions.offset + result.items.length, result.total)} из ${result.total}` : "0 заявок";
+    document.querySelector("[data-submission-prev]").disabled = state.submissions.offset === 0;
+    document.querySelector("[data-submission-next]").disabled = state.submissions.offset + result.items.length >= result.total;
+  }
+
+  function submissionPayloadHtml(item) {
+    const payload = item.payload || {};
+    if (item.submission_type === "prayer_note") {
+      const labels = { health: "О здравии", repose: "Об упокоении", moleben: "Молебен" };
+      return `<dl class="submission-fields"><div><dt>Вид записки</dt><dd>${escapeHtml(labels[payload.remembrance_type] || payload.remembrance_type || "—")}</dd></div><div><dt>Имена</dt><dd><ol>${(payload.names || []).map(name => `<li>${escapeHtml(name)}</li>`).join("")}</ol></dd></div></dl>`;
+    }
+    return `<dl class="submission-fields"><div><dt>Родитель</dt><dd>${escapeHtml(payload.parent_name || "—")}</dd></div><div><dt>Контакт</dt><dd>${escapeHtml(payload.contact || "—")}</dd></div><div><dt>Ребёнок</dt><dd>${escapeHtml(payload.child_name || "—")}</dd></div><div><dt>Возраст</dt><dd>${escapeHtml(payload.child_age ?? "—")}</dd></div><div><dt>Комментарий</dt><dd class="submission-comment">${escapeHtml(payload.comment || "—")}</dd></div><div><dt>Согласие</dt><dd>${payload.consent ? `Получено · ${escapeHtml(formatDate(payload.consented_at))}` : "Не получено"}</dd></div></dl>`;
+  }
+
+  function submissionActions(item) {
+    const transitions = { new: ["in_progress", "done", "spam"], in_progress: ["new", "done", "spam"], done: ["in_progress"], spam: ["in_progress"] };
+    return (transitions[item.status] || []).map(status => `<button class="button ${status === "spam" ? "button--danger" : status === "in_progress" ? "button--primary" : "button--ghost"} button--compact" type="button" data-submission-status-action="${status}">${escapeHtml({ new: "Вернуть в новые", in_progress: "Взять в работу", done: "Завершить", spam: "Это спам" }[status])}</button>`).join("");
+  }
+
+  function renderSubmissionDetail(item) {
+    const notification = item.notification || {};
+    const canRetry = !["sent", "sending"].includes(notification.status);
+    const events = (item.events || []).map(event => `<article class="history-item"><div class="history-item__head"><b>${escapeHtml({ created: "Заявка создана", status_changed: "Статус изменён", notification_retried: "Отправка запущена повторно", notification_sent: "Уведомление отправлено" }[event.action] || event.action)}</b>${event.to_status ? `<span class="history-badge">${escapeHtml(submissionStatusLabels[event.to_status] || event.to_status)}</span>` : ""}</div><p>${escapeHtml(formatDate(event.created_at))} · ${escapeHtml(event.actor || "система")}</p></article>`).join("");
+    document.querySelector("[data-submission-detail]").innerHTML = `<div class="eyebrow">${escapeHtml(submissionTypeLabels[item.submission_type] || item.submission_type)}</div><h2 id="submission-dialog-title">${escapeHtml(item.reference_code)}</h2><div class="submission-detail-meta"><span class="submission-state submission-state--${escapeHtml(item.status)}">${escapeHtml(submissionStatusLabels[item.status] || item.status)}</span><span>${escapeHtml(formatDate(item.created_at))}</span></div>${submissionPayloadHtml(item)}<section class="submission-notification"><h3>Email-уведомление</h3><p><b>${escapeHtml(notificationStatusLabels[notification.status] || notification.status || "Неизвестно")}</b> · попыток: ${Number(notification.attempts || 0)}</p>${notification.sent_at ? `<p>Отправлено: ${escapeHtml(formatDate(notification.sent_at))}</p>` : ""}${notification.last_error ? `<p class="form-error">${escapeHtml(notification.last_error)}</p>` : ""}${notification.configured === false ? '<p class="form-error">SMTP не настроен.</p>' : ""}${canRetry ? '<button class="button button--ghost button--compact" type="button" data-submission-retry>Повторить отправку</button>' : ""}</section><section class="submission-actions"><h3>Статус заявки</h3><div>${submissionActions(item)}</div></section><section class="submission-events"><h3>Журнал</h3><div class="history-list">${events || '<div class="history-empty">Событий пока нет</div>'}</div></section>`;
+  }
+
+  async function openSubmission(id, opener = null) {
+    state.submissions.current = await apiRequest(`/api/admin/submissions/${id}`);
+    submissionOpener = opener;
+    renderSubmissionDetail(state.submissions.current);
+    document.querySelector("[data-submission-dialog]").showModal();
+  }
+
+  async function changeSubmissionStatus(status) {
+    const item = state.submissions.current;
+    if (!item) return;
+    state.submissions.current = await apiRequest(`/api/admin/submissions/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ version: item.version, status }) });
+    renderSubmissionDetail(state.submissions.current);
+    await loadSubmissions();
+    toast("Статус заявки обновлён");
+  }
+
+  async function retrySubmissionNotification() {
+    const item = state.submissions.current;
+    if (!item) return;
+    state.submissions.current = await apiRequest(`/api/admin/submissions/${item.id}/retry-notification`, { method: "POST", body: JSON.stringify({ version: item.version }) });
+    renderSubmissionDetail(state.submissions.current);
+    await loadSubmissions();
+    toast("Уведомление возвращено в очередь");
+  }
+
   async function renderUsersPanel() {
     if (!can("admin")) { panel.innerHTML = '<div class="history-empty">Управление пользователями доступно только администратору.</div>'; return; }
     panel.innerHTML = '<div class="history-empty">Загружаем пользователей…</div>';
@@ -728,6 +823,7 @@
     document.querySelectorAll("[data-content-type]").forEach(button => button.classList.remove("is-active"));
     document.querySelectorAll("[data-panel]").forEach(button => button.classList.toggle("is-active", button.dataset.panel === name));
     if (name === "workflow") renderWorkflowPanel();
+    if (name === "submissions") renderSubmissionsPanel();
     if (name === "media") renderMediaPanel();
     if (name === "users") renderUsersPanel().catch(error => toast(error.message));
     if (name === "settings") panel.innerHTML = `<div class="eyebrow">Настройки</div><h1>Контентная схема ${escapeHtml(state.schema.schema_version)}</h1><p>Поля, роли, редакционный workflow и настройки медиатеки формируются сервером.</p>`;
@@ -798,6 +894,12 @@
     if (target.matches("[data-open-profile]")) document.querySelector("[data-password-dialog]").showModal();
     if (target.matches("[data-password-close]")) closeDialog("[data-password-dialog]");
     if (target.matches("[data-user-create-close]")) closeDialog("[data-user-create-dialog]");
+    if (target.matches("[data-submission-close]")) closeDialog("[data-submission-dialog]");
+    if (target.dataset.submissionOpen) await openSubmission(target.dataset.submissionOpen, target).catch(error => toast(error.message));
+    if (target.matches("[data-submission-prev]")) { state.submissions.offset = Math.max(0, state.submissions.offset - 50); await loadSubmissions().catch(error => toast(error.message)); }
+    if (target.matches("[data-submission-next]")) { state.submissions.offset += 50; await loadSubmissions().catch(error => toast(error.message)); }
+    if (target.dataset.submissionStatusAction) await changeSubmissionStatus(target.dataset.submissionStatusAction).catch(error => toast(error.message));
+    if (target.matches("[data-submission-retry]")) await retrySubmissionNotification().catch(error => toast(error.message));
     if (target.matches("[data-user-create]")) document.querySelector("[data-user-create-dialog]").showModal();
     if (target.matches("[data-logout]")) {
       try { await apiRequest("/api/admin/logout", { method: "POST" }); } catch (_) { /* The session may already be revoked. */ }
@@ -909,10 +1011,22 @@
     }, 250);
   });
 
+  let submissionSearchTimer;
+  document.addEventListener("input", event => {
+    if (!event.target.matches("[data-submission-search]")) return;
+    clearTimeout(submissionSearchTimer);
+    submissionSearchTimer = setTimeout(() => {
+      state.submissions.q = event.target.value.trim(); state.submissions.offset = 0;
+      loadSubmissions().catch(error => toast(error.message));
+    }, 250);
+  });
+
   document.addEventListener("change", async event => {
     const input = event.target;
     try {
       if (input.matches("[data-bulk-check]")) { if (input.checked) state.bulk.selected.add(input.dataset.bulkCheck); else state.bulk.selected.delete(input.dataset.bulkCheck); await loadBulkQueue(); }
+      if (input.matches("[data-submission-type]")) { state.submissions.type = input.value; state.submissions.offset = 0; await loadSubmissions(); }
+      if (input.matches("[data-submission-status]")) { state.submissions.status = input.value; state.submissions.offset = 0; await loadSubmissions(); }
       if (input.matches("[data-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaDialog(); }
       if (input.matches("[data-media-usage]")) { state.media.usage = input.value; state.media.offset = 0; await loadMediaDialog(); }
       if (input.matches("[data-panel-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaPanel(); }
@@ -1071,6 +1185,14 @@
     state.media.chooser = null;
     state.media.selected.clear();
   });
+  const submissionDialog = document.querySelector("[data-submission-dialog]");
+  submissionDialog.addEventListener("click", event => {
+    if (event.target === submissionDialog) submissionDialog.close();
+  });
+  submissionDialog.addEventListener("close", () => {
+    submissionOpener?.focus();
+    submissionOpener = null;
+  });
   for (const eventName of ["dragenter", "dragover"]) {
     document.addEventListener(eventName, event => {
       const zone = event.target.closest?.("[data-media-dropzone]");
@@ -1106,6 +1228,7 @@
     if (!session.authenticated) { updateSessionUi(); document.querySelector("[data-login-dialog]").showModal(); renderEditor(); return; }
     state.user = session.user; state.csrf = session.csrf_token;
     updateSessionUi();
+    await refreshSubmissionBadge();
     document.querySelector("[data-save-status]").textContent = `CMS подключена · схема ${state.schema.schema_version}`;
     renderEditor(); await loadContentList();
     const linkedContent = new URLSearchParams(location.search).get("content");

@@ -81,7 +81,7 @@ def test_user_workflow_migration_is_idempotent(tmp_path: Path) -> None:
         assert connection.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_events'"
         ).fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 6
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 7
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
 

@@ -38,6 +38,31 @@ from .media_library import (
     store_upload,
 )
 from .security import hash_password, token_hash, verify_password
+from .submissions import (
+    MAX_PUBLIC_PAYLOAD_BYTES,
+    BurstRateLimiter,
+    PrayerNotePayload,
+    SchoolEnrollmentPayload,
+    SubmissionConfigurationError,
+    SubmissionConflict,
+    SubmissionError,
+    SubmissionNotFound,
+    SubmissionRateLimit,
+    SubmissionStatusPayload,
+    SubmissionVersionPayload,
+    canonical_prayer_payload,
+    canonical_school_payload,
+    create_submission,
+    ensure_payload_size,
+    fake_reference,
+    get_submission,
+    list_submissions,
+    notification_configured,
+    request_identity,
+    retry_notification,
+    submission_scheduler,
+    update_submission_status,
+)
 from .public_site import (
     PAGE_PLACEMENTS,
     SINGLETON_PAGE_PLACEMENTS,
@@ -213,6 +238,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings.derivatives_dir.mkdir(parents=True, exist_ok=True)
     templates = Jinja2Templates(directory=settings.site_dir / "templates")
     cms_templates = Jinja2Templates(directory=settings.site_dir)
+    submission_limiter = BurstRateLimiter()
 
     def public_media_variant(url: object, variant: str = "web") -> str:
         """Return a stable derivative URL only for indexed local images."""
@@ -238,12 +264,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scheduler_task = asyncio.create_task(
             publication_scheduler(settings.database_path, media_dir=settings.media_dir)
         )
+        submission_task = asyncio.create_task(submission_scheduler(settings))
         try:
             yield
         finally:
             scheduler_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await scheduler_task
+            submission_task.cancel()
+            for task in (scheduler_task, submission_task):
+                with suppress(asyncio.CancelledError):
+                    await task
 
     app = FastAPI(title="CMS храма святителя Иннокентия", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
@@ -252,6 +281,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def legacy_redirects(request: Request, call_next):
         path = request.url.path
+        submission_paths = {
+            "/api/public/submissions/prayer-note",
+            "/api/public/submissions/school-enrollment",
+        }
+        if path in submission_paths:
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    if int(content_length) > MAX_PUBLIC_PAYLOAD_BYTES:
+                        return JSONResponse(
+                            {"detail": "Размер формы превышает 32 КиБ"}, status_code=413
+                        )
+                except ValueError:
+                    pass
+            if len(await request.body()) > MAX_PUBLIC_PAYLOAD_BYTES:
+                return JSONResponse(
+                    {"detail": "Размер формы превышает 32 КиБ"}, status_code=413
+                )
         static_paths = {"/styles.css", "/app.js", "/cms.html", "/cms.css", "/cms.js", "/cms-schema.json"}
         if (
             path != "/"
@@ -278,7 +325,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     base += ("&" if "?" in base else "?") + request.url.query
                     target = base + (marker + fragment if marker else "")
                 return RedirectResponse(target, status_code=row["status_code"])
-        return await call_next(request)
+        response = await call_next(request)
+        if path.startswith("/api/admin/submissions"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     def current_user(request: Request) -> dict:
         raw = request.cookies.get("cms_session")
@@ -680,6 +730,137 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             result = published_content(connection, row) if row else None
         if not row:
             raise HTTPException(404, "Материал не найден")
+        return result
+
+    def submission_http_error(error: SubmissionError) -> HTTPException:
+        if isinstance(error, SubmissionNotFound):
+            return HTTPException(404, str(error))
+        if isinstance(error, SubmissionConflict):
+            return HTTPException(409, str(error))
+        if isinstance(error, SubmissionConfigurationError):
+            return HTTPException(503, str(error))
+        if isinstance(error, SubmissionRateLimit):
+            return HTTPException(
+                429, str(error), headers={"Retry-After": str(error.retry_after)}
+            )
+        return HTTPException(422, str(error))
+
+    async def accept_public_submission(
+        request: Request,
+        *,
+        submission_type: Literal["prayer_note", "school_enrollment"],
+        payload: PrayerNotePayload | SchoolEnrollmentPayload,
+    ) -> JSONResponse:
+        try:
+            raw_body = await request.body()
+            canonical = (
+                canonical_prayer_payload(payload)
+                if isinstance(payload, PrayerNotePayload)
+                else canonical_school_payload(payload)
+            )
+            ensure_payload_size(raw_body, canonical)
+            ip_hash = request_identity(request, settings)
+            submission_limiter.check(ip_hash)
+            if payload.website:
+                reference = fake_reference(submission_type)
+            else:
+                reference, _ = create_submission(
+                    settings.database_path,
+                    settings,
+                    submission_type=submission_type,
+                    payload=canonical,
+                    ip_hash=ip_hash,
+                )
+        except SubmissionError as error:
+            if str(error) == "Размер формы превышает 32 КиБ":
+                raise HTTPException(413, str(error)) from error
+            raise submission_http_error(error) from error
+        response = JSONResponse(
+            {"accepted": True, "reference_code": reference}, status_code=201
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.post("/api/public/submissions/prayer-note", status_code=201)
+    async def submit_prayer_note(payload: PrayerNotePayload, request: Request):
+        return await accept_public_submission(
+            request, submission_type="prayer_note", payload=payload
+        )
+
+    @app.post("/api/public/submissions/school-enrollment", status_code=201)
+    async def submit_school_enrollment(payload: SchoolEnrollmentPayload, request: Request):
+        return await accept_public_submission(
+            request, submission_type="school_enrollment", payload=payload
+        )
+
+    @app.get("/api/admin/submissions")
+    def admin_submissions(
+        submission_type: str | None = Query(None, alias="type"),
+        status: str | None = None,
+        q: str = "",
+        limit: int = Query(50, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("publisher")),
+    ):
+        try:
+            return list_submissions(
+                settings.database_path,
+                submission_type=submission_type,
+                status=status,
+                query=q,
+                limit=limit,
+                offset=offset,
+            )
+        except SubmissionError as error:
+            raise submission_http_error(error) from error
+
+    @app.get("/api/admin/submissions/{submission_id}")
+    def admin_submission(
+        submission_id: str,
+        _: dict = Depends(require("publisher")),
+    ):
+        try:
+            result = get_submission(settings.database_path, submission_id)
+        except SubmissionError as error:
+            raise submission_http_error(error) from error
+        result["notification"]["configured"] = notification_configured(settings)
+        return result
+
+    @app.patch("/api/admin/submissions/{submission_id}/status")
+    def admin_submission_status(
+        submission_id: str,
+        payload: SubmissionStatusPayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        try:
+            result = update_submission_status(
+                settings.database_path,
+                submission_id,
+                version=payload.version,
+                status=payload.status,
+                actor_id=user["id"],
+            )
+        except SubmissionError as error:
+            raise submission_http_error(error) from error
+        result["notification"]["configured"] = notification_configured(settings)
+        return result
+
+    @app.post("/api/admin/submissions/{submission_id}/retry-notification")
+    def admin_submission_retry_notification(
+        submission_id: str,
+        payload: SubmissionVersionPayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        try:
+            result = retry_notification(
+                settings.database_path,
+                submission_id,
+                version=payload.version,
+                actor_id=user["id"],
+            )
+        except SubmissionError as error:
+            raise submission_http_error(error) from error
+        result["notification"]["configured"] = notification_configured(settings)
         return result
 
     @app.get("/api/admin/contents")

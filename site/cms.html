@@ -23,6 +23,7 @@
       <nav>
         <div class="cms-sidebar__label">Управление</div>
         <button class="cms-type" type="button" data-panel="workflow"><span>✓</span> Редакционная очередь</button>
+        <button class="cms-type" type="button" data-panel="submissions" data-publisher-only hidden><span>✉</span> Заявки <b class="cms-nav-count" data-submissions-badge hidden>0</b></button>
         <button class="cms-type" type="button" data-panel="media"><span>◫</span> Медиатека</button>
         <button class="cms-type" type="button" data-panel="migration"><span>⇄</span> Миграция</button>
         <button class="cms-type" type="button" data-panel="users" data-admin-only hidden><span>♙</span> Пользователи</button>
@@ -123,6 +124,13 @@
       <button class="modal__close" type="button" aria-label="Закрыть" data-media-detail-close>×</button>
       <div data-media-detail></div>
       <div class="form-actions"><button class="button button--ghost" type="button" data-media-detail-close>Закрыть</button></div>
+    </div>
+  </dialog>
+  <dialog class="modal submission-dialog" data-submission-dialog aria-labelledby="submission-dialog-title">
+    <div class="modal__surface submission-dialog__surface">
+      <button class="modal__close" type="button" aria-label="Закрыть" data-submission-close>×</button>
+      <div data-submission-detail><div class="history-empty">Загружаем заявку…</div></div>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-submission-close>Закрыть</button></div>
     </div>
   </dialog>
   <div class="toast" role="status" aria-live="polite" data-toast></div>

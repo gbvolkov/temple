@@ -546,6 +546,117 @@ def apply_user_workflow(connection: sqlite3.Connection) -> str:
     return f"user workflow schema created; preserved users: {after}"
 
 
+VISITOR_SUBMISSIONS_SQL = """
+CREATE TABLE submissions (
+  id TEXT PRIMARY KEY,
+  reference_code TEXT NOT NULL UNIQUE,
+  submission_type TEXT NOT NULL CHECK(submission_type IN ('prayer_note','school_enrollment')),
+  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','in_progress','done','spam')),
+  payload_json TEXT NOT NULL,
+  ip_hash TEXT NOT NULL,
+  payload_fingerprint TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+  handled_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  closed_at TEXT
+);
+CREATE INDEX idx_submissions_queue ON submissions(status, created_at DESC);
+CREATE INDEX idx_submissions_type_status ON submissions(submission_type, status, created_at DESC);
+CREATE INDEX idx_submissions_retention ON submissions(submission_type, status, closed_at);
+CREATE INDEX idx_submissions_deduplicate ON submissions(ip_hash, payload_fingerprint, created_at DESC);
+CREATE TABLE notification_outbox (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL UNIQUE REFERENCES submissions(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sending','sent','failed')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+  next_attempt_at TEXT NOT NULL,
+  locked_at TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  sent_at TEXT
+);
+CREATE INDEX idx_notification_outbox_due ON notification_outbox(status, next_attempt_at);
+CREATE TABLE submission_events (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  from_status TEXT,
+  to_status TEXT,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_submission_events_submission ON submission_events(submission_id, created_at DESC);
+"""
+
+
+VISITOR_SUBMISSION_REQUIRED_COLUMNS = {
+    "submissions": {
+        "id", "reference_code", "submission_type", "status", "payload_json", "ip_hash",
+        "payload_fingerprint", "version", "handled_by", "created_at", "updated_at", "closed_at",
+    },
+    "notification_outbox": {
+        "id", "submission_id", "status", "attempts", "next_attempt_at", "locked_at",
+        "last_error", "created_at", "updated_at", "sent_at",
+    },
+    "submission_events": {
+        "id", "submission_id", "actor_id", "action", "from_status", "to_status",
+        "details_json", "created_at",
+    },
+}
+
+
+def validate_visitor_submissions_schema(connection: sqlite3.Connection) -> None:
+    for table, required in VISITOR_SUBMISSION_REQUIRED_COLUMNS.items():
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(required - columns)
+        if missing:
+            raise MigrationError(
+                f"Таблица {table} не завершена; отсутствуют поля: {', '.join(missing)}"
+            )
+    indexes = {
+        row["name"]
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")
+    }
+    required_indexes = {
+        "idx_submissions_queue", "idx_submissions_type_status", "idx_submissions_retention",
+        "idx_submissions_deduplicate", "idx_notification_outbox_due",
+        "idx_submission_events_submission",
+    }
+    missing_indexes = sorted(required_indexes - indexes)
+    if missing_indexes:
+        raise MigrationError(
+            "После миграции заявок отсутствуют индексы: " + ", ".join(missing_indexes)
+        )
+
+
+def apply_visitor_submissions(connection: sqlite3.Connection) -> str:
+    preserved = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in ("contents", "users", "media", "redirects")
+    }
+    for statement in VISITOR_SUBMISSIONS_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    validate_visitor_submissions_schema(connection)
+    after = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in preserved
+    }
+    if after != preserved:
+        raise MigrationError(
+            f"Количество существующих записей изменилось во время миграции заявок: {preserved} -> {after}"
+        )
+    foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+    if foreign_key_errors:
+        raise MigrationError(
+            f"Миграция заявок нарушила внешние ключи: {len(foreign_key_errors)}"
+        )
+    return "visitor submission queue and notification outbox created"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -604,6 +715,16 @@ MIGRATIONS = (
             USER_WORKFLOW_SQL,
             repr(sorted(USER_WORKFLOW_COLUMNS.items())),
             inspect.getsource(validate_user_workflow_schema),
+        )),
+    ),
+    Migration(
+        7,
+        "visitor_submissions_and_notifications",
+        apply_visitor_submissions,
+        "\n".join((
+            VISITOR_SUBMISSIONS_SQL,
+            repr(sorted((name, sorted(columns)) for name, columns in VISITOR_SUBMISSION_REQUIRED_COLUMNS.items())),
+            inspect.getsource(validate_visitor_submissions_schema),
         )),
     ),
 )
@@ -681,6 +802,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_media_library_schema(connection)
             if any(item.get("version") == 6 and item["state"] == "applied" for item in status):
                 validate_user_workflow_schema(connection)
+            if any(item.get("version") == 7 and item["state"] == "applied" for item in status):
+                validate_visitor_submissions_schema(connection)
         finally:
             connection.close()
     return status

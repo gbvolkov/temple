@@ -47,7 +47,8 @@ def database_report(database: Path) -> dict:
         metrics = {}
         for table in (
             "users", "sessions", "contents", "revisions", "redirects", "migration_runs",
-            "media", "audit_events", "user_events",
+            "media", "audit_events", "user_events", "submissions", "notification_outbox",
+            "submission_events",
         ):
             metrics[table] = scalar(connection, f"SELECT COUNT(*) FROM {table}") if table_exists(connection, table) else None
         by_status = {}

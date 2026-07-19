@@ -72,6 +72,7 @@ database_value() {
 validate_public_base_url() {
   python3 - "$1" "$PUBLIC_BASE_URL_EXPECTED" <<'PY'
 import sys
+import ipaddress
 from pathlib import Path
 
 path = Path(sys.argv[1])
@@ -84,6 +85,48 @@ for raw in path.read_text(encoding="utf-8").splitlines():
     name, value = line.split("=", 1)
     values[name.strip()] = value.strip().strip('"').strip("'")
 raise SystemExit(0 if values.get("PUBLIC_BASE_URL", "").rstrip("/") == expected else 1)
+PY
+}
+
+validate_stage8_environment() {
+  python3 - "$1" <<'PY'
+import sys
+from pathlib import Path
+
+values = {}
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    name, value = line.split("=", 1)
+    values[name.strip()] = value.strip().strip('"').strip("'")
+required = (
+    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+    "SMTP_SECURITY", "SUBMISSION_NOTIFY_TO", "SUBMISSION_IP_HASH_SECRET",
+    "SUBMISSION_TRUSTED_PROXY_NETWORKS",
+)
+if any(not values.get(name) for name in required):
+    raise SystemExit(1)
+if any("replace-with" in values[name].lower() for name in required):
+    raise SystemExit(1)
+if values["SMTP_SECURITY"].lower() not in {"starttls", "ssl"}:
+    raise SystemExit(1)
+if len(values["SUBMISSION_IP_HASH_SECRET"]) < 32:
+    raise SystemExit(1)
+if "@" not in values["SMTP_FROM"] or any(
+    "@" not in item.strip() for item in values["SUBMISSION_NOTIFY_TO"].split(",")
+):
+    raise SystemExit(1)
+try:
+    for network in values["SUBMISSION_TRUSTED_PROXY_NETWORKS"].split(","):
+        ipaddress.ip_network(network.strip(), strict=False)
+except ValueError:
+    raise SystemExit(1)
+try:
+    port = int(values["SMTP_PORT"])
+except ValueError:
+    raise SystemExit(1)
+raise SystemExit(0 if 1 <= port <= 65535 else 1)
 PY
 }
 
@@ -104,6 +147,11 @@ validate_database() {
   require_equal "$label unreviewed public contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND migration_review_required!=0;")" "0"
   require_equal "$label duplicate singleton placements" "$(database_value "$database" "SELECT COUNT(*) FROM (SELECT json_extract(r.snapshot_json,'$.data.placement') placement,COUNT(*) amount FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='page' AND c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash') AND json_extract(r.snapshot_json,'$.data.placement') IN ('about_history','school_home','schedule_info') GROUP BY placement HAVING amount>1);")" "0"
   require_equal "$label invalid related sections" "$(database_value "$database" "SELECT COUNT(*) FROM contents c WHERE c.content_type IN ('news','gallery') AND COALESCE(json_extract(c.data_json,'$.related_section'),'')!='' AND NOT EXISTS (SELECT 1 FROM contents s WHERE s.content_type='parish_section' AND (s.id=json_extract(c.data_json,'$.related_section') OR s.slug=json_extract(c.data_json,'$.related_section')));")" "0"
+  if (( expected_schema >= 7 )); then
+    require_equal "$label submission table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submissions';")" "1"
+    require_equal "$label outbox table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notification_outbox';")" "1"
+    require_equal "$label submission events table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submission_events';")" "1"
+  fi
 }
 
 CONTENTS="$(report_value database.metrics.contents)"
@@ -139,6 +187,12 @@ validate_public_base_url .env || {
   echo "PUBLIC_BASE_URL must be $PUBLIC_BASE_URL_EXPECTED in .env" >&2
   exit 1
 }
+if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+  validate_stage8_environment .env || {
+    echo "Stage 8 SMTP, recipient, HMAC secret or trusted proxy settings are missing or invalid in .env" >&2
+    exit 1
+  }
+fi
 validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE" "$SOURCE_SCHEMA"
 
 CONTACT_ADDRESS="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.address') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
@@ -170,7 +224,7 @@ validate_public_base_url "$TEST_DATA/.env" || {
 }
 
 TEST_ADMIN_CREDENTIALS="$TEST_ROOT/stage5-test-admin.json"
-if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" || "$DEPLOYMENT_STAGE" == "7" ]]; then
+if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" || "$DEPLOYMENT_STAGE" == "7" || "$DEPLOYMENT_STAGE" == "8" ]]; then
   # Create an isolated administrator in the disposable restored database.
   # This avoids depending on the real administrator password from production.
   python3 - "$TEST_DATA/data/cms.sqlite3" "$TEST_ADMIN_CREDENTIALS" <<'PY'
@@ -219,9 +273,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
+TEST_ENV_ARGS=()
+if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+  validate_stage8_environment "$TEST_DATA/.env" || {
+    echo "The restored .env does not contain complete stage 8 notification settings" >&2
+    exit 1
+  }
+  # Never send restored-copy smoke submissions to the real recipient.
+  TEST_ENV_ARGS=(-e SUBMISSION_NOTIFY_TO=)
+fi
+
 sudo docker run -d --rm \
   --name "$TEST_CONTAINER" \
   --env-file "$TEST_DATA/.env" \
+  "${TEST_ENV_ARGS[@]}" \
   -p "127.0.0.1:$TEST_PORT:8000" \
   -v "$TEST_DATA/data:/data" \
   "$NEW_IMAGE_ID" >/dev/null
@@ -248,6 +313,9 @@ fi
 if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
   require_equal "restored users after isolated admin" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM users;')" "$((BACKUP_USERS + 1))"
   python3 scripts/stage7_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+  python3 scripts/stage8_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
 fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
@@ -377,6 +445,82 @@ if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
   require_equal "production users" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM users;')" "$BACKUP_USERS"
   require_equal "production user event table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_events';")" "1"
 fi
+if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+  require_equal "production submission table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submissions';")" "1"
+  require_equal "production outbox table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notification_outbox';")" "1"
+  require_equal "production submission events table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submission_events';")" "1"
+
+  # Submit one production control note through the public API, require actual
+  # SMTP delivery, then close it as spam so it follows the 30-day retention rule.
+  STAGE8_CONTROL_REFERENCE="$(python3 - <<'PY'
+import json
+import secrets
+import string
+import urllib.request
+
+name = "Stage " + "".join(secrets.choice(string.ascii_letters) for _ in range(12))
+request = urllib.request.Request(
+    "http://127.0.0.1:8000/api/public/submissions/prayer-note",
+    data=json.dumps({
+        "remembrance_type": "health", "names": [name], "website": "",
+    }).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(request, timeout=15) as response:
+    result = json.load(response)
+if response.status != 201 or not result.get("accepted"):
+    raise SystemExit(1)
+reference = result.get("reference_code", "")
+if not reference.startswith("Z-"):
+    raise SystemExit(1)
+print(reference)
+PY
+)"
+  STAGE8_CONTROL_ID="$(database_value data/cms.sqlite3 "SELECT id FROM submissions WHERE reference_code='$STAGE8_CONTROL_REFERENCE';")"
+  [[ -n "$STAGE8_CONTROL_ID" ]] || { echo "Stage 8 control submission was not persisted" >&2; exit 1; }
+
+  DELIVERY_STATUS=""
+  for _ in $(seq 1 100); do
+    DELIVERY_STATUS="$(database_value data/cms.sqlite3 "SELECT status FROM notification_outbox WHERE submission_id='$STAGE8_CONTROL_ID';")"
+    [[ "$DELIVERY_STATUS" == "sent" || "$DELIVERY_STATUS" == "failed" ]] && break
+    sleep 1
+  done
+  require_equal "stage 8 control notification delivery" "$DELIVERY_STATUS" "sent"
+
+  python3 - data/cms.sqlite3 "$STAGE8_CONTROL_ID" <<'PY'
+import json
+import sqlite3
+import sys
+import uuid
+from datetime import UTC, datetime
+
+database, submission_id = sys.argv[1:]
+now = datetime.now(UTC).isoformat(timespec="seconds")
+with sqlite3.connect(database) as connection:
+    connection.execute("PRAGMA foreign_keys=ON")
+    connection.execute("BEGIN IMMEDIATE")
+    row = connection.execute(
+        "SELECT status FROM submissions WHERE id=?", (submission_id,)
+    ).fetchone()
+    if row is None:
+        raise SystemExit(1)
+    if row[0] != "spam":
+        if row[0] not in {"new", "in_progress"}:
+            raise SystemExit(1)
+        connection.execute(
+            """UPDATE submissions SET status='spam',version=version+1,handled_by=NULL,
+               updated_at=?,closed_at=? WHERE id=?""",
+            (now, now, submission_id),
+        )
+        connection.execute(
+            """INSERT INTO submission_events(
+                 id,submission_id,actor_id,action,from_status,to_status,details_json,created_at
+               ) VALUES(?,?,NULL,'status_changed',?,'spam',?,?)""",
+            (str(uuid.uuid4()), submission_id, row[0], json.dumps({"control": True}), now),
+        )
+PY
+fi
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_ADDRESS"
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_PHONE"
 
@@ -408,4 +552,7 @@ echo "IMAGE_ID=$NEW_IMAGE_ID"
 echo "SERVER_ARCHIVE_SHA256=$SERVER_SHA256"
 echo "PAVEL_CLEAN_URL=$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN"
 echo "POST_REPORT=$POST_REPORT"
+if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+  echo "CONTROL_SUBMISSION=$STAGE8_CONTROL_REFERENCE"
+fi
 echo "DEPLOYMENT_SECONDS=$DEPLOYMENT_SECONDS"

@@ -67,6 +67,24 @@ uv run python -m server.migration_audit
 - `outputs/missing-legacy-media.md` и `.csv` — отсутствующие на исходном сервере файлы и связанные материалы;
 - `outputs/migration-readiness.md` — контрольные барьеры перед переключением домена.
 
+## Формы посетителей
+
+Публичные формы сохраняют заявку в SQLite до попытки отправки email. Уведомления обрабатываются фоновой очередью, поэтому недоступность SMTP не теряет обращение. В production обязательны:
+
+```dotenv
+SMTP_HOST=smtp.example.org
+SMTP_PORT=587
+SMTP_USER=service-user
+SMTP_PASSWORD=long-secret
+SMTP_FROM=site@example.org
+SMTP_SECURITY=starttls
+SUBMISSION_NOTIFY_TO=recipient@example.org
+SUBMISSION_IP_HASH_SECRET=long-random-secret-at-least-32-characters
+SUBMISSION_TRUSTED_PROXY_NETWORKS=127.0.0.0/8,::1/128,172.16.0.0/12
+```
+
+Сырой IP не хранится. Очередь заявок доступна в CMS только ролям `publisher` и `admin`. Для rollout схемы 6 → 7 используется `scripts/production_apply_stage8.sh`; smoke-тест восстановленной копии принудительно отключает реальную email-доставку. После переключения production скрипт создаёт одну контрольную записку, ждёт фактической отправки SMTP и помечает её как spam.
+
 ## Проверки
 
 ```powershell

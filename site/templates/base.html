@@ -42,7 +42,7 @@
               {% if next_service %}<time>{{ next_service.date }} · {{ next_service.time }}</time><strong>{{ next_service.title }}</strong>{% else %}<strong>Расписание уточняется</strong>{% endif %}
               <a href="/schedule">Открыть расписание <span>→</span></a>
             </div>
-            {% if contact.available %}<div class="menu-panel__actions"><a class="button button--light" href="/about#contacts">Как добраться</a></div>{% endif %}
+            <div class="menu-panel__actions"><button class="button button--primary" type="button" data-note-open>Подать записку</button>{% if contact.available %}<a class="button button--light" href="/about#contacts">Как добраться</a>{% endif %}</div>
             <div class="menu-panel__secondary"><a href="/news">Новости</a><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a>{% if contact.available and contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}</div>
           </aside>
         </div>
@@ -62,12 +62,61 @@
   <footer class="site-footer">
     <div class="shell site-footer__grid">
       <div><div class="brand brand--footer"><span class="brand__mark" aria-hidden="true">✣</span><span class="brand__name">Храм святителя Иннокентия<br><small>в Бескудникове</small></span></div><p>Патриаршее подворье Русской Православной Церкви.</p></div>
-      <div><h2>Быстрые ссылки</h2><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a></div>
+      <div><h2>Быстрые ссылки</h2><button class="footer-button" type="button" data-note-open>Подать записку</button><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a></div>
       <div><h2>Контакты</h2>{% if contact.available %}{% if contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}{% if contact.address %}<p>{{ contact.address }}</p>{% endif %}{% else %}<p>Контакты готовятся к публикации.</p>{% endif %}</div>
       <div><h2>Мы на связи</h2>{% if contact.links %}{% for link in contact.links %}<a href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }} ↗</a>{% endfor %}{% else %}<a href="/about#contacts">Раздел контактов</a>{% endif %}</div>
     </div>
     <div class="shell site-footer__bottom"><span>Храм святителя Иннокентия · {{ footer_year }}</span></div>
   </footer>
+
+  <dialog class="modal visitor-dialog" data-note-dialog aria-labelledby="note-dialog-title">
+    <form class="modal__surface visitor-form" data-note-form novalidate>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-note-close>×</button>
+      <div class="eyebrow">Записка в храм</div>
+      <h2 id="note-dialog-title">Подать записку</h2>
+      <div class="visitor-progress" aria-label="Шаг формы"><span class="is-active" data-note-progress="1">1</span><span data-note-progress="2">2</span><span data-note-progress="3">3</span></div>
+      <section class="form-step" data-note-step="1">
+        <fieldset><legend>Выберите вид записки</legend>
+          <label class="choice"><input type="radio" name="remembrance_type" value="health" checked><span><b>О здравии</b><small>Поминовение о живых</small></span></label>
+          <label class="choice"><input type="radio" name="remembrance_type" value="repose"><span><b>Об упокоении</b><small>Поминовение усопших</small></span></label>
+          <label class="choice"><input type="radio" name="remembrance_type" value="moleben"><span><b>Молебен</b><small>Просительное или благодарственное богослужение</small></span></label>
+        </fieldset>
+        <div class="form-actions"><button class="button button--ghost" type="button" data-note-close>Отмена</button><button class="button button--primary" type="button" data-note-next>Далее</button></div>
+      </section>
+      <section class="form-step" data-note-step="2" hidden>
+        <label class="field">Имена, каждое с новой строки<textarea name="names" rows="8" maxlength="809" required placeholder="Александр&#10;Мария"></textarea><span>От 1 до 10 имён в церковной форме.</span></label>
+        <label class="visitor-honeypot" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+        <p class="form-error" data-note-error role="alert"></p>
+        <div class="form-actions"><button class="button button--ghost" type="button" data-note-back>Назад</button><button class="button button--primary" type="button" data-note-next>Проверить</button></div>
+      </section>
+      <section class="form-step" data-note-step="3" hidden>
+        <div class="summary" data-note-summary></div>
+        <p class="form-hint">Онлайн-оплата не требуется. После отправки сохраните номер заявки.</p>
+        <p class="form-error" data-note-error role="alert"></p>
+        <div class="form-actions"><button class="button button--ghost" type="button" data-note-back>Назад</button><button class="button button--primary" type="submit" data-note-submit>Отправить</button></div>
+      </section>
+      <section class="visitor-success" data-note-success hidden tabindex="-1"><div class="eyebrow">Записка принята</div><h3>Номер заявки</h3><strong data-note-reference></strong><p>Сохраните этот номер. Записка уже появилась в очереди храма.</p><button class="button button--primary" type="button" data-note-close>Закрыть</button></section>
+    </form>
+  </dialog>
+
+  <dialog class="modal visitor-dialog" data-school-dialog aria-labelledby="school-dialog-title">
+    <form class="modal__surface visitor-form" data-school-form novalidate>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-school-close>×</button>
+      <div class="eyebrow">Воскресная школа</div><h2 id="school-dialog-title">Записать ребёнка</h2>
+      <div class="visitor-form-grid">
+        <label class="field">Имя родителя<input name="parent_name" maxlength="120" autocomplete="name" required></label>
+        <label class="field">Телефон или email<input name="contact" maxlength="200" autocomplete="email" required></label>
+        <label class="field">Имя ребёнка<input name="child_name" maxlength="120" required></label>
+        <label class="field">Возраст<input name="child_age" type="number" min="3" max="18" inputmode="numeric" required></label>
+        <label class="field visitor-form-grid__wide">Комментарий<textarea name="comment" rows="4" maxlength="2000" placeholder="Что важно знать перед первым занятием"></textarea></label>
+      </div>
+      <label class="visitor-consent"><input name="consent" type="checkbox" required> <span>Согласен(на) на обработку указанных персональных данных для рассмотрения заявки.</span></label>
+      <label class="visitor-honeypot" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+      <p class="form-error" data-school-error role="alert"></p>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-school-close>Отмена</button><button class="button button--primary" type="submit" data-school-submit>Отправить заявку</button></div>
+      <section class="visitor-success" data-school-success hidden tabindex="-1"><div class="eyebrow">Заявка принята</div><h3>Номер заявки</h3><strong data-school-reference></strong><p>Сохраните этот номер. Сотрудники школы увидят заявку в CMS.</p><button class="button button--primary" type="button" data-school-close>Закрыть</button></section>
+    </form>
+  </dialog>
 
   <dialog class="lightbox" data-lightbox aria-label="Просмотр фотографии"><button class="lightbox__close" type="button" aria-label="Закрыть" data-lightbox-close>×</button><img alt="" data-lightbox-image><p data-lightbox-caption></p></dialog>
   {% if not preview_mode %}<script src="/app.js"></script>{% endif %}
