@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -31,15 +33,14 @@ CONTENT_TYPE_LABELS = {
     "service": "Богослужения",
     "video": "Видео и трансляции",
 }
-FALLBACK_CONTACT = {
-    "address": "Москва, Бескудниковский бульвар, 1",
-    "metro": "Верхние Лихоборы, северный вестибюль, выход №3",
-    "phone": "+7 (499) 480-09-89",
-    "email": "svtinnokentiy2025@yandex.ru",
-    "social_links": [
-        {"network": "telegram", "url": "https://t.me/sv_innokenty", "enabled": True},
-        {"network": "vk", "url": "https://vk.com/club37731945", "enabled": True},
-    ],
+PAGE_PLACEMENTS = {
+    "standalone", "about_history", "about_shrine", "school_home", "schedule_info",
+}
+SINGLETON_PAGE_PLACEMENTS = {"about_history", "school_home", "schedule_info"}
+SERVICE_TYPE_LABELS = {
+    "liturgy": "Литургия", "vigil": "Всенощное бдение", "vespers": "Вечерня",
+    "matins": "Утреня", "moleben": "Молебен", "panikhida": "Панихида",
+    "confession": "Исповедь", "other": "Богослужение",
 }
 
 
@@ -105,7 +106,11 @@ def plain_content(value: Any) -> str:
     if isinstance(value, list):
         return "\n\n".join(filter(None, (plain_content(item) for item in value)))
     if isinstance(value, dict):
-        return plain_content(value.get("text") or value.get("value") or value.get("body") or "")
+        data = value.get("data") if isinstance(value.get("data"), dict) else {}
+        return plain_content(
+            value.get("text") or value.get("value") or value.get("body")
+            or data.get("text") or data.get("value") or ""
+        )
     return ""
 
 
@@ -124,6 +129,84 @@ def published_items(database_path: Path, content_type: str, *, limit: int = 200)
             (content_type, limit),
         ).fetchall()
         return [public_content(connection, row) for row in rows]
+
+
+def published_page(
+    database_path: Path,
+    content_type: str,
+    *,
+    page: int,
+    per_page: int,
+    year: str | None = None,
+) -> dict[str, Any]:
+    """Return one page and available years from published revision snapshots."""
+    year_sql = """substr(COALESCE(
+        json_extract(r.snapshot_json,'$.data.event_date'),
+        json_extract(r.snapshot_json,'$.data.publication_date'),
+        json_extract(r.snapshot_json,'$.data.year'),
+        c.published_at
+    ),1,4)"""
+    base = """FROM contents c
+              JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
+              WHERE c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash')
+                AND c.content_type=?"""
+    with connect(database_path) as connection:
+        raw_years = connection.execute(
+            f"SELECT DISTINCT {year_sql} AS year {base}", (content_type,),
+        ).fetchall()
+        years = sorted(
+            {str(row["year"]) for row in raw_years if re.fullmatch(r"(?:19|20)\d{2}", str(row["year"] or ""))},
+            reverse=True,
+        )
+        where = base
+        params: list[Any] = [content_type]
+        if year:
+            where += f" AND {year_sql}=?"
+            params.append(year)
+        total = int(connection.execute(f"SELECT COUNT(*) {where}", params).fetchone()[0])
+        pages = math.ceil(total / per_page) if total else 0
+        if page < 1 or (pages and page > pages) or (not pages and page != 1):
+            return {"items": [], "total": total, "page": page, "pages": pages, "years": years, "invalid": True}
+        rows = connection.execute(
+            f"""SELECT c.* {where}
+                 ORDER BY COALESCE(
+                   json_extract(r.snapshot_json,'$.data.event_date'),
+                   json_extract(r.snapshot_json,'$.data.publication_date'),
+                   c.published_at,c.updated_at
+                 ) DESC, c.id DESC LIMIT ? OFFSET ?""",
+            (*params, per_page, (page - 1) * per_page),
+        ).fetchall()
+        items = [public_content(connection, row) for row in rows]
+    return {
+        "items": items, "total": total, "page": page, "pages": pages, "years": years,
+        "invalid": False, "has_previous": page > 1, "has_next": page < pages,
+    }
+
+
+def pages_by_placement(database_path: Path, *placements: str) -> list[dict[str, Any]]:
+    accepted = set(placements)
+    items = [
+        item for item in published_items(database_path, "page")
+        if (item.get("data") or {}).get("placement", "standalone") in accepted
+    ]
+    return sorted(
+        items,
+        key=lambda item: (int((item.get("data") or {}).get("navigation_order") or 100), item["title"]),
+    )
+
+
+def related_items(
+    database_path: Path,
+    content_type: str,
+    section: dict[str, Any],
+    *,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    keys = {section.get("id"), section.get("slug")}
+    return [
+        item for item in published_items(database_path, content_type, limit=limit)
+        if (item.get("data") or {}).get("related_section") in keys
+    ]
 
 
 def published_by_slug(database_path: Path, slug: str) -> dict[str, Any] | None:
@@ -196,13 +279,21 @@ def content_view(item: dict[str, Any]) -> dict[str, Any]:
         "body_paragraphs": paragraphs(body),
         "photos": photos,
         "pdf": file_url(data.get("pdf")),
+        "schedule": schedule_rows(data.get("schedule")),
+        "service_type_label": SERVICE_TYPE_LABELS.get(
+            data.get("service_type"), data.get("service_type") or "Богослужение"
+        ),
     }
 
 
 def contact_context(item: dict[str, Any] | None) -> dict[str, Any]:
-    data = dict(FALLBACK_CONTACT)
-    if item:
-        data.update({key: value for key, value in (item.get("data") or {}).items() if value not in (None, "", [])})
+    if not item:
+        return {"available": False, "links": [], "phone_href": ""}
+    data = {
+        key: value for key, value in (item.get("data") or {}).items()
+        if value not in (None, "", [])
+    }
+    data["available"] = True
     data["phone_href"] = phone_href(data.get("phone", ""))
     links = []
     labels = {"telegram": "Telegram", "vk": "ВКонтакте", "youtube": "YouTube", "other": "Ссылка"}
@@ -212,6 +303,53 @@ def contact_context(item: dict[str, Any] | None) -> dict[str, Any]:
             links.append({"label": labels.get(link.get("network"), labels["other"]), "url": url})
     data["links"] = links
     return data
+
+
+def schedule_rows(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    weekdays = {index + 1: name.capitalize() for index, name in enumerate(WEEKDAYS)}
+    rows = []
+    for index, row in enumerate(value):
+        if not isinstance(row, dict):
+            continue
+        weekday = row.get("weekday")
+        day = weekdays.get(int(weekday), "") if str(weekday).isdigit() else str(row.get("day") or "")
+        title = str(row.get("title") or "").strip()
+        if not day and not title:
+            continue
+        try:
+            order = int(row.get("order") or index + 1)
+        except (TypeError, ValueError):
+            order = index + 1
+        rows.append({
+            "id": str(row.get("id") or index), "day": day,
+            "time": str(row.get("time") or ""), "title": title,
+            "note": str(row.get("note") or ""), "order": order,
+        })
+    return sorted(rows, key=lambda row: (row["order"], row["day"], row["time"]))
+
+
+def service_groups(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    now = datetime.now(UTC)
+    visible: list[tuple[datetime, dict[str, Any]]] = []
+    for raw in items:
+        data = raw.get("data") or {}
+        starts = parse_datetime(data.get("starts_at"))
+        ends = parse_datetime(data.get("ends_at"))
+        if starts is None or (ends or starts).astimezone(UTC) < now:
+            continue
+        visible.append((starts, content_view(raw)))
+    visible.sort(key=lambda entry: (entry[0], entry[1]["title"]))
+    groups: dict[str, dict[str, Any]] = {}
+    for starts, item in visible:
+        key = starts.strftime("%Y-%m-%d")
+        group = groups.setdefault(
+            key,
+            {"key": key, "label": format_date(starts.isoformat(), weekday=True), "items": []},
+        )
+        group["items"].append(item)
+    return list(groups.values())
 
 
 def active_feature(features: list[dict[str, Any]], news: list[dict[str, Any]]) -> dict[str, Any] | None:

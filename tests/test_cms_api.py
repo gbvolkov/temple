@@ -52,6 +52,26 @@ def ready_news(item: dict, *, title: str | None = None) -> dict:
     }
 
 
+def publish_item(client: TestClient, headers: dict[str, str], content_type: str, title: str, data: dict) -> dict:
+    item = client.post(
+        "/api/admin/contents",
+        headers=headers,
+        json={"content_type": content_type, "title": title, "data": data},
+    ).json()
+    item = client.post(
+        f"/api/admin/contents/{item['id']}/submit-review",
+        headers=headers,
+        json={"version": item["version"]},
+    ).json()
+    response = client.post(
+        f"/api/admin/contents/{item['id']}/publish",
+        headers=headers,
+        json={"version": item["version"]},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 def test_auth_crud_publish_and_public_read(tmp_path):
     with TestClient(create_app(settings_for(tmp_path))) as client:
         assert client.get("/api/health").json()["status"] == "ok"
@@ -307,6 +327,216 @@ def test_public_base_url_is_normalized_and_validated():
             pass
         else:
             raise AssertionError(f"PUBLIC_BASE_URL accepted invalid value: {invalid}")
+
+
+def test_stage4_public_sections_use_only_published_cms_data(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        empty_about = client.get("/about").text
+        assert "Контакты готовятся к публикации" in empty_about
+        assert "+7 (499) 480-09-89" not in empty_about
+
+        csrf = login(client)
+        headers = {"X-CSRF-Token": csrf}
+        contact = publish_item(client, headers, "site_contact", "Контакты храма", {
+            "address": "Проверенный адрес храма",
+            "metro": "Метро Проверенное",
+            "phone": "+7 000 111-22-33",
+            "email": "contact@example.test",
+            "opening_hours": "Ежедневно",
+            "map_coordinates": "55.0, 37.0",
+            "legal_details": "Проверенные реквизиты",
+            "social_links": [{"network": "telegram", "url": "https://t.me/example", "enabled": True}],
+        })
+        assert client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "site_contact", "title": "Дубль", "data": {}},
+        ).status_code == 409
+
+        history = publish_item(client, headers, "page", "Проверенная история", {
+            "placement": "about_history",
+            "summary": "История из CMS",
+            "body": [{"type": "paragraph", "data": {"text": "Исторический текст из опубликованной ревизии."}}],
+            "navigation_order": 10,
+        })
+        school = publish_item(client, headers, "page", "Основная страница школы", {
+            "placement": "school_home",
+            "summary": "Школа из CMS",
+            "body": [{"type": "paragraph", "data": {"text": "Описание школы из CMS."}}],
+            "schedule": [{"weekday": "7", "time": "12:30", "title": "Занятия", "note": "После литургии"}],
+        })
+        schedule_info = publish_item(client, headers, "page", "Пояснение к расписанию", {
+            "placement": "schedule_info",
+            "body": [{"type": "paragraph", "data": {"text": "Расписание может меняться в праздники."}}],
+            "pdf": "/media/schedule.pdf",
+        })
+        section = publish_item(client, headers, "parish_section", "Социальная служба", {
+            "summary": "Помощь прихожанам",
+            "body": [{"type": "paragraph", "data": {"text": "Полное описание направления."}}],
+            "contact_name": "Мария",
+            "phone": "+7 000 222-33-44",
+            "email": "section@example.test",
+            "schedule": [{"weekday": "2", "time": "18:00", "title": "Встреча", "note": "Еженедельно"}],
+            "order": 5,
+        })
+        related_news = publish_item(client, headers, "news", "Новость социальной службы", {
+            "publication_date": "2026-07-18T10:00:00+03:00",
+            "category": "Социальная служба",
+            "summary": "Связанная новость",
+            "body": [{"type": "paragraph", "data": {"text": "Текст новости."}}],
+            "cover": "assets/school-maslenitsa.jpg",
+            "cover_alt": "Событие",
+            "related_section": section["id"],
+        })
+        related_gallery = publish_item(client, headers, "gallery", "Фото социальной службы", {
+            "event_date": "2026-07-17",
+            "category": "Жизнь прихода",
+            "summary": "Связанный альбом",
+            "cover": "assets/school-maslenitsa.jpg",
+            "photos": [{"image": "assets/school-maslenitsa.jpg", "alt": "Фото", "order": 1}],
+            "related_section": section["id"],
+        })
+        future = (datetime.now(UTC) + timedelta(days=2)).isoformat()
+        past = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+        future_service = publish_item(client, headers, "service", "Будущая литургия", {
+            "starts_at": future, "service_type": "liturgy", "location": "Главный храм", "note": "Исповедь заранее",
+        })
+        publish_item(client, headers, "service", "Прошедшая служба", {
+            "starts_at": past, "service_type": "vigil", "location": "Главный храм",
+        })
+
+        about = client.get("/about").text
+        assert history["title"] in about
+        assert "Исторический текст из опубликованной ревизии." in about
+        assert "Проверенный адрес храма" in about
+        assert contact["data"]["phone"] in about
+
+        school_page = client.get("/school").text
+        assert school["title"] in school_page
+        assert "Воскресенье · 12:30" in school_page
+        schedule_page = client.get("/schedule").text
+        assert schedule_info["title"] in schedule_page
+        assert future_service["title"] in schedule_page
+        assert "Прошедшая служба" not in schedule_page
+        assert "Литургия" in schedule_page
+
+        parish = client.get(f"/parish/{section['published_slug']}").text
+        assert "Полное описание направления." in parish
+        assert related_news["title"] in parish
+        assert related_gallery["title"] in parish
+        assert "Вторник · 18:00" in parish
+
+
+def test_stage4_singleton_placement_validation_and_published_snapshot_reservation(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        headers = {"X-CSRF-Token": login(client)}
+        first = publish_item(client, headers, "page", "Первая история", {
+            "placement": "about_history",
+            "body": [{"type": "paragraph", "data": {"text": "Первая версия истории"}}],
+        })
+        changed = client.put(
+            f"/api/admin/contents/{first['id']}", headers=headers,
+            json={
+                "title": first["title"], "slug": first["published_slug"], "version": first["version"],
+                "data": {"placement": "standalone", "body": [{"type": "paragraph", "data": {"text": "Новый черновик"}}]},
+            },
+        )
+        assert changed.status_code == 200
+        assert "Первая версия истории" in client.get("/about").text
+        assert "Новый черновик" not in client.get("/about").text
+
+        second = client.post(
+            "/api/admin/contents", headers=headers,
+            json={
+                "content_type": "page", "title": "Вторая история",
+                "data": {"placement": "about_history", "body": [{"type": "paragraph", "data": {"text": "Конфликт"}}]},
+            },
+        ).json()
+        second = client.post(
+            f"/api/admin/contents/{second['id']}/submit-review", headers=headers,
+            json={"version": second["version"]},
+        ).json()
+        conflict = client.post(
+            f"/api/admin/contents/{second['id']}/publish", headers=headers,
+            json={"version": second["version"]},
+        )
+        assert conflict.status_code == 409
+
+        invalid_placement = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "page", "title": "Ошибка", "data": {"placement": "unknown", "body": ["Текст"]}},
+        )
+        assert invalid_placement.status_code == 422
+        invalid_schedule = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "parish_section", "title": "Ошибка расписания", "data": {"schedule": [{"weekday": 8, "time": "27:90"}]}},
+        )
+        assert invalid_schedule.status_code == 422
+        invalid_relation = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "news", "title": "Ошибка связи", "data": {"related_section": "missing"}},
+        )
+        assert invalid_relation.status_code == 422
+        invalid_service = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "service", "title": "Ошибка даты", "data": {"starts_at": "not-a-date"}},
+        )
+        assert invalid_service.status_code == 422
+
+        old_contact = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "site_contact", "title": "Старые контакты", "data": {}},
+        ).json()
+        old_contact = client.post(
+            f"/api/admin/contents/{old_contact['id']}/trash", headers=headers,
+            json={"version": old_contact["version"]},
+        ).json()
+        client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "site_contact", "title": "Новые контакты", "data": {}},
+        ).raise_for_status()
+        restore_conflict = client.post(
+            f"/api/admin/contents/{old_contact['id']}/restore", headers=headers,
+            json={"version": old_contact["version"]},
+        )
+        assert restore_conflict.status_code == 409
+
+
+def test_stage4_gallery_and_leaflet_server_pagination(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        headers = {"X-CSRF-Token": login(client)}
+        for index in range(25):
+            publish_item(client, headers, "gallery", f"Альбом {index + 1:02d}", {
+                "event_date": f"2025-01-{index % 28 + 1:02d}",
+                "category": "Жизнь прихода",
+                "cover": "assets/school-maslenitsa.jpg",
+                "photos": [{"image": "assets/school-maslenitsa.jpg", "alt": "Фото", "order": 1}],
+            })
+        for index in range(21):
+            publish_item(client, headers, "leaflet_issue", f"Листок {index + 1:02d}", {
+                "number": index + 1,
+                "period": "Проверенный выпуск",
+                "publication_date": f"2024-02-{index % 28 + 1:02d}",
+                "cover": "assets/school-maslenitsa.jpg",
+                "pdf": "/media/leaflet.pdf",
+            })
+
+        gallery_first = client.get("/gallery")
+        gallery_second = client.get("/gallery?page=2")
+        assert gallery_first.status_code == gallery_second.status_code == 200
+        assert gallery_first.text.count('class="album-card"') == 24
+        assert gallery_second.text.count('class="album-card"') == 1
+        assert client.get("/gallery?year=2025").status_code == 200
+        assert client.get("/gallery?year=1999").status_code == 404
+        assert client.get("/gallery?page=3").status_code == 404
+        assert client.get("/gallery?page=zero").status_code == 404
+
+        leaflet_first = client.get("/leaflet")
+        leaflet_second = client.get("/leaflet?page=2")
+        assert leaflet_first.status_code == leaflet_second.status_code == 200
+        assert leaflet_first.text.count('class="issue-row"') == 20
+        assert leaflet_second.text.count('class="issue-row"') == 1
+        assert client.get("/leaflet?year=2024").status_code == 200
+        assert client.get("/leaflet?year=2025").status_code == 404
 
 
 def test_scheduled_publication_archive_trash_restore_and_audit(tmp_path):

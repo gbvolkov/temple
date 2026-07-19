@@ -22,6 +22,8 @@ const typeDefinitions = {
       { name: "date", label: "Дата события", type: "date", value: "" },
       { name: "category", label: "Рубрика", type: "select", options: ["Новости прихода","Воскресная школа","Социальная служба","Молодёжное движение"], value: "Новости прихода" },
       { name: "summary", label: "Краткое описание", type: "textarea", value: "" },
+      { name: "body", label: "Полный текст", type: "textarea", value: "", help: "Абзацы разделяются пустой строкой. Сложные импортированные блоки сохраняются." },
+      { name: "relatedSection", label: "Направление прихода", type: "relation", value: "", help: "Необязательно: связывает новость с направлением прихода." },
       { name: "image", label: "Главное изображение", type: "image", value: "" },
       { name: "alt", label: "Описание изображения", type: "text", value: "", help: "Нужно для доступности сайта." },
       { name: "featured", label: "Показывать на главной странице", type: "checkbox", value: false },
@@ -31,9 +33,14 @@ const typeDefinitions = {
     label: "Богослужения", title: "Новое богослужение", help: "Структурированная запись автоматически попадёт в расписание и блок ближайшей службы.",
     fields: [
       { name: "title", label: "Название службы", type: "text", required: true, value: "" },
-      { name: "date", label: "Дата", type: "date", value: "" },
-      { name: "time", label: "Время", type: "time", value: "" },
-      { name: "serviceType", label: "Тип", type: "select", options: ["Литургия","Всенощное бдение","Молебен","Панихида","Исповедь"], value: "Литургия" },
+      { name: "date", label: "Дата", type: "date", required: true, value: "" },
+      { name: "time", label: "Время", type: "time", required: true, value: "" },
+      { name: "serviceType", label: "Тип", type: "select", options: [
+        { value: "liturgy", label: "Литургия" }, { value: "vigil", label: "Всенощное бдение" },
+        { value: "vespers", label: "Вечерня" }, { value: "matins", label: "Утреня" },
+        { value: "moleben", label: "Молебен" }, { value: "panikhida", label: "Панихида" },
+        { value: "confession", label: "Исповедь" }, { value: "other", label: "Другое" },
+      ], value: "liturgy" },
       { name: "summary", label: "Примечание", type: "textarea", value: "" },
       { name: "featured", label: "Показывать как ближайшую службу", type: "checkbox", value: false },
     ],
@@ -45,6 +52,7 @@ const typeDefinitions = {
       { name: "date", label: "Дата события", type: "date", value: "" },
       { name: "category", label: "Раздел", type: "select", options: ["Богослужения","Воскресная школа","Жизнь прихода","Паломничества"], value: "Богослужения" },
       { name: "summary", label: "Описание", type: "textarea", value: "" },
+      { name: "relatedSection", label: "Направление прихода", type: "relation", value: "" },
       { name: "image", label: "Обложка альбома", type: "image", value: "" },
       { name: "photos", label: "Фотографии", type: "multiimage", value: "" },
     ],
@@ -66,18 +74,33 @@ const typeDefinitions = {
     fields: [
       { name: "title", label: "Название", type: "text", value: "" },
       { name: "summary", label: "Краткое описание", type: "textarea", value: "" },
+      { name: "body", label: "Полное описание", type: "textarea", value: "" },
       { name: "contact", label: "Контактное лицо", type: "text", value: "" },
       { name: "phone", label: "Телефон", type: "tel", value: "" },
+      { name: "email", label: "Электронная почта", type: "email", value: "" },
+      { name: "schedule", label: "Регулярное расписание", type: "schedule", value: "[]" },
       { name: "image", label: "Обложка", type: "image", value: "" },
+      { name: "order", label: "Порядок на странице", type: "number", value: "100" },
     ],
   },
   page: {
-    label: "Страницы", title: "Новая страница", help: "Редактор собирает страницу из смысловых блоков, не касаясь HTML.",
+    label: "Страницы", title: "Новая страница", help: "Страница публикуется отдельно или занимает одно из специальных мест публичного сайта.",
     fields: [
       { name: "title", label: "Заголовок", type: "text", value: "" },
       { name: "summary", label: "Вводный текст", type: "textarea", value: "" },
-      { name: "blocks", label: "Блоки страницы", type: "blocks", value: "" },
+      { name: "placement", label: "Размещение", type: "select", options: [
+        { value: "standalone", label: "Отдельная страница" },
+        { value: "about_history", label: "О храме — история" },
+        { value: "about_shrine", label: "О храме — святыня" },
+        { value: "school_home", label: "Воскресная школа" },
+        { value: "schedule_info", label: "Расписание — пояснение" },
+      ], value: "standalone" },
+      { name: "body", label: "Полный текст", type: "textarea", value: "", help: "Абзацы разделяются пустой строкой. Блочный редактор появится на этапе 5." },
       { name: "image", label: "Главное изображение", type: "image", value: "" },
+      { name: "alt", label: "Описание изображения", type: "text", value: "" },
+      { name: "pdf", label: "PDF-файл", type: "file", value: "" },
+      { name: "schedule", label: "Регулярное расписание", type: "schedule", value: "[]" },
+      { name: "order", label: "Порядок в навигации", type: "number", value: "100" },
     ],
   },
   clergy: {
@@ -108,6 +131,7 @@ const typeDefinitions = {
     fields: [
       { name: "title", label: "Название карточки", type: "text", value: "Контакты храма" },
       { name: "address", label: "Адрес", type: "text", value: "Москва, Бескудниковский бульвар, 1" },
+      { name: "metro", label: "Метро и ориентир", type: "text", value: "" },
       { name: "phone", label: "Телефон", type: "tel", value: "+7 (499) 480-09-89" },
       { name: "email", label: "Электронная почта", type: "email", value: "svtinnokentiy2025@yandex.ru" },
       { name: "openingHours", label: "Часы работы", type: "textarea", value: "Ежедневно; в будни с 7:00, в воскресные и праздничные дни с 6:00." },
@@ -158,19 +182,74 @@ function apiData(values) {
   const existing = apiState.current?.data || {};
   let changed;
   if (currentType === "home_feature") changed = { kicker: values.kicker, summary: values.summary, cover: values.image, cover_alt: values.alt, cta_label: values.ctaLabel, target_url: values.targetUrl, content_slug: values.contentSlug, starts_at: values.startDate, ends_at: values.endDate, priority: Number(values.priority || 100) };
-  else if (currentType === "news") changed = { publication_date: values.date, category: values.category, summary: values.summary, cover: values.image, cover_alt: values.alt, featured: values.featured };
+  else if (currentType === "news") changed = { publication_date: values.date, category: values.category, summary: values.summary, body: bodyFromText(values.body, existing.body), related_section: values.relatedSection || null, cover: values.image, cover_alt: values.alt, featured: values.featured };
   else if (currentType === "service") changed = { starts_at: `${values.date}T${values.time || "00:00"}:00+03:00`, service_type: values.serviceType, location: existing.location || "Храм святителя Иннокентия", note: values.summary, featured: values.featured };
-  else if (currentType === "gallery") changed = { event_date: values.date, category: values.category, summary: values.summary, cover: values.image, photos: parsePhotoList(values.photos) };
+  else if (currentType === "gallery") changed = { event_date: values.date, category: values.category, summary: values.summary, related_section: values.relatedSection || null, cover: values.image, photos: parsePhotoList(values.photos) };
   else if (currentType === "leaflet") changed = { number: Number(values.number), period: values.period, publication_date: values.date, cover: values.image, pdf: values.pdf, featured: values.featured };
-  else if (currentType === "section") changed = { summary: values.summary, contact: values.contact, phone: values.phone, cover: values.image };
+  else if (currentType === "section") changed = { summary: values.summary, body: bodyFromText(values.body, existing.body), contact_name: values.contact, contact: values.contact, phone: values.phone, email: values.email, schedule: parseSchedule(values.schedule), cover: values.image, order: Number(values.order || 100) };
+  else if (currentType === "page") changed = { summary: values.summary, placement: values.placement || "standalone", body: bodyFromText(values.body, existing.body), cover: values.image, cover_alt: values.alt, pdf: values.pdf, schedule: parseSchedule(values.schedule), navigation_order: Number(values.order || 100) };
   else if (currentType === "clergy") changed = { full_name: values.title, rank: values.rank, position: values.position, photo: values.image, biography: [{ type: "paragraph", text: values.biography }], name_day: values.nameDay, order: Number(values.order || 100) };
   else if (currentType === "video") changed = { publication_date: values.date, external_url: values.externalUrl, cover: values.image, category: values.category, is_live: values.isLive };
-  else if (currentType === "contact") changed = { address: values.address, phone: values.phone, email: values.email, opening_hours: values.openingHours, map_coordinates: values.mapCoordinates, legal_details: values.legalDetails, social_links: String(values.socialLinks || "").split(/\r?\n/).filter(Boolean).map(url => ({ network: url.includes("t.me") ? "telegram" : url.includes("vk.com") ? "vk" : "other", url, enabled: true })) };
+  else if (currentType === "contact") changed = { address: values.address, metro: values.metro, phone: values.phone, email: values.email, opening_hours: values.openingHours, map_coordinates: values.mapCoordinates, legal_details: values.legalDetails, social_links: String(values.socialLinks || "").split(/\r?\n/).filter(Boolean).map(url => ({ network: url.includes("t.me") ? "telegram" : url.includes("vk.com") ? "vk" : "other", url, enabled: true })) };
   else changed = apiState.current
     ? { summary: values.summary, cover: values.image }
-    : { summary: values.summary, body: [{ type: "blocks", value: values.blocks }], cover: values.image };
+    : { summary: values.summary, cover: values.image };
   if (values.legacyBody !== undefined) changed.body_text = values.legacyBody;
   return { ...existing, ...changed };
+}
+
+function blockText(block) {
+  if (!block || typeof block !== "object") return "";
+  if (typeof block.text === "string") return block.text;
+  if (typeof block.value === "string") return block.value;
+  if (typeof block.data?.text === "string") return block.data.text;
+  if (typeof block.data?.value === "string") return block.data.value;
+  return "";
+}
+
+function editableBodyBlock(block) {
+  return typeof block === "string" || block?.type === "paragraph" || (!block?.type && Boolean(blockText(block)));
+}
+
+function bodyToText(body) {
+  if (typeof body === "string") return body;
+  if (!Array.isArray(body)) return "";
+  return body.filter(editableBodyBlock).map(blockText).filter(Boolean).join("\n\n");
+}
+
+function bodyFromText(value, existing = []) {
+  const text = String(value || "").trim();
+  if (text === bodyToText(existing).trim()) return existing;
+  const paragraphTexts = text ? text.split(/\n\s*\n/).map(paragraph => paragraph.trim()) : [];
+  let paragraphIndex = 0;
+  const makeParagraph = (paragraph, index, previous = {}) => ({
+    id: previous.id || globalThis.crypto?.randomUUID?.() || `paragraph-${Date.now()}-${index}`,
+    type: "paragraph",
+    data: { text: paragraph },
+  });
+  const result = [];
+  for (const block of Array.isArray(existing) ? existing : []) {
+    if (!editableBodyBlock(block)) {
+      result.push(block);
+      continue;
+    }
+    if (paragraphIndex < paragraphTexts.length) {
+      result.push(makeParagraph(paragraphTexts[paragraphIndex], paragraphIndex, typeof block === "object" ? block : {}));
+    }
+    paragraphIndex += 1;
+  }
+  while (paragraphIndex < paragraphTexts.length) {
+    result.push(makeParagraph(paragraphTexts[paragraphIndex], paragraphIndex));
+    paragraphIndex += 1;
+  }
+  return result;
+}
+
+function parseSchedule(value) {
+  try {
+    const rows = JSON.parse(value || "[]");
+    return Array.isArray(rows) ? rows.map(row => ({ weekday: String(row.weekday || ""), time: String(row.time || ""), title: String(row.title || ""), note: String(row.note || "") })) : [];
+  } catch (_) { return []; }
 }
 
 function parsePhotoList(value) {
@@ -183,7 +262,7 @@ async function uploadSelectedFiles(input) {
   const files = [...input.files];
   if (!files.length) return;
   const field = input.closest(".field");
-  const button = field.querySelector("[data-demo-upload]");
+  const button = field.querySelector("[data-upload-button]");
   const hidden = field.querySelector('input[type="hidden"]');
   button.disabled = true;
   try {
@@ -211,6 +290,8 @@ function editorValuesFromRecord(record) {
     time: starts.slice(11, 16),
     category: data.category,
     summary: data.summary || data.note || "",
+    body: bodyToText(data.body),
+    relatedSection: data.related_section || "",
     image: data.cover || data.photo || "",
     alt: data.cover_alt,
     ctaLabel: data.cta_label,
@@ -224,18 +305,20 @@ function editorValuesFromRecord(record) {
     number: data.number,
     period: data.period,
     pdf: data.pdf,
-    contact: data.contact,
+    contact: data.contact_name || data.contact,
     phone: data.phone,
-    blocks: Array.isArray(data.body) ? `${data.body.length} блоков` : data.body || "",
+    email: data.email,
+    schedule: JSON.stringify(Array.isArray(data.schedule) ? data.schedule : []),
+    placement: data.placement || "standalone",
     rank: data.rank,
     position: data.position,
     nameDay: data.name_day,
     biography: Array.isArray(data.biography) ? data.biography.map(block => block.text || "").join("\n") : data.biography,
-    order: data.order,
+    order: data.order ?? data.navigation_order,
     externalUrl: data.external_url,
     isLive: data.is_live,
     address: data.address,
-    email: data.email,
+    metro: data.metro,
     openingHours: data.opening_hours,
     mapCoordinates: data.map_coordinates,
     legalDetails: data.legal_details,
@@ -293,7 +376,7 @@ function renderWorkflow() {
   if (apiState.dirty) document.querySelectorAll('[data-workflow-action]:not([data-workflow-action="history"]):not([data-workflow-action="submit-review"])').forEach(button => { button.disabled = true; });
 
   const editable = can("editor") && (!record || ["draft", "in_review", "scheduled", "published"].includes(record.status));
-  editorForm.querySelectorAll("input,textarea,select,button[data-demo-upload]").forEach(element => { element.disabled = !editable; });
+  editorForm.querySelectorAll("input,textarea,select,button[data-upload-button],button[data-schedule-add],button[data-schedule-remove]").forEach(element => { element.disabled = !editable; });
   document.querySelectorAll("[data-save-draft]").forEach(button => { button.hidden = !editable; button.disabled = !editable; });
   document.querySelector("[data-create-current]").disabled = !can("editor");
 }
@@ -309,6 +392,11 @@ function fillEditor(record) {
     if (input.type === "checkbox") input.checked = Boolean(value);
     else input.value = String(value);
   });
+  initializeScheduleEditors();
+  loadSectionRelations().then(() => {
+    const relation = editorForm.elements.namedItem("relatedSection");
+    if (relation) relation.value = mapped.relatedSection || "";
+  }).catch(error => toast(error.message));
   document.querySelector(".editor-head .eyebrow").textContent = "Редактирование материала";
   document.querySelector("[data-editor-title]").textContent = record.title;
   document.querySelector("[data-migration-warning]")?.remove();
@@ -493,14 +581,51 @@ async function initApi() {
 
 function fieldMarkup(field) {
   if (field.type === "checkbox") return `<label class="choice"><input type="checkbox" name="${field.name}" ${field.value ? "checked" : ""}><span>${field.label}</span></label>`;
-  if (field.type === "blocks") return `<div class="field"><span>${field.label}</span><button class="upload-zone" type="button" data-demo-upload="blocks"><span><b>${field.value || "Добавить блок"}</b>Добавить текст, изображение или цитату</span></button><input type="hidden" name="${field.name}" value="${field.value || ""}"></div>`;
+  if (field.type === "relation") return `<label class="field">${field.label}<select name="${field.name}" data-section-relation><option value="">Не выбрано</option></select>${field.help ? `<small class="field-help">${field.help}</small>` : ""}</label>`;
+  if (field.type === "schedule") return `<div class="field schedule-editor" data-schedule-editor><span>${field.label}</span><div class="schedule-editor__rows" data-schedule-rows></div><button class="button button--ghost button--compact" type="button" data-schedule-add>Добавить строку</button><input type="hidden" name="${field.name}" value="${escapeCms(field.value || "[]")}"></div>`;
   if (["image","file","multiimage"].includes(field.type)) {
     const accept = field.type === "file" ? "application/pdf" : "image/jpeg,image/png,image/webp";
-    return `<div class="field"><span>${field.label}</span><button class="upload-zone" type="button" data-demo-upload="${field.type}"><span><b>${field.value || "Выбрать файл"}</b>${field.type === "multiimage" ? "Выберите несколько фотографий" : "Нажмите, чтобы выбрать файл"}</span></button><input class="cms-file-input" type="file" data-upload-input="${field.name}" accept="${accept}" ${field.type === "multiimage" ? "multiple" : ""}><input type="hidden" name="${field.name}" value="${field.value || ""}"></div>`;
+    return `<div class="field"><span>${field.label}</span><button class="upload-zone" type="button" data-upload-button="${field.type}"><span><b>${field.value || "Выбрать файл"}</b>${field.type === "multiimage" ? "Выберите несколько фотографий" : "Нажмите, чтобы выбрать файл"}</span></button><input class="cms-file-input" type="file" data-upload-input="${field.name}" accept="${accept}" ${field.type === "multiimage" ? "multiple" : ""}><input type="hidden" name="${field.name}" value="${field.value || ""}"></div>`;
   }
-  if (field.type === "select") return `<label class="field">${field.label}<select name="${field.name}">${field.options.map(option=>`<option ${option===field.value?"selected":""}>${option}</option>`).join("")}</select>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
-  if (field.type === "textarea") return `<label class="field">${field.label}<textarea name="${field.name}" rows="5" ${field.required?"required":""}>${field.value || ""}</textarea>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
-  return `<label class="field">${field.label}<input type="${field.type}" name="${field.name}" value="${field.value || ""}" ${field.required?"required":""}>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
+  if (field.type === "select") return `<label class="field">${field.label}<select name="${field.name}">${field.options.map(option => { const value = typeof option === "object" ? option.value : option; const label = typeof option === "object" ? option.label : option; return `<option value="${escapeCms(value)}" ${value === field.value ? "selected" : ""}>${escapeCms(label)}</option>`; }).join("")}</select>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
+  if (field.type === "textarea") return `<label class="field">${field.label}<textarea name="${field.name}" rows="5" ${field.required?"required":""}>${escapeCms(field.value || "")}</textarea>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
+  return `<label class="field">${field.label}<input type="${field.type}" name="${field.name}" value="${escapeCms(field.value || "")}" ${field.required?"required":""}>${field.help?`<small class="field-help">${field.help}</small>`:""}</label>`;
+}
+
+const weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+
+function renderScheduleEditor(editor) {
+  const hidden = editor.querySelector('input[type="hidden"]');
+  const rows = parseSchedule(hidden.value);
+  editor.querySelector("[data-schedule-rows]").innerHTML = rows.map((row, index) => `<div class="schedule-editor__row" data-schedule-row>
+    <label>День<select data-schedule-key="weekday"><option value="">—</option>${weekdays.map((label, day) => `<option value="${day + 1}" ${String(row.weekday) === String(day + 1) ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+    <label>Время<input type="time" data-schedule-key="time" value="${escapeCms(row.time)}"></label>
+    <label>Название<input type="text" data-schedule-key="title" value="${escapeCms(row.title)}"></label>
+    <label>Примечание<input type="text" data-schedule-key="note" value="${escapeCms(row.note)}"></label>
+    <button class="icon-button" type="button" data-schedule-remove="${index}" aria-label="Удалить строку">×</button>
+  </div>`).join("");
+}
+
+function syncScheduleEditor(editor) {
+  const rows = [...editor.querySelectorAll("[data-schedule-row]")].map(row => Object.fromEntries(
+    [...row.querySelectorAll("[data-schedule-key]")].map(input => [input.dataset.scheduleKey, input.value.trim()])
+  ));
+  editor.querySelector('input[type="hidden"]').value = JSON.stringify(rows);
+}
+
+function initializeScheduleEditors() {
+  editorForm.querySelectorAll("[data-schedule-editor]").forEach(renderScheduleEditor);
+}
+
+async function loadSectionRelations() {
+  const selects = [...editorForm.querySelectorAll("[data-section-relation]")];
+  if (!selects.length || !apiState.available || !apiState.user) return;
+  const index = await apiRequest("/api/admin/content-index?content_type=parish_section&limit=200");
+  selects.forEach(select => {
+    const selected = select.value;
+    select.innerHTML = `<option value="">Не выбрано</option>${index.items.map(item => `<option value="${escapeCms(item.id)}">${escapeCms(item.title)}</option>`).join("")}`;
+    select.value = selected;
+  });
 }
 
 function renderEditor(type = currentType) {
@@ -518,6 +643,8 @@ function renderEditor(type = currentType) {
   document.querySelectorAll("[data-content-type]").forEach(button => button.classList.toggle("is-active", button.dataset.contentType === type));
   document.querySelectorAll("[data-panel]").forEach(button => button.classList.remove("is-active"));
   apiState.dirty = !apiState.current;
+  initializeScheduleEditors();
+  if (!apiState.current) loadSectionRelations().catch(error => toast(error.message));
   updatePreview(false);
   renderWorkflow();
 }
@@ -532,9 +659,9 @@ function values() {
 function updatePreview(markDirty = true) {
   const v = values();
   const def = typeDefinitions[currentType];
-  const image = apiState.current?.migration_review_required && !v.image ? "" : v.image || "assets/temple-history-013.jpg";
+  const image = v.image || "";
   const date = v.date ? new Date(v.date).toLocaleDateString("ru-RU", { day:"numeric", month:"long", year:"numeric" }) : "Черновик";
-  preview.innerHTML = `<div class="preview-site-head"><span>✣ Храм святителя Иннокентия</span><span>☰</span></div><div class="preview-site-main"><div class="preview-meta">${escapeCms(v.category || v.serviceType || def.label)} · ${escapeCms(date)}</div>${image ? `<img src="${safeCmsMedia(image)}" alt="">` : ""}<h2>${escapeCms(v.title || def.title)}</h2><p>${escapeCms(v.summary || v.period || "Здесь появится краткое описание материала.")}</p><span class="text-link">Подробнее →</span></div>`;
+  preview.innerHTML = `<div class="preview-site-head"><span>✣ Храм святителя Иннокентия</span><span>☰</span></div><div class="preview-site-main"><div class="preview-meta">${escapeCms(v.category || v.serviceType || def.label)} · ${escapeCms(date)}</div>${image ? `<img src="${safeCmsMedia(image)}" alt="">` : ""}<h2>${escapeCms(v.title || def.title)}</h2>${v.summary || v.period ? `<p>${escapeCms(v.summary || v.period)}</p>` : ""}<span class="text-link">Подробнее →</span></div>`;
   if (markDirty) {
     apiState.dirty = true;
     document.querySelector("[data-save-status]").textContent = "Есть несохранённые изменения";
@@ -674,10 +801,7 @@ document.addEventListener("click", async event => {
     } catch (error) { toast(error.message); }
     finally { target.disabled = false; }
   }
-  if (target.matches("[data-demo-upload]")) {
-    if (target.dataset.demoUpload === "blocks") toast("Блочный редактор будет следующим слоем реализации");
-    else target.closest(".field").querySelector("[data-upload-input]").click();
-  }
+  if (target.matches("[data-upload-button]")) target.closest(".field").querySelector("[data-upload-input]").click();
   if (target.matches("[data-migration-dry-run]")) {
     target.disabled = true;
     try { const result = await apiRequest("/api/admin/migration/import?dry_run=true", { method: "POST" }); toast(`Проверка завершена: ${result.records_found} записей, ошибок: ${result.errors}`); }
@@ -697,6 +821,27 @@ document.addEventListener("click", async event => {
   }
 });
 
+editorForm.addEventListener("click", event => {
+  const add = event.target.closest("[data-schedule-add]");
+  const remove = event.target.closest("[data-schedule-remove]");
+  if (!add && !remove) return;
+  const editor = event.target.closest("[data-schedule-editor]");
+  const hidden = editor.querySelector('input[type="hidden"]');
+  const rows = parseSchedule(hidden.value);
+  if (add) rows.push({ weekday: "", time: "", title: "", note: "" });
+  if (remove) rows.splice(Number(remove.dataset.scheduleRemove), 1);
+  hidden.value = JSON.stringify(rows);
+  renderScheduleEditor(editor);
+  updatePreview();
+});
+editorForm.addEventListener("input", event => {
+  const editor = event.target.closest("[data-schedule-editor]");
+  if (editor) syncScheduleEditor(editor);
+});
+editorForm.addEventListener("change", event => {
+  const editor = event.target.closest("[data-schedule-editor]");
+  if (editor) syncScheduleEditor(editor);
+});
 editorForm.addEventListener("input", updatePreview);
 editorForm.addEventListener("change", updatePreview);
 editorForm.addEventListener("change", event => { if (event.target.matches("[data-upload-input]")) uploadSelectedFiles(event.target).catch(error => toast(error.message)); });

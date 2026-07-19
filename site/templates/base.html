@@ -22,7 +22,6 @@
           <span class="header-schedule__dot" aria-hidden="true"></span>
           <span><small>{% if next_service %}Ближайшая служба{% else %}Богослужения{% endif %}</small><b>{% if next_service %}<span class="header-service-date">{{ next_service.header_date }}</span><span class="header-service-date header-service-date--short">{{ next_service.short_date }}</span> · {{ next_service.time }}{% else %}Расписание{% endif %}</b></span>
         </a>
-        <button class="icon-button" type="button" aria-label="Открыть поиск" data-search-open><span aria-hidden="true">⌕</span></button>
         <button class="menu-close-button" type="button" aria-label="Закрыть все разделы" aria-expanded="false" data-menu-toggle><span>Закрыть</span><i aria-hidden="true"></i></button>
       </div>
     </div>
@@ -43,8 +42,8 @@
               {% if next_service %}<time>{{ next_service.date }} · {{ next_service.time }}</time><strong>{{ next_service.title }}</strong>{% else %}<strong>Расписание уточняется</strong>{% endif %}
               <a href="/schedule">Открыть расписание <span>→</span></a>
             </div>
-            <div class="menu-panel__actions"><button class="button button--primary" type="button" data-note-open>Подать записку</button><a class="button button--light" href="/about#contacts">Как добраться</a></div>
-            <div class="menu-panel__secondary"><button type="button" data-search-open>Поиск по сайту</button><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a><a href="{{ contact.phone_href }}">{{ contact.phone }}</a></div>
+            {% if contact.available %}<div class="menu-panel__actions"><a class="button button--light" href="/about#contacts">Как добраться</a></div>{% endif %}
+            <div class="menu-panel__secondary"><a href="/news">Новости</a><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a>{% if contact.available and contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}</div>
           </aside>
         </div>
       </div>
@@ -63,25 +62,14 @@
   <footer class="site-footer">
     <div class="shell site-footer__grid">
       <div><div class="brand brand--footer"><span class="brand__mark" aria-hidden="true">✣</span><span class="brand__name">Храм святителя Иннокентия<br><small>в Бескудникове</small></span></div><p>Патриаршее подворье Русской Православной Церкви.</p></div>
-      <div><h2>Быстрые ссылки</h2><a href="/schedule">Расписание</a><button type="button" class="footer-button" data-note-open>Требы и записки</button><a href="/leaflet">Иннокентиевский листок</a></div>
-      <div><h2>Контакты</h2><a href="{{ contact.phone_href }}">{{ contact.phone }}</a><a href="mailto:{{ contact.email }}">{{ contact.email }}</a><p>{{ contact.address }}</p></div>
-      <div><h2>Мы на связи</h2>{% for link in contact.links %}<a href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }} ↗</a>{% endfor %}</div>
+      <div><h2>Быстрые ссылки</h2><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a></div>
+      <div><h2>Контакты</h2>{% if contact.available %}{% if contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}{% if contact.address %}<p>{{ contact.address }}</p>{% endif %}{% else %}<p>Контакты готовятся к публикации.</p>{% endif %}</div>
+      <div><h2>Мы на связи</h2>{% if contact.links %}{% for link in contact.links %}<a href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }} ↗</a>{% endfor %}{% else %}<a href="/about#contacts">Раздел контактов</a>{% endif %}</div>
     </div>
     <div class="shell site-footer__bottom"><span>Храм святителя Иннокентия · {{ footer_year }}</span></div>
   </footer>
 
-  <dialog class="modal note-modal" data-note-dialog aria-labelledby="note-title">
-    <form method="dialog" class="modal__surface" data-note-form>
-      <button class="modal__close" type="button" aria-label="Закрыть" data-note-close>×</button><div class="eyebrow">Записки</div><h2 id="note-title">Подать записку</h2>
-      <div class="form-step" data-note-step="1"><fieldset><legend>Выберите вид поминовения</legend><label class="choice"><input type="radio" name="noteType" value="О здравии" checked><span>О здравии</span></label><label class="choice"><input type="radio" name="noteType" value="О упокоении"><span>О упокоении</span></label><label class="choice"><input type="radio" name="noteType" value="Молебен"><span>Молебен</span></label></fieldset><button class="button button--primary" type="button" data-note-next>Продолжить</button></div>
-      <div class="form-step" data-note-step="2" hidden><label class="field">Имена <span>до 10 имён, через запятую</span><textarea name="names" rows="5" required placeholder="Например: Александр, Мария"></textarea></label><div class="form-actions"><button class="button button--ghost" type="button" data-note-back>Назад</button><button class="button button--primary" type="button" data-note-next>Проверить</button></div></div>
-      <div class="form-step" data-note-step="3" hidden><div class="summary" data-note-summary></div><p class="form-hint">Онлайн-отправка будет подключена позже. Введённые данные не сохраняются.</p><div class="form-actions"><button class="button button--ghost" type="button" data-note-back>Назад</button><button class="button button--primary" value="confirm" data-note-submit>Закрыть</button></div></div>
-    </form>
-  </dialog>
-
-  <dialog class="modal search-modal" data-search-dialog aria-labelledby="search-title"><div class="modal__surface"><button class="modal__close" type="button" aria-label="Закрыть" data-search-close>×</button><div class="eyebrow">Поиск по сайту</div><h2 id="search-title">Что вы хотите найти?</h2><label class="field field--search">Поисковый запрос<input type="search" placeholder="Расписание, листок, школа…" autocomplete="off" data-search-input></label><div class="search-results" data-search-results></div></div></dialog>
   <dialog class="lightbox" data-lightbox aria-label="Просмотр фотографии"><button class="lightbox__close" type="button" aria-label="Закрыть" data-lightbox-close>×</button><img alt="" data-lightbox-image><p data-lightbox-caption></p></dialog>
-  <div class="toast" role="status" aria-live="polite" data-toast></div>
   <script src="/app.js"></script>
 </body>
 </html>

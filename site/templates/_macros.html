@@ -14,3 +14,11 @@
   <div class="album-card__body">{% if item.date %}<div class="meta">{{ item.date }}</div>{% endif %}<h3>{{ item.title }}</h3>{% if item.summary %}<p>{{ item.summary }}</p>{% endif %}</div>
 </a>
 {%- endmacro %}
+
+{% macro pager(pagination, base_path, selected_year='') -%}
+{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Страницы архива">
+  {% if pagination.has_previous %}<a class="button button--ghost button--compact" href="{{ base_path }}?{% if selected_year %}year={{ selected_year }}&amp;{% endif %}page={{ pagination.page - 1 }}">← Предыдущая</a>{% else %}<span></span>{% endif %}
+  <span>Страница {{ pagination.page }} из {{ pagination.pages }}</span>
+  {% if pagination.has_next %}<a class="button button--ghost button--compact" href="{{ base_path }}?{% if selected_year %}year={{ selected_year }}&amp;{% endif %}page={{ pagination.page + 1 }}">Следующая →</a>{% else %}<span></span>{% endif %}
+</nav>{% endif %}
+{%- endmacro %}

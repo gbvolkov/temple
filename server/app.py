@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import secrets
 import sqlite3
 import uuid
@@ -23,15 +24,21 @@ from .full_import import build_full_plan, execute_plan
 from .importer import media_mapping, run_import
 from .security import hash_password, token_hash, verify_password
 from .public_site import (
+    PAGE_PLACEMENTS,
+    SINGLETON_PAGE_PLACEMENTS,
     active_feature,
     base_context,
     content_view,
     external_url,
     feature_href,
     is_school_item,
+    pages_by_placement,
     published_by_slug,
     published_item,
     published_items,
+    published_page,
+    related_items,
+    service_groups,
 )
 from .workflow import (
     admin_content as serialize_admin_content,
@@ -231,6 +238,73 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if missing:
             raise HTTPException(422, {"message": "Заполните обязательные поля", "fields": missing})
 
+    def validate_stage4_data(
+        connection: sqlite3.Connection,
+        content_type: str,
+        data: dict[str, Any],
+    ) -> None:
+        if content_type == "page":
+            placement = data.get("placement", "standalone")
+            if placement not in PAGE_PLACEMENTS:
+                raise HTTPException(422, "Неизвестное назначение страницы")
+        if content_type == "service" and data.get("starts_at"):
+            try:
+                datetime.fromisoformat(str(data["starts_at"]).replace("Z", "+00:00"))
+            except ValueError as error:
+                raise HTTPException(422, "Дата и время богослужения указаны неверно") from error
+        schedule = data.get("schedule")
+        if schedule is not None:
+            if not isinstance(schedule, list):
+                raise HTTPException(422, "Расписание должно состоять из строк")
+            for row in schedule:
+                if not isinstance(row, dict):
+                    raise HTTPException(422, "Некорректная строка расписания")
+                weekday = row.get("weekday")
+                if weekday not in (None, "") and (not str(weekday).isdigit() or not 1 <= int(weekday) <= 7):
+                    raise HTTPException(422, "День недели должен быть от 1 до 7")
+                time_value = str(row.get("time") or "")
+                if time_value and not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", time_value):
+                    raise HTTPException(422, "Время в расписании должно иметь формат ЧЧ:ММ")
+        related_section = data.get("related_section")
+        if related_section:
+            exists = connection.execute(
+                "SELECT 1 FROM contents WHERE content_type='parish_section' AND (id=? OR slug=?)",
+                (related_section, related_section),
+            ).fetchone()
+            if not exists:
+                raise HTTPException(422, "Связанное направление прихода не найдено")
+
+    def require_public_slot(connection: sqlite3.Connection, row: sqlite3.Row) -> None:
+        if row["content_type"] == "site_contact":
+            conflict = connection.execute(
+                """SELECT id FROM contents
+                   WHERE id!=? AND content_type='site_contact'
+                     AND (published_version IS NOT NULL OR status='scheduled')
+                     AND status NOT IN ('archived','trash') LIMIT 1""",
+                (row["id"],),
+            ).fetchone()
+            if conflict:
+                raise HTTPException(409, "Контакты храма уже опубликованы или запланированы")
+            return
+        if row["content_type"] != "page":
+            return
+        data = json.loads(row["data_json"])
+        placement = data.get("placement", "standalone")
+        if placement not in SINGLETON_PAGE_PLACEMENTS:
+            return
+        conflict = connection.execute(
+            """SELECT c.id FROM contents c
+               LEFT JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
+               WHERE c.id!=? AND c.content_type='page' AND c.status NOT IN ('archived','trash')
+                 AND (
+                   (c.published_version IS NOT NULL AND json_extract(r.snapshot_json,'$.data.placement')=?)
+                   OR (c.status='scheduled' AND json_extract(c.data_json,'$.placement')=?)
+                 ) LIMIT 1""",
+            (row["id"], placement, placement),
+        ).fetchone()
+        if conflict:
+            raise HTTPException(409, "Для этого раздела уже существует опубликованная или запланированная страница")
+
     @app.get("/api/health")
     def health():
         return {"status": "ok", "environment": settings.environment, "schema_version": schema["schema_version"]}
@@ -367,6 +441,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         now = utc_now()
         content_id = str(uuid.uuid4())
         with transaction(settings.database_path) as connection:
+            if content_type == "site_contact" and connection.execute(
+                "SELECT 1 FROM contents WHERE content_type='site_contact' AND status!='trash' LIMIT 1"
+            ).fetchone():
+                raise HTTPException(409, "Карточка контактов уже существует; откройте её для редактирования")
+            validate_stage4_data(connection, content_type, payload.data)
             slug = available_slug(connection, payload.slug or payload.title)
             connection.execute(
                 """INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,
@@ -390,6 +469,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             require_state(old, {"draft", "in_review", "scheduled", "published"}, "редактирование")
             if old["published_slug"] and payload.slug != old["published_slug"]:
                 raise HTTPException(409, "URL опубликованного материала зафиксирован и пока не может быть изменён")
+            validate_stage4_data(connection, old["content_type"], payload.data)
             slug = old["published_slug"] or available_slug(connection, payload.slug, content_id)
             data_json = json.dumps(payload.data, ensure_ascii=False, sort_keys=True)
             changed_fields = []
@@ -481,6 +561,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             require_version(before, payload.version)
             require_state(before, {"in_review"}, "публикация")
             require_ready(serialize_admin_content(before))
+            require_public_slot(connection, before)
             now = utc_now()
             connection.execute(
                 """UPDATE contents SET status='published',published_version=version,
@@ -508,6 +589,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             require_version(before, payload.version)
             require_state(before, {"in_review"}, "планирование")
             require_ready(serialize_admin_content(before))
+            require_public_slot(connection, before)
             now = utc_now()
             connection.execute(
                 """UPDATE contents SET status='scheduled',scheduled_at=?,reviewed_by=?,reviewed_at=?,
@@ -564,6 +646,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             before = content_or_404(connection, content_id)
             require_version(before, payload.version)
             require_state(before, {"archived", "trash"}, "восстановление")
+            if before["content_type"] == "site_contact" and connection.execute(
+                "SELECT 1 FROM contents WHERE id!=? AND content_type='site_contact' AND status!='trash' LIMIT 1",
+                (content_id,),
+            ).fetchone():
+                raise HTTPException(409, "Сначала удалите другую карточку контактов")
             connection.execute(
                 """UPDATE contents SET status='draft',published_version=NULL,scheduled_at=NULL,
                    reviewed_by=NULL,reviewed_at=NULL,deleted_at=NULL,updated_at=? WHERE id=?""",
@@ -803,9 +890,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=404,
         )
 
+    def parse_archive_page(value: str) -> int | None:
+        return int(value) if re.fullmatch(r"[1-9]\d*", value or "") else None
+
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def public_home(request: Request):
         news_raw = published_items(settings.database_path, "news")
+        directions_raw = published_items(settings.database_path, "parish_section")
+        directions_raw.sort(key=lambda item: (int((item.get("data") or {}).get("order") or 100), item["title"]))
+        issues_raw = published_items(settings.database_path, "leaflet_issue")
+        leaflet_raw = next((item for item in issues_raw if (item.get("data") or {}).get("featured")), issues_raw[0] if issues_raw else None)
         features = published_items(settings.database_path, "home_feature")
         feature_raw = active_feature(features, news_raw)
         feature = content_view(feature_raw) if feature_raw else None
@@ -827,38 +921,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Главная",
                 feature=feature,
                 news=[content_view(item) for item in news_raw],
+                directions=[content_view(item) for item in directions_raw[:4]],
+                leaflet=content_view(leaflet_raw) if leaflet_raw else None,
             ),
         )
 
     @app.get("/schedule", response_class=HTMLResponse, include_in_schema=False)
     def public_schedule(request: Request):
-        services = [content_view(item) for item in published_items(settings.database_path, "service")]
-        services.sort(key=lambda item: (item["data"].get("starts_at") or "", item["title"]))
+        groups = service_groups(published_items(settings.database_path, "service"))
+        info_items = pages_by_placement(settings.database_path, "schedule_info")
+        info = content_view(info_items[0]) if info_items else None
         return render_public(
-            request, "schedule.html", public_context("schedule", "Расписание богослужений", services=services)
+            request,
+            "schedule.html",
+            public_context("schedule", "Расписание богослужений", service_groups=groups, info=info),
         )
 
     @app.get("/about", response_class=HTMLResponse, include_in_schema=False)
     def public_about(request: Request):
         clergy = [content_view(item) for item in published_items(settings.database_path, "clergy")]
         clergy.sort(key=lambda item: (int(item["data"].get("order") or 9999), item["title"]))
-        return render_public(request, "about.html", public_context("about", "О храме", clergy=clergy))
+        history_items = pages_by_placement(settings.database_path, "about_history")
+        shrines = [content_view(item) for item in pages_by_placement(settings.database_path, "about_shrine")]
+        return render_public(
+            request,
+            "about.html",
+            public_context(
+                "about", "О храме", clergy=clergy,
+                history=content_view(history_items[0]) if history_items else None,
+                shrines=shrines,
+            ),
+        )
 
     @app.get("/parish", response_class=HTMLResponse, include_in_schema=False)
     def public_parish(request: Request):
-        sections = [content_view(item) for item in published_items(settings.database_path, "parish_section")]
+        raw_sections = published_items(settings.database_path, "parish_section")
+        raw_sections.sort(key=lambda item: (int((item.get("data") or {}).get("order") or 100), item["title"]))
+        sections = [content_view(item) for item in raw_sections]
         return render_public(
             request, "parish.html", public_context("parish", "Жизнь прихода", sections=sections)
         )
 
     @app.get("/school", response_class=HTMLResponse, include_in_schema=False)
     def public_school(request: Request):
-        sections = [
-            content_view(item)
-            for content_type in ("parish_section", "page")
-            for item in published_items(settings.database_path, content_type)
-            if is_school_item(item)
-        ]
+        home_items = pages_by_placement(settings.database_path, "school_home")
+        school_home = content_view(home_items[0]) if home_items else None
+        sections = [content_view(item) for item in published_items(settings.database_path, "parish_section") if is_school_item(item)]
         news = [
             content_view(item)
             for item in published_items(settings.database_path, "news")
@@ -875,6 +983,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             public_context(
                 "school",
                 "Воскресная школа",
+                school_home=school_home,
                 sections=sections,
                 news=news,
                 albums=albums,
@@ -887,25 +996,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return render_public(request, "news.html", public_context("parish", "Новости и анонсы", news=news))
 
     @app.get("/gallery", response_class=HTMLResponse, include_in_schema=False)
-    def public_gallery(request: Request, year: str | None = None):
-        albums = [content_view(item) for item in published_items(settings.database_path, "gallery")]
-        years = sorted({item["year"] for item in albums if item["year"]}, reverse=True)
-        selected_year = year if year in years else ""
+    def public_gallery(request: Request, year: str | None = None, page: str = "1"):
+        page_number = parse_archive_page(page)
+        if page_number is None or (year is not None and not re.fullmatch(r"(?:19|20)\d{2}", year)):
+            return render_not_found(request)
+        result = published_page(settings.database_path, "gallery", page=page_number, per_page=24, year=year)
+        if result["invalid"] or (year is not None and year not in result["years"]):
+            return render_not_found(request)
         return render_public(
             request,
             "gallery.html",
-            public_context("media", "Фотогалерея", albums=albums, years=years, selected_year=selected_year),
+            public_context(
+                "media", "Фотогалерея",
+                albums=[content_view(item) for item in result["items"]],
+                years=result["years"], selected_year=year or "", pagination=result,
+            ),
         )
 
     @app.get("/leaflet", response_class=HTMLResponse, include_in_schema=False)
-    def public_leaflet(request: Request):
-        issues = [content_view(item) for item in published_items(settings.database_path, "leaflet_issue")]
-        years = sorted(
-            {str(item["data"].get("year") or item["year"]) for item in issues if item["data"].get("year") or item["year"]},
-            reverse=True,
-        )
+    def public_leaflet(request: Request, year: str | None = None, page: str = "1"):
+        page_number = parse_archive_page(page)
+        if page_number is None or (year is not None and not re.fullmatch(r"(?:19|20)\d{2}", year)):
+            return render_not_found(request)
+        result = published_page(settings.database_path, "leaflet_issue", page=page_number, per_page=20, year=year)
+        if result["invalid"] or (year is not None and year not in result["years"]):
+            return render_not_found(request)
         return render_public(
-            request, "leaflet.html", public_context("media", "Иннокентиевский листок", issues=issues, years=years)
+            request,
+            "leaflet.html",
+            public_context(
+                "media", "Иннокентиевский листок",
+                issues=[content_view(item) for item in result["items"]],
+                years=result["years"], selected_year=year or "", pagination=result,
+            ),
         )
 
     @app.get("/media", response_class=HTMLResponse, include_in_schema=False)
@@ -940,7 +1063,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/parish/{slug}", response_class=HTMLResponse, include_in_schema=False)
     def public_parish_detail(request: Request, slug: str):
-        return public_detail_response(request, slug, ("parish_section",), "parish", "/parish")
+        raw = published_item(settings.database_path, slug, ("parish_section",))
+        if raw is None:
+            return render_not_found(request)
+        return render_public(
+            request,
+            "parish_detail.html",
+            public_context(
+                "parish", raw["title"], item=content_view(raw), back_url="/parish",
+                related_news=[content_view(item) for item in related_items(settings.database_path, "news", raw)],
+                related_galleries=[content_view(item) for item in related_items(settings.database_path, "gallery", raw)],
+            ),
+        )
 
     @app.get("/news/{slug}", response_class=HTMLResponse, include_in_schema=False)
     def public_news_detail(request: Request, slug: str):

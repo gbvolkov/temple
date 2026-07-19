@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "locale": "ru-RU",
   "principles": [
     "Editors see domain fields, not templates, aliases, HTML, JSON, or filesystem paths.",
@@ -64,6 +64,7 @@
         "summary": { "type": "text", "required": false },
         "cover": { "type": "image", "required": true },
         "photos": { "type": "image_list", "required": true, "item_fields": ["image", "caption", "alt", "author", "order"] },
+        "related_section": { "type": "relation", "target": "parish_section", "required": false },
         "legacy_year": { "type": "integer", "migration_only": true }
       }
     },
@@ -92,6 +93,7 @@
         "phone": { "type": "phone", "required": false },
         "email": { "type": "email", "required": false },
         "schedule": { "type": "structured_schedule", "required": false },
+        "order": { "type": "integer", "default": 100 },
         "related_news": { "type": "reverse_relation", "target": "news.related_section" },
         "related_galleries": { "type": "relation_list", "target": "gallery" }
       }
@@ -115,6 +117,11 @@
         "slug": { "type": "slug", "admin_only": true },
         "summary": { "type": "text", "required": false },
         "body": { "type": "blocks", "required": true },
+        "placement": { "type": "enum", "values": ["standalone", "about_history", "about_shrine", "school_home", "schedule_info"], "default": "standalone" },
+        "cover": { "type": "image", "required": false },
+        "cover_alt": { "type": "string", "required": false },
+        "pdf": { "type": "file", "accept": ["application/pdf"], "required": false },
+        "schedule": { "type": "structured_schedule", "required": false },
         "parent": { "type": "relation", "target": "page", "required": false },
         "navigation_order": { "type": "integer", "default": 100 }
       }
@@ -146,9 +153,10 @@
     }
   },
   "roles": {
-    "author": ["create_draft", "edit_own_draft", "upload_media", "request_review"],
-    "editor": ["create", "edit", "preview", "schedule", "publish", "archive", "restore_from_trash"],
-    "administrator": ["all_editor_permissions", "manage_users", "manage_schema", "manage_redirects", "run_migration", "configure_integrations"]
+    "viewer": ["read"],
+    "editor": ["read", "create", "edit", "upload_media", "request_review"],
+    "publisher": ["all_editor_permissions", "return_to_draft", "schedule", "publish", "archive", "trash", "restore"],
+    "admin": ["all_publisher_permissions", "run_migration"]
   },
   "workflow": {
     "states": ["draft", "in_review", "scheduled", "published", "archived", "trash"],
