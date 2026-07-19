@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
+from .content_blocks import enrich_blocks_for_render
 from .db import connect
 from .public_urls import STATIC_HASH_TARGETS, content_path
 from .workflow import public_content
@@ -209,6 +210,55 @@ def related_items(
     ]
 
 
+def published_related_content(
+    database_path: Path,
+    item: dict[str, Any],
+    *,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Resolve outgoing and incoming relations from published snapshots only."""
+    data = item.get("data") or {}
+    outgoing = [value for value in data.get("related_content", []) if isinstance(value, str)]
+    legacy_section = data.get("related_section")
+    current_id = str(item.get("id") or "")
+    current_slug = str(item.get("slug") or "")
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT c.* FROM contents c
+               JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
+               WHERE c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash')
+                 AND c.content_type IN ('news','page','parish_section','gallery')"""
+        ).fetchall()
+        published = [public_content(connection, row) for row in rows]
+
+    by_id = {candidate["id"]: candidate for candidate in published}
+    selected: list[dict[str, Any]] = []
+    seen = {current_id}
+
+    def add(candidate: dict[str, Any]) -> None:
+        if candidate["id"] not in seen and len(selected) < limit:
+            selected.append(candidate)
+            seen.add(candidate["id"])
+
+    for relation_id in outgoing:
+        if relation_id in by_id:
+            add(by_id[relation_id])
+    if legacy_section:
+        for candidate in published:
+            if candidate["content_type"] == "parish_section" and legacy_section in {candidate["id"], candidate["slug"]}:
+                add(candidate)
+                break
+    for candidate in published:
+        candidate_data = candidate.get("data") or {}
+        incoming = candidate_data.get("related_content") or []
+        incoming_legacy = candidate_data.get("related_section")
+        if current_id in incoming or incoming_legacy in {current_id, current_slug}:
+            add(candidate)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def published_by_slug(database_path: Path, slug: str) -> dict[str, Any] | None:
     with connect(database_path) as connection:
         row = connection.execute(
@@ -261,7 +311,8 @@ def content_view(item: dict[str, Any]) -> dict[str, Any]:
         if image:
             photos.append({
                 "image": image,
-                "caption": photo.get("alt") or photo.get("caption") or item.get("title", ""),
+                "caption": photo.get("caption") or "",
+                "alt": photo.get("alt") or item.get("title", ""),
             })
     body = data.get("body") or data.get("biography") or data.get("body_text") or ""
     cover = asset_url(data.get("cover") or data.get("photo"))
@@ -277,6 +328,7 @@ def content_view(item: dict[str, Any]) -> dict[str, Any]:
         "year": format_date(date_value).rsplit(" ", 1)[-1] if format_date(date_value) else "",
         "time": format_time(data.get("starts_at")),
         "body_paragraphs": paragraphs(body),
+        "blocks": enrich_blocks_for_render(body),
         "photos": photos,
         "pdf": file_url(data.get("pdf")),
         "schedule": schedule_rows(data.get("schedule")),

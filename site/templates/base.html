@@ -70,6 +70,6 @@
   </footer>
 
   <dialog class="lightbox" data-lightbox aria-label="Просмотр фотографии"><button class="lightbox__close" type="button" aria-label="Закрыть" data-lightbox-close>×</button><img alt="" data-lightbox-image><p data-lightbox-caption></p></dialog>
-  <script src="/app.js"></script>
+  {% if not preview_mode %}<script src="/app.js"></script>{% endif %}
 </body>
 </html>

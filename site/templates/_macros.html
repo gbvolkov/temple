@@ -22,3 +22,30 @@
   {% if pagination.has_next %}<a class="button button--ghost button--compact" href="{{ base_path }}?{% if selected_year %}year={{ selected_year }}&amp;{% endif %}page={{ pagination.page + 1 }}">Следующая →</a>{% else %}<span></span>{% endif %}
 </nav>{% endif %}
 {%- endmacro %}
+
+{% macro inline_runs(runs) -%}
+{% for run in runs %}{% if run.href %}<a href="{{ run.href }}"{% if run.href.startswith('https://') %} target="_blank" rel="noopener noreferrer"{% endif %}>{% endif %}{% if 'bold' in run.marks %}<strong>{% endif %}{% if 'italic' in run.marks %}<em>{% endif %}{{ run.text }}{% if 'italic' in run.marks %}</em>{% endif %}{% if 'bold' in run.marks %}</strong>{% endif %}{% if run.href %}</a>{% endif %}{% endfor %}
+{%- endmacro %}
+
+{% macro content_blocks(blocks) -%}
+<div class="content-blocks">
+{% for block in blocks %}
+  {% set data = block.data %}
+  {% if block.type == 'paragraph' %}<p class="content-block content-block--paragraph">{{ inline_runs(data.runs) }}</p>
+  {% elif block.type == 'heading' and data.level == 2 %}<h2 class="content-block content-block--heading">{{ inline_runs(data.runs) }}</h2>
+  {% elif block.type == 'heading' %}<h3 class="content-block content-block--heading">{{ inline_runs(data.runs) }}</h3>
+  {% elif block.type == 'list' %}{% if data.style == 'numbered' %}<ol class="content-block content-block--list">{% else %}<ul class="content-block content-block--list">{% endif %}{% for item in data['items'] %}<li>{{ inline_runs(item.runs) }}</li>{% endfor %}{% if data.style == 'numbered' %}</ol>{% else %}</ul>{% endif %}
+  {% elif block.type == 'image' %}<figure class="content-block content-block--image"><img src="{{ data.image }}" alt="{{ data.alt }}" loading="lazy">{% if data.caption %}<figcaption>{{ data.caption }}</figcaption>{% endif %}</figure>
+  {% elif block.type == 'gallery' %}<div class="content-block content-block--gallery">{% for photo in data['items'] %}<figure><button type="button" data-lightbox-src="{{ photo.image }}" data-lightbox-caption="{{ photo.caption }}"><img src="{{ photo.image }}" alt="{{ photo.alt }}" loading="lazy"></button>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
+  {% elif block.type == 'quote' %}<figure class="content-block content-block--quote"><blockquote>{{ inline_runs(data.runs) }}</blockquote>{% if data.author or data.source %}<figcaption>{% if data.author %}{{ data.author }}{% endif %}{% if data.author and data.source %}, {% endif %}{% if data.source %}<cite>{{ data.source }}</cite>{% endif %}</figcaption>{% endif %}</figure>
+  {% elif block.type == 'video' %}<figure class="content-block content-block--video">{% if data.embed_url %}<div class="video-frame"><iframe src="{{ data.embed_url }}" title="{{ data.caption or 'Видео' }}" loading="lazy" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>{% else %}<a class="button button--primary" href="{{ data.url }}" target="_blank" rel="noopener noreferrer">Открыть видео ↗</a>{% endif %}{% if data.caption %}<figcaption>{{ data.caption }}</figcaption>{% endif %}</figure>
+  {% elif block.type == 'file' %}<a class="content-block content-block--file" href="{{ data.url }}" target="_blank" rel="noopener"><span aria-hidden="true">↓</span><span><strong>{{ data.label }}</strong>{% if data.description %}<small>{{ data.description }}</small>{% endif %}</span></a>
+  {% elif block.type == 'callout' %}<aside class="content-block content-block--callout content-block--{{ data.tone }}">{% if data.title %}<h3>{{ data.title }}</h3>{% endif %}<p>{{ inline_runs(data.runs) }}</p></aside>
+  {% endif %}
+{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro related_content(items) -%}
+{% if items %}<section class="related-content"><div class="eyebrow">Смотрите также</div><div class="related-content__grid">{% for item in items %}<a href="{{ item.url }}"><small>{{ item.label }}</small><strong>{{ item.title }}</strong>{% if item.summary %}<span>{{ item.summary }}</span>{% endif %}</a>{% endfor %}</div></section>{% endif %}
+{%- endmacro %}

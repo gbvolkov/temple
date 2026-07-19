@@ -19,6 +19,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from .config import Settings
+from .content_blocks import ContentDataError, EDITABLE_RELATION_TYPES, prepare_content_data
 from .db import connect, init_database, row_to_content, slugify, transaction, utc_now
 from .full_import import build_full_plan, execute_plan
 from .importer import media_mapping, run_import
@@ -37,7 +38,7 @@ from .public_site import (
     published_item,
     published_items,
     published_page,
-    related_items,
+    published_related_content,
     service_groups,
 )
 from .workflow import (
@@ -82,6 +83,14 @@ class VersionPayload(BaseModel):
 
 class SchedulePayload(VersionPayload):
     scheduled_at: datetime
+
+
+class PreviewPayload(BaseModel):
+    content_id: str | None = None
+    content_type: str
+    title: str = Field(min_length=1, max_length=240)
+    slug: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
 
 
 def load_schema(settings: Settings) -> dict:
@@ -237,6 +246,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         missing = missing_required(schema, content)
         if missing:
             raise HTTPException(422, {"message": "Заполните обязательные поля", "fields": missing})
+
+    def prepare_data(
+        connection: sqlite3.Connection,
+        content_type: str,
+        data: dict[str, Any],
+        *,
+        content_id: str | None = None,
+        existing_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            return prepare_content_data(
+                connection, content_type, data,
+                content_id=content_id, existing_data=existing_data,
+            )
+        except ContentDataError as error:
+            raise HTTPException(422, str(error)) from error
 
     def validate_stage4_data(
         connection: sqlite3.Connection,
@@ -425,6 +450,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ).fetchall()
         return {"items": [serialize_admin_content(row) for row in rows], "total": total, "limit": limit, "offset": offset}
 
+    @app.get("/api/admin/content-options")
+    def content_options(
+        types: str = "news,page,parish_section,gallery",
+        q: str = "",
+        exclude_id: str | None = None,
+        limit: int = Query(20, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        requested = list(dict.fromkeys(TYPE_ALIASES.get(item.strip(), item.strip()) for item in types.split(",") if item.strip()))
+        if not requested or any(item not in EDITABLE_RELATION_TYPES for item in requested):
+            raise HTTPException(422, "Разрешены только новости, страницы, направления и галереи")
+        placeholders = ",".join("?" for _ in requested)
+        where = [f"content_type IN ({placeholders})", "status!='trash'"]
+        params: list[Any] = [*requested]
+        if exclude_id:
+            where.append("id!=?")
+            params.append(exclude_id)
+        if q.strip():
+            where.append("(title LIKE ? OR slug LIKE ?)")
+            term = f"%{q.strip()}%"
+            params.extend([term, term])
+        clause = " AND ".join(where)
+        with connect(settings.database_path) as connection:
+            total = int(connection.execute(f"SELECT COUNT(*) FROM contents WHERE {clause}", params).fetchone()[0])
+            rows = connection.execute(
+                f"""SELECT id,content_type,title,slug,status,published_version,updated_at
+                    FROM contents WHERE {clause}
+                    ORDER BY title,id LIMIT ? OFFSET ?""",
+                [*params, limit, offset],
+            ).fetchall()
+        return {"items": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
     @app.get("/api/admin/contents/{content_id}")
     def admin_content(content_id: str, _: dict = Depends(require("viewer"))):
         with connect(settings.database_path) as connection:
@@ -445,13 +503,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "SELECT 1 FROM contents WHERE content_type='site_contact' AND status!='trash' LIMIT 1"
             ).fetchone():
                 raise HTTPException(409, "Карточка контактов уже существует; откройте её для редактирования")
-            validate_stage4_data(connection, content_type, payload.data)
+            normalized_data = prepare_data(connection, content_type, payload.data, content_id=content_id)
+            validate_stage4_data(connection, content_type, normalized_data)
             slug = available_slug(connection, payload.slug or payload.title)
             connection.execute(
                 """INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,
                    version,created_at,updated_at) VALUES(?,?,?,?,?,?,0,1,?,?)""",
                 (content_id, content_type, slug, payload.title.strip(), "draft",
-                 json.dumps(payload.data, ensure_ascii=False, sort_keys=True), now, now),
+                 json.dumps(normalized_data, ensure_ascii=False, sort_keys=True), now, now),
             )
             snapshot(connection, content_id, user["id"])
             row = connection.execute("SELECT * FROM contents WHERE id=?", (content_id,)).fetchone()
@@ -469,15 +528,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             require_state(old, {"draft", "in_review", "scheduled", "published"}, "редактирование")
             if old["published_slug"] and payload.slug != old["published_slug"]:
                 raise HTTPException(409, "URL опубликованного материала зафиксирован и пока не может быть изменён")
-            validate_stage4_data(connection, old["content_type"], payload.data)
+            existing_data = json.loads(old["data_json"])
+            normalized_data = prepare_data(
+                connection, old["content_type"], payload.data,
+                content_id=content_id, existing_data=existing_data,
+            )
+            validate_stage4_data(connection, old["content_type"], normalized_data)
             slug = old["published_slug"] or available_slug(connection, payload.slug, content_id)
-            data_json = json.dumps(payload.data, ensure_ascii=False, sort_keys=True)
+            data_json = json.dumps(normalized_data, ensure_ascii=False, sort_keys=True)
             changed_fields = []
             if old["title"] != payload.title.strip():
                 changed_fields.append("title")
             if old["slug"] != slug:
                 changed_fields.append("slug")
-            if old["data_json"] != data_json:
+            if existing_data != normalized_data:
                 changed_fields.append("data")
             if not changed_fields:
                 return serialize_admin_content(old)
@@ -890,6 +954,95 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=404,
         )
 
+    def preview_record(payload: PreviewPayload, normalized_data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": payload.content_id or "preview",
+            "content_type": TYPE_ALIASES.get(payload.content_type, payload.content_type),
+            "slug": payload.slug or "preview",
+            "title": payload.title.strip(),
+            "status": "draft",
+            "data": normalized_data,
+            "version": 1,
+            "published_version": None,
+            "published_at": None,
+            "updated_at": utc_now(),
+            "legacy_url": None,
+            "migration_review_required": False,
+        }
+
+    @app.post("/api/admin/content-preview", response_class=HTMLResponse)
+    def admin_content_preview(
+        request: Request,
+        payload: PreviewPayload,
+        _: dict = Depends(require("viewer", mutation=True)),
+    ):
+        content_type = TYPE_ALIASES.get(payload.content_type, payload.content_type)
+        if content_type not in schema["content_types"]:
+            raise HTTPException(422, "Неизвестный тип материала")
+        with connect(settings.database_path) as connection:
+            existing_data: dict[str, Any] | None = None
+            if payload.content_id:
+                existing = connection.execute("SELECT * FROM contents WHERE id=?", (payload.content_id,)).fetchone()
+                if not existing:
+                    raise HTTPException(404, "Материал не найден")
+                if existing["content_type"] != content_type:
+                    raise HTTPException(409, "Тип материала не совпадает")
+                existing_data = json.loads(existing["data_json"])
+            normalized = prepare_data(
+                connection, content_type, payload.data,
+                content_id=payload.content_id, existing_data=existing_data,
+            )
+            validate_stage4_data(connection, content_type, normalized)
+        raw = preview_record(payload, normalized)
+        item = content_view(raw)
+        common = {"preview_mode": True}
+        placement = normalized.get("placement", "standalone") if content_type == "page" else ""
+
+        if content_type == "page" and placement in {"about_history", "about_shrine"}:
+            history_items = pages_by_placement(settings.database_path, "about_history")
+            history = content_view(history_items[0]) if history_items else None
+            shrines = [content_view(candidate) for candidate in pages_by_placement(settings.database_path, "about_shrine")]
+            if placement == "about_history":
+                history = item
+            else:
+                shrines = [candidate for candidate in shrines if candidate.get("id") != item["id"]]
+                shrines.append(item)
+                shrines.sort(key=lambda candidate: (int((candidate.get("data") or {}).get("navigation_order") or 100), candidate["title"]))
+            clergy = [content_view(candidate) for candidate in published_items(settings.database_path, "clergy")]
+            return render_public(
+                request, "about.html",
+                public_context("about", "Предпросмотр · О храме", history=history, shrines=shrines, clergy=clergy, **common),
+            )
+        if content_type == "page" and placement == "school_home":
+            sections = [content_view(candidate) for candidate in published_items(settings.database_path, "parish_section") if is_school_item(candidate)]
+            news = [content_view(candidate) for candidate in published_items(settings.database_path, "news") if is_school_item(candidate)]
+            albums = [content_view(candidate) for candidate in published_items(settings.database_path, "gallery") if is_school_item(candidate)]
+            return render_public(
+                request, "school.html",
+                public_context("school", "Предпросмотр · Воскресная школа", school_home=item, sections=sections, news=news, albums=albums, **common),
+            )
+        if content_type == "page" and placement == "schedule_info":
+            groups = service_groups(published_items(settings.database_path, "service"))
+            return render_public(
+                request, "schedule.html",
+                public_context("schedule", "Предпросмотр · Расписание", service_groups=groups, info=item, **common),
+            )
+
+        related = [content_view(candidate) for candidate in published_related_content(settings.database_path, raw)]
+        if content_type == "parish_section":
+            return render_public(
+                request, "parish_detail.html",
+                public_context("parish", f"Предпросмотр · {item['title']}", item=item, back_url="/parish", related_items=related, **common),
+            )
+        active_nav, back_url = {
+            "news": ("parish", "/news"), "gallery": ("media", "/gallery"),
+            "page": ("about", "/about"), "clergy": ("about", "/about#clergy"),
+        }.get(content_type, ("", "/"))
+        return render_public(
+            request, "detail.html",
+            public_context(active_nav, f"Предпросмотр · {item['title']}", item=item, back_url=back_url, related_items=related, **common),
+        )
+
     def parse_archive_page(value: str) -> int | None:
         return int(value) if re.fullmatch(r"[1-9]\d*", value or "") else None
 
@@ -1054,7 +1207,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return render_public(
             request,
             "detail.html",
-            public_context(active_nav, item["title"], item=item, back_url=back_url),
+            public_context(
+                active_nav, item["title"], item=item, back_url=back_url,
+                related_items=[content_view(related) for related in published_related_content(settings.database_path, raw)],
+            ),
         )
 
     @app.get("/about/clergy/{slug}", response_class=HTMLResponse, include_in_schema=False)
@@ -1071,8 +1227,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "parish_detail.html",
             public_context(
                 "parish", raw["title"], item=content_view(raw), back_url="/parish",
-                related_news=[content_view(item) for item in related_items(settings.database_path, "news", raw)],
-                related_galleries=[content_view(item) for item in related_items(settings.database_path, "gallery", raw)],
+                related_items=[content_view(related) for related in published_related_content(settings.database_path, raw)],
             ),
         )
 

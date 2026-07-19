@@ -19,19 +19,7 @@
   <div class="cms-shell">
     <aside class="cms-sidebar" aria-label="Типы материалов">
       <button class="cms-sidebar__new" type="button" data-create-current><span>＋</span> Новый материал</button>
-      <nav>
-        <div class="cms-sidebar__label">Содержание</div>
-        <button class="cms-type" type="button" data-content-type="home_feature"><span>★</span> Главное</button>
-        <button class="cms-type is-active" type="button" data-content-type="news"><span>▤</span> Новости и анонсы</button>
-        <button class="cms-type" type="button" data-content-type="service"><span>◷</span> Богослужения</button>
-        <button class="cms-type" type="button" data-content-type="gallery"><span>▦</span> Фотоальбомы</button>
-        <button class="cms-type" type="button" data-content-type="leaflet"><span>▧</span> Выпуски листка</button>
-        <button class="cms-type" type="button" data-content-type="section"><span>◇</span> Направления прихода</button>
-        <button class="cms-type" type="button" data-content-type="page"><span>≡</span> Страницы</button>
-        <button class="cms-type" type="button" data-content-type="clergy"><span>✣</span> Духовенство</button>
-        <button class="cms-type" type="button" data-content-type="video"><span>▶</span> Видео и трансляции</button>
-        <button class="cms-type" type="button" data-content-type="contact"><span>⌖</span> Контакты и соцсети</button>
-      </nav>
+      <nav data-content-nav><div class="cms-sidebar__label">Содержание</div></nav>
       <nav>
         <div class="cms-sidebar__label">Управление</div>
         <button class="cms-type" type="button" data-panel="media"><span>◫</span> Медиатека</button>
@@ -50,7 +38,7 @@
       </section>
       <aside class="preview-pane" data-preview-pane>
         <div class="preview-head"><div><strong>Предпросмотр</strong><small>Обновляется автоматически</small></div><div class="preview-switch" role="group" aria-label="Размер предпросмотра"><button class="is-active" type="button" data-preview-size="desktop" aria-label="Предпросмотр на ПК">ПК</button><button type="button" data-preview-size="mobile" aria-label="Предпросмотр на смартфоне">Телефон</button></div></div>
-        <div class="preview-stage"><article class="content-preview" data-content-preview></article></div>
+        <div class="preview-stage"><iframe class="content-preview" data-content-preview title="Точный предпросмотр публичной страницы" sandbox="allow-scripts"></iframe></div>
       </aside>
       <section class="cms-panel" data-cms-panel hidden></section>
     </main>
@@ -84,6 +72,15 @@
       <label class="field">Пароль<input name="password" type="password" autocomplete="current-password" required></label>
       <p class="form-error" data-login-error role="alert"></p>
       <div class="form-actions"><button class="button button--ghost" type="button" data-login-close>Отмена</button><button class="button button--primary" type="submit">Войти</button></div>
+    </form>
+  </dialog>
+  <dialog class="modal link-dialog" data-link-dialog aria-labelledby="link-title">
+    <form class="modal__surface link-form" data-link-form>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-link-close>×</button>
+      <div class="eyebrow">Ссылка в тексте</div><h2 id="link-title">Куда ведёт ссылка?</h2>
+      <label class="field">Адрес<input name="href" type="text" placeholder="/about или https://example.org" required></label>
+      <p>Разрешены внутренние адреса, HTTPS, email и телефон.</p>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-link-close>Отмена</button><button class="button button--primary" type="submit">Применить</button></div>
     </form>
   </dialog>
   <div class="toast" role="status" aria-live="polite" data-toast></div>

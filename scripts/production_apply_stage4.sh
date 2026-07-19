@@ -6,7 +6,11 @@ BACKUP_ROOT="${BACKUP_ROOT:-$HOME/temple-backups}"
 BACKUP_ID="${1:-${BACKUP_ID:-}}"
 LOCAL_BACKUP_SHA256="${LOCAL_BACKUP_SHA256:-}"
 SERVICE="cms"
-TEST_PORT="18004"
+DEPLOYMENT_STAGE="${DEPLOYMENT_STAGE:-4}"
+EXPECTED_CONTENT_SCHEMA="${EXPECTED_CONTENT_SCHEMA:-1.1.0}"
+DEPLOYMENT_TAG="${DEPLOYMENT_TAG:-stage4-public-sections-from-cms}"
+DEPLOYMENT_ENTRYPOINT="${DEPLOYMENT_ENTRYPOINT:-$0}"
+TEST_PORT="${TEST_PORT:-18004}"
 PAVEL_ID="56871da9-3f57-4ff0-b405-3127668f7cad"
 PUBLIC_BASE_URL_EXPECTED="https://temple.gbvolkoff.name:8443"
 EXPECTED_SCHEMA="4"
@@ -14,7 +18,7 @@ EXPECTED_REDIRECTS="1606"
 
 case "$BACKUP_ID" in
   baseline-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) ;;
-  *) echo "Usage: LOCAL_BACKUP_SHA256=<sha256> $0 baseline-YYYYMMDDTHHMMSSZ" >&2; exit 1 ;;
+  *) echo "Usage: LOCAL_BACKUP_SHA256=<sha256> $DEPLOYMENT_ENTRYPOINT baseline-YYYYMMDDTHHMMSSZ" >&2; exit 1 ;;
 esac
 
 for command_name in git curl sqlite3 tar sha256sum python3 sudo docker grep seq date awk tr; do
@@ -29,10 +33,10 @@ ARCHIVE="$BACKUP_ROOT/$BACKUP_ID.tar.gz"
 CHECKSUM="$ARCHIVE.sha256"
 BASELINE_REPORT="$BACKUP_ROOT/$BACKUP_ID-baseline-report.json"
 RESTORE_REPORT="$BACKUP_ROOT/$BACKUP_ID-restore-verification.json"
-TEST_ROOT="$BACKUP_ROOT/stage4-test-$BACKUP_ID"
+TEST_ROOT="$BACKUP_ROOT/stage${DEPLOYMENT_STAGE}-test-$BACKUP_ID"
 TEST_DATA="$TEST_ROOT/$BACKUP_ID"
-TEST_CONTAINER="temple-stage4-test-${BACKUP_ID//[^a-zA-Z0-9]/-}"
-POST_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage4-post-report.json"
+TEST_CONTAINER="temple-stage${DEPLOYMENT_STAGE}-test-${BACKUP_ID//[^a-zA-Z0-9]/-}"
+POST_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-post-report.json"
 
 for file in "$ARCHIVE" "$CHECKSUM" "$BASELINE_REPORT" "$RESTORE_REPORT"; do
   test -r "$file" || { echo "Required backup artifact is missing: $file" >&2; exit 1; }
@@ -132,7 +136,7 @@ validate_public_base_url .env || {
   echo "PUBLIC_BASE_URL must be $PUBLIC_BASE_URL_EXPECTED in .env" >&2
   exit 1
 }
-validate_database data/cms.sqlite3 "production before stage 4"
+validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE"
 
 CONTACT_ADDRESS="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.address') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
 CONTACT_PHONE="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.phone') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
@@ -169,7 +173,7 @@ cleanup() {
     sudo docker stop "$TEST_CONTAINER" >/dev/null 2>&1 || true
   fi
   case "$TEST_ROOT" in
-    "$BACKUP_ROOT"/stage4-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
+    "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
     *) echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2 ;;
   esac
   exit "$exit_code"
@@ -187,9 +191,9 @@ for _ in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:$TEST_PORT/api/health" >/dev/null 2>&1; then break; fi
   sleep 1
 done
-curl -fsS "http://127.0.0.1:$TEST_PORT/api/health" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]=="1.1.0"'
+curl -fsS "http://127.0.0.1:$TEST_PORT/api/health" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
 python3 -m server.migrations verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
-validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage 4 image"
+validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage $DEPLOYMENT_STAGE image"
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
@@ -204,10 +208,98 @@ if curl -fsS "http://127.0.0.1:$TEST_PORT/cms.html" | grep -Fq 'temple-demo'; th
   exit 1
 fi
 
+if [[ "$DEPLOYMENT_STAGE" == "5" ]]; then
+  # Exercise draft creation and the exact server preview only on the disposable restore.
+  # Credentials are read in-process and are never written to the terminal or report.
+  python3 - "$TEST_PORT" "$TEST_DATA/.env" "$PAVEL_CLEAN" <<'PY'
+import http.cookiejar
+import json
+import sys
+import urllib.error
+import urllib.request
+
+port, env_path, pavel_path = sys.argv[1:]
+values = {}
+with open(env_path, encoding="utf-8") as source:
+    for raw in source:
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        values[name.strip()] = value.strip().strip('"').strip("'")
+
+username = values.get("CMS_BOOTSTRAP_USER", "admin")
+password = values.get("CMS_BOOTSTRAP_PASSWORD", "")
+if not password:
+    raise SystemExit("CMS_BOOTSTRAP_PASSWORD is required for the disposable stage 5 workflow test")
+
+base = f"http://127.0.0.1:{port}"
+cookie_jar = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(
+    urllib.request.HTTPCookieProcessor(cookie_jar)
+)
+session_cookie = ""
+
+def request(path, *, method="GET", payload=None, csrf=""):
+    headers = {}
+    body = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    if csrf:
+        headers["X-CSRF-Token"] = csrf
+    if session_cookie:
+        headers["Cookie"] = f"cms_session={session_cookie}"
+    call = urllib.request.Request(base + path, data=body, headers=headers, method=method)
+    try:
+        with opener.open(call, timeout=15) as response:
+            return response.status, response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        return error.code, error.read().decode("utf-8")
+
+status, raw = request(
+    "/api/admin/login", method="POST",
+    payload={"username": username, "password": password},
+)
+assert status == 200
+csrf = json.loads(raw)["csrf_token"]
+session_cookie = next(cookie.value for cookie in cookie_jar if cookie.name == "cms_session")
+draft_payload = {
+    "content_type": "page",
+    "title": "Проверка редактора этапа 5",
+    "data": {
+        "body": [{
+            "id": "stage5-rollout-paragraph",
+            "type": "paragraph",
+            "data": {"runs": [{"text": "Одноразовый черновик восстановленной копии", "marks": ["bold"]}]},
+        }],
+        "related_content": [],
+    },
+}
+status, raw = request("/api/admin/contents", method="POST", payload=draft_payload, csrf=csrf)
+assert status == 201
+draft = json.loads(raw)
+assert draft["status"] == "draft" and draft["is_public"] is False
+status, _ = request(f"/pages/{draft['slug']}")
+assert status == 404
+status, preview = request(
+    "/api/admin/content-preview", method="POST", csrf=csrf,
+    payload={
+        "content_id": draft["id"], "content_type": "page", "title": draft["title"],
+        "slug": draft["slug"], "data": draft["data"],
+    },
+)
+assert status == 200
+assert "<strong>Одноразовый черновик восстановленной копии</strong>" in preview
+status, _ = request(pavel_path)
+assert status == 200
+PY
+fi
+
 sudo docker stop "$TEST_CONTAINER" >/dev/null
 TEST_STARTED=0
 case "$TEST_ROOT" in
-  "$BACKUP_ROOT"/stage4-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
+  "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
   *) echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2; exit 1 ;;
 esac
 trap - EXIT
@@ -220,9 +312,9 @@ for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then break; fi
   sleep 1
 done
-curl -fsS http://127.0.0.1:8000/api/health | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]=="1.1.0"'
+curl -fsS http://127.0.0.1:8000/api/health | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
 python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
-validate_database data/cms.sqlite3 "production after stage 4"
+validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_ADDRESS"
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_PHONE"
 
@@ -239,7 +331,7 @@ python3 -m server.baseline report \
   --database data/cms.sqlite3 \
   --media-dir data/media \
   --git-sha "$CURRENT_SHA" \
-  --tag "stage4-public-sections-from-cms" \
+  --tag "$DEPLOYMENT_TAG" \
   --baseline-tag-sha "$CURRENT_SHA" \
   --image-id "$NEW_IMAGE_ID" \
   --env-file .env \
@@ -247,7 +339,7 @@ python3 -m server.baseline report \
 chmod 600 "$POST_REPORT"
 DEPLOYMENT_SECONDS=$(( $(date +%s) - DEPLOYMENT_STARTED ))
 
-echo "STAGE4_APPLIED=true"
+echo "STAGE${DEPLOYMENT_STAGE}_APPLIED=true"
 echo "BACKUP_ID=$BACKUP_ID"
 echo "IMPLEMENTATION_SHA=$CURRENT_SHA"
 echo "IMAGE_ID=$NEW_IMAGE_ID"

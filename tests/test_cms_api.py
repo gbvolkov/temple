@@ -268,8 +268,19 @@ def test_server_rendered_public_routes_use_published_snapshot(tmp_path):
         ).json()
         payload = ready_news(item)
         payload["data"]["category"] = "Воскресная школа"
-        payload["data"]["summary"] = "<script>не исполнять</script>"
-        payload["data"]["body"] = "Первый абзац\n\nВторой абзац"
+        payload["data"]["summary"] = "Книга & приход"
+        payload["data"]["body"] = [
+            {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "paragraph",
+                "data": {"runs": [{"text": "Первый абзац", "marks": ["bold"]}]},
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "type": "paragraph",
+                "data": {"runs": [{"text": "Второй абзац", "marks": []}]},
+            },
+        ]
         item = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json=payload).json()
         item = client.post(
             f"/api/admin/contents/{item['id']}/submit-review",
@@ -291,8 +302,8 @@ def test_server_rendered_public_routes_use_published_snapshot(tmp_path):
         assert "Опубликованная SSR-новость" in client.get("/school").text
         assert 'href="/styles.css"' in detail.text
         assert 'src="/app.js"' in detail.text
-        assert "&lt;script&gt;не исполнять&lt;/script&gt;" in detail.text
-        assert "<script>не исполнять</script>" not in detail.text
+        assert "Книга &amp; приход" in detail.text
+        assert "<strong>Первый абзац</strong>" in detail.text
         assert client.get(f"/gallery/{item['published_slug']}").status_code == 404
         assert client.get("/news/not-a-real-slug").status_code == 404
 

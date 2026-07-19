@@ -1,154 +1,162 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "locale": "ru-RU",
-  "principles": [
-    "Editors see domain fields, not templates, aliases, HTML, JSON, or filesystem paths.",
-    "Every publishable item supports draft, scheduled, published, archived, and trash states.",
-    "Desktop and mobile preview is mandatory before publish.",
-    "Legacy IDs and URLs are retained as migration metadata for traceability and redirects."
-  ],
+  "ui": {
+    "groups": {
+      "main": "Основная информация",
+      "content": "Содержание",
+      "media": "Медиа",
+      "relations": "Связанные материалы",
+      "publication": "Размещение и публикация"
+    },
+    "content_order": ["home_feature", "news", "service", "gallery", "leaflet_issue", "parish_section", "page", "clergy", "video", "site_contact"],
+    "icons": {"home_feature": "★", "news": "▤", "service": "◷", "gallery": "▦", "leaflet_issue": "▧", "parish_section": "◇", "page": "≡", "clergy": "✣", "video": "▶", "site_contact": "⌖"},
+    "block_types": {
+      "paragraph": {"label": "Абзац", "icon": "¶"},
+      "heading": {"label": "Заголовок", "icon": "H"},
+      "list": {"label": "Список", "icon": "☷"},
+      "image": {"label": "Изображение", "icon": "▧"},
+      "gallery": {"label": "Галерея", "icon": "▦"},
+      "quote": {"label": "Цитата", "icon": "“"},
+      "video": {"label": "Видео", "icon": "▶"},
+      "file": {"label": "Файл", "icon": "↓"},
+      "callout": {"label": "Плашка", "icon": "!"}
+    }
+  },
   "content_types": {
     "home_feature": {
-      "label": "Главное",
+      "label": "Главное", "title": "Новый материал рубрики «Главное»", "help": "Самостоятельный редакционный материал для первого экрана.",
       "fields": {
-        "title": { "type": "string", "required": true, "max_length": 180 },
-        "slug": { "type": "slug", "generated_from": "title", "admin_only": true },
-        "kicker": { "type": "string", "required": true, "default": "Главное", "max_length": 60 },
-        "summary": { "type": "text", "required": true, "max_length": 360 },
-        "cover": { "type": "image", "required": true, "aspect_ratio": "16:9" },
-        "cover_alt": { "type": "string", "required": true },
-        "cta_label": { "type": "string", "required": true, "default": "Прочитать", "max_length": 40 },
-        "target_url": { "type": "string", "required": false, "help": "Внутренняя ссылка начинается с /, внешняя — с https://" },
-        "content_slug": { "type": "relation", "target": "any_publishable", "required": false },
-        "starts_at": { "type": "datetime", "required": false },
-        "ends_at": { "type": "datetime", "required": false },
-        "priority": { "type": "integer", "required": true, "default": 100 }
+        "title": {"label": "Заголовок", "type": "string", "group": "main", "required": true, "max_length": 180},
+        "kicker": {"label": "Надзаголовок", "type": "string", "group": "main", "required": true, "default": "Главное", "max_length": 60},
+        "summary": {"label": "Краткое описание", "type": "text", "group": "content", "required": true, "max_length": 360},
+        "cover": {"label": "Главное изображение", "type": "image", "group": "media", "required": true},
+        "cover_alt": {"label": "Описание изображения", "type": "string", "group": "media", "required": true, "max_length": 500},
+        "cta_label": {"label": "Текст кнопки", "type": "string", "group": "publication", "required": true, "default": "Прочитать", "max_length": 40},
+        "target_url": {"label": "Ссылка кнопки", "type": "string", "group": "publication", "help": "Внутренняя ссылка начинается с /, внешняя — с https://"},
+        "content_slug": {"label": "Slug связанного материала", "type": "string", "group": "relations"},
+        "starts_at": {"label": "Показывать с", "type": "datetime", "group": "publication"},
+        "ends_at": {"label": "Показывать до", "type": "datetime", "group": "publication"},
+        "priority": {"label": "Приоритет", "type": "integer", "group": "publication", "required": true, "default": 100}
       }
     },
     "news": {
-      "label": "Новость или анонс",
+      "label": "Новости и анонсы", "title": "Новая новость", "help": "Полноценная статья или анонс события.",
       "fields": {
-        "title": { "type": "string", "required": true, "max_length": 180 },
-        "slug": { "type": "slug", "generated_from": "title", "admin_only": true },
-        "publication_date": { "type": "datetime", "required": true },
-        "event_start": { "type": "datetime", "required": false },
-        "event_end": { "type": "datetime", "required": false },
-        "category": { "type": "relation", "target": "category", "required": true },
-        "summary": { "type": "text", "required": true, "max_length": 420 },
-        "body": { "type": "blocks", "allowed": ["paragraph", "heading", "image", "gallery", "quote", "video", "file", "callout"] },
-        "cover": { "type": "image", "required": true, "aspect_ratio": "3:2" },
-        "cover_alt": { "type": "string", "required": true },
-        "featured": { "type": "boolean", "default": false },
-        "related_section": { "type": "relation", "target": "parish_section", "required": false }
+        "title": {"label": "Заголовок", "type": "string", "group": "main", "required": true, "max_length": 180},
+        "publication_date": {"label": "Дата публикации", "type": "date", "group": "main", "required": true},
+        "category": {"label": "Рубрика", "type": "combobox", "group": "main", "required": true, "allow_existing": true, "values": ["Новости прихода", "Воскресная школа", "Социальная служба", "Молодёжное движение"]},
+        "summary": {"label": "Краткое описание", "type": "text", "group": "content", "required": true, "max_length": 420},
+        "body": {"label": "Полный текст", "type": "blocks", "group": "content", "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
+        "cover": {"label": "Главное изображение", "type": "image", "group": "media", "required": true},
+        "cover_alt": {"label": "Описание главного изображения", "type": "string", "group": "media", "required": true},
+        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "featured": {"label": "Показывать на главной", "type": "boolean", "group": "publication", "default": false}
       }
     },
     "service": {
-      "label": "Богослужение",
+      "label": "Богослужения", "title": "Новое богослужение", "help": "Структурированная запись для расписания и ближайшей службы.",
       "fields": {
-        "title": { "type": "string", "required": true },
-        "starts_at": { "type": "datetime", "required": true },
-        "ends_at": { "type": "datetime", "required": false },
-        "service_type": { "type": "enum", "values": ["liturgy", "vigil", "vespers", "matins", "moleben", "panikhida", "confession", "other"] },
-        "liturgical_title": { "type": "string", "required": false },
-        "location": { "type": "relation", "target": "location", "required": true },
-        "note": { "type": "text", "required": false },
-        "featured": { "type": "boolean", "default": false }
+        "title": {"label": "Название службы", "type": "string", "group": "main", "required": true},
+        "starts_at": {"label": "Дата и время", "type": "datetime", "group": "main", "required": true},
+        "ends_at": {"label": "Окончание", "type": "datetime", "group": "main"},
+        "service_type": {"label": "Тип", "type": "enum", "group": "main", "default": "liturgy", "values": [{"value": "liturgy", "label": "Литургия"}, {"value": "vigil", "label": "Всенощное бдение"}, {"value": "vespers", "label": "Вечерня"}, {"value": "matins", "label": "Утреня"}, {"value": "moleben", "label": "Молебен"}, {"value": "panikhida", "label": "Панихида"}, {"value": "confession", "label": "Исповедь"}, {"value": "other", "label": "Другое"}]},
+        "liturgical_title": {"label": "Праздник или память святого", "type": "string", "group": "content"},
+        "location": {"label": "Место", "type": "string", "group": "content", "required": true, "default": "Храм святителя Иннокентия"},
+        "note": {"label": "Примечание", "type": "text", "group": "content"},
+        "featured": {"label": "Показывать как ближайшую службу", "type": "boolean", "group": "publication", "default": false}
       }
     },
     "gallery": {
-      "label": "Фотоальбом",
+      "label": "Фотоальбомы", "title": "Новый фотоальбом", "help": "Фотографии с подписями, alt-текстами и управляемым порядком.",
       "fields": {
-        "title": { "type": "string", "required": true },
-        "event_date": { "type": "date", "required": true },
-        "category": { "type": "relation", "target": "category", "required": true },
-        "summary": { "type": "text", "required": false },
-        "cover": { "type": "image", "required": true },
-        "photos": { "type": "image_list", "required": true, "item_fields": ["image", "caption", "alt", "author", "order"] },
-        "related_section": { "type": "relation", "target": "parish_section", "required": false },
-        "legacy_year": { "type": "integer", "migration_only": true }
+        "title": {"label": "Название альбома", "type": "string", "group": "main", "required": true},
+        "event_date": {"label": "Дата события", "type": "date", "group": "main", "required": true},
+        "category": {"label": "Раздел", "type": "combobox", "group": "main", "required": true, "allow_existing": true, "values": ["Богослужения", "Жизнь прихода", "Воскресная школа", "Паломничества"]},
+        "summary": {"label": "Описание", "type": "text", "group": "content"},
+        "cover": {"label": "Обложка альбома", "type": "image", "group": "media", "required": true},
+        "photos": {"label": "Фотографии", "type": "image_list", "group": "media", "required": true, "max_items": 100},
+        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20}
       }
     },
     "leaflet_issue": {
-      "label": "Выпуск Иннокентиевского листка",
+      "label": "Выпуски листка", "title": "Новый выпуск листка", "help": "Номер, период, обложка и PDF выпуска.",
       "fields": {
-        "number": { "type": "integer", "required": true, "unique": true },
-        "title": { "type": "string", "required": true },
-        "period": { "type": "string", "required": true },
-        "publication_date": { "type": "date", "required": true },
-        "year": { "type": "integer", "derived_from": "publication_date" },
-        "cover": { "type": "image", "required": true },
-        "pdf": { "type": "file", "accept": ["application/pdf"], "required": true },
-        "attachments": { "type": "file_list", "required": false },
-        "featured": { "type": "boolean", "default": false }
+        "title": {"label": "Название выпуска", "type": "string", "group": "main", "required": true},
+        "number": {"label": "Номер", "type": "integer", "group": "main", "required": true},
+        "period": {"label": "Период выпуска", "type": "string", "group": "main", "required": true},
+        "publication_date": {"label": "Дата публикации", "type": "date", "group": "main", "required": true},
+        "cover": {"label": "Обложка", "type": "image", "group": "media", "required": true},
+        "pdf": {"label": "PDF-файл", "type": "file", "group": "media", "required": true},
+        "featured": {"label": "Показывать последним выпуском", "type": "boolean", "group": "publication", "default": false}
       }
     },
     "parish_section": {
-      "label": "Направление прихода",
+      "label": "Направления прихода", "title": "Новое направление", "help": "Описание, контакты, расписание и связанные материалы направления.",
       "fields": {
-        "title": { "type": "string", "required": true },
-        "summary": { "type": "text", "required": true },
-        "body": { "type": "blocks" },
-        "cover": { "type": "image", "required": false },
-        "contact_name": { "type": "string", "required": false },
-        "phone": { "type": "phone", "required": false },
-        "email": { "type": "email", "required": false },
-        "schedule": { "type": "structured_schedule", "required": false },
-        "order": { "type": "integer", "default": 100 },
-        "related_news": { "type": "reverse_relation", "target": "news.related_section" },
-        "related_galleries": { "type": "relation_list", "target": "gallery" }
-      }
-    },
-    "clergy": {
-      "label": "Священнослужитель",
-      "fields": {
-        "full_name": { "type": "string", "required": true },
-        "rank": { "type": "string", "required": true },
-        "position": { "type": "string", "required": false },
-        "photo": { "type": "image", "required": false },
-        "biography": { "type": "blocks", "required": true },
-        "name_day": { "type": "string", "required": false },
-        "order": { "type": "integer", "default": 100 }
+        "title": {"label": "Название", "type": "string", "group": "main", "required": true},
+        "summary": {"label": "Краткое описание", "type": "text", "group": "main", "required": true},
+        "body": {"label": "Полное описание", "type": "blocks", "group": "content", "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
+        "cover": {"label": "Обложка", "type": "image", "group": "media"},
+        "contact_name": {"label": "Контактное лицо", "type": "string", "group": "content"},
+        "phone": {"label": "Телефон", "type": "phone", "group": "content"},
+        "email": {"label": "Электронная почта", "type": "email", "group": "content"},
+        "schedule": {"label": "Регулярное расписание", "type": "schedule", "group": "content"},
+        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "order": {"label": "Порядок на странице", "type": "integer", "group": "publication", "default": 100}
       }
     },
     "page": {
-      "label": "Информационная страница",
+      "label": "Страницы", "title": "Новая страница", "help": "Самостоятельная страница или специальный блок публичного раздела.",
       "fields": {
-        "title": { "type": "string", "required": true },
-        "slug": { "type": "slug", "admin_only": true },
-        "summary": { "type": "text", "required": false },
-        "body": { "type": "blocks", "required": true },
-        "placement": { "type": "enum", "values": ["standalone", "about_history", "about_shrine", "school_home", "schedule_info"], "default": "standalone" },
-        "cover": { "type": "image", "required": false },
-        "cover_alt": { "type": "string", "required": false },
-        "pdf": { "type": "file", "accept": ["application/pdf"], "required": false },
-        "schedule": { "type": "structured_schedule", "required": false },
-        "parent": { "type": "relation", "target": "page", "required": false },
-        "navigation_order": { "type": "integer", "default": 100 }
+        "title": {"label": "Заголовок", "type": "string", "group": "main", "required": true},
+        "summary": {"label": "Вводный текст", "type": "text", "group": "main"},
+        "body": {"label": "Полный текст", "type": "blocks", "group": "content", "required": true, "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
+        "cover": {"label": "Главное изображение", "type": "image", "group": "media"},
+        "cover_alt": {"label": "Описание изображения", "type": "string", "group": "media"},
+        "pdf": {"label": "PDF-файл", "type": "file", "group": "media"},
+        "schedule": {"label": "Регулярное расписание", "type": "schedule", "group": "content"},
+        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "parent": {"label": "Родительская страница", "type": "relation", "group": "relations", "targets": ["page"]},
+        "placement": {"label": "Размещение", "type": "enum", "group": "publication", "default": "standalone", "values": [{"value": "standalone", "label": "Отдельная страница"}, {"value": "about_history", "label": "О храме — история"}, {"value": "about_shrine", "label": "О храме — святыня"}, {"value": "school_home", "label": "Воскресная школа"}, {"value": "schedule_info", "label": "Расписание — пояснение"}]},
+        "navigation_order": {"label": "Порядок в навигации", "type": "integer", "group": "publication", "default": 100}
+      }
+    },
+    "clergy": {
+      "label": "Духовенство", "title": "Новый священнослужитель", "help": "Имя, сан, служение и полная биография.",
+      "fields": {
+        "title": {"label": "Имя", "type": "string", "group": "main", "required": true},
+        "rank": {"label": "Сан", "type": "string", "group": "main", "required": true},
+        "position": {"label": "Служение", "type": "string", "group": "main"},
+        "name_day": {"label": "День тезоименитства", "type": "string", "group": "main"},
+        "photo": {"label": "Фотография", "type": "image", "group": "media"},
+        "biography": {"label": "Биография", "type": "blocks", "group": "content", "required": true, "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
+        "order": {"label": "Порядок на странице", "type": "integer", "group": "publication", "default": 100}
       }
     },
     "video": {
-      "label": "Видео или трансляция",
+      "label": "Видео и трансляции", "title": "Новое видео", "help": "Ссылка на трансляцию или запись с безопасным встраиванием.",
       "fields": {
-        "title": { "type": "string", "required": true },
-        "publication_date": { "type": "date", "required": true },
-        "external_url": { "type": "url", "required": true },
-        "cover": { "type": "image", "required": false },
-        "category": { "type": "relation", "target": "category" },
-        "is_live": { "type": "boolean", "default": false }
+        "title": {"label": "Название", "type": "string", "group": "main", "required": true},
+        "publication_date": {"label": "Дата публикации", "type": "date", "group": "main", "required": true},
+        "external_url": {"label": "HTTPS-ссылка на видео", "type": "url", "group": "content", "required": true},
+        "category": {"label": "Раздел", "type": "combobox", "group": "content", "allow_existing": true, "values": ["Трансляции", "Беседы", "Жизнь прихода"]},
+        "cover": {"label": "Обложка", "type": "image", "group": "media"},
+        "is_live": {"label": "Сейчас идёт прямой эфир", "type": "boolean", "group": "publication", "default": false}
       }
     },
     "site_contact": {
-      "label": "Контакты и реквизиты",
-      "singleton": true,
+      "label": "Контакты и соцсети", "title": "Контакты храма", "help": "Единая опубликованная карточка адреса, часов работы и реквизитов.", "singleton": true,
       "fields": {
-        "address": { "type": "string", "required": true },
-        "metro": { "type": "string", "required": false },
-        "phone": { "type": "phone", "required": true },
-        "email": { "type": "email", "required": true },
-        "opening_hours": { "type": "structured_schedule", "required": true },
-        "map_coordinates": { "type": "geopoint", "required": true },
-        "legal_details": { "type": "text", "required": true },
-        "social_links": { "type": "list", "item_fields": ["network", "url", "enabled"] }
+        "title": {"label": "Название карточки", "type": "string", "group": "main", "required": true, "default": "Контакты храма"},
+        "address": {"label": "Адрес", "type": "string", "group": "main", "required": true},
+        "metro": {"label": "Метро и ориентир", "type": "string", "group": "main"},
+        "phone": {"label": "Телефон", "type": "phone", "group": "main", "required": true},
+        "email": {"label": "Электронная почта", "type": "email", "group": "main", "required": true},
+        "opening_hours": {"label": "Часы работы", "type": "text", "group": "content", "required": true},
+        "map_coordinates": {"label": "Координаты на карте", "type": "string", "group": "content", "required": true},
+        "legal_details": {"label": "Реквизиты", "type": "text", "group": "content", "required": true},
+        "social_links": {"label": "Социальные сети", "type": "social_links", "group": "content"}
       }
     }
   },
@@ -161,21 +169,10 @@
   "workflow": {
     "states": ["draft", "in_review", "scheduled", "published", "archived", "trash"],
     "publish_checks": ["required_fields", "image_alt", "desktop_preview", "mobile_preview", "broken_links"],
-    "trash_retention_days": 30,
     "version_history": true,
     "scheduled_publication": true
   },
   "migration_metadata": {
-    "fields": {
-      "legacy_modx_id": "integer",
-      "legacy_url": "url",
-      "legacy_template": "string",
-      "legacy_parent_id": "integer",
-      "legacy_created_at": "datetime",
-      "legacy_published_at": "datetime",
-      "legacy_media_paths": "string_list",
-      "migration_batch": "string",
-      "migration_checksum": "string"
-    }
+    "fields": {"legacy_modx_id": "integer", "legacy_url": "url", "legacy_template": "string", "legacy_parent_id": "integer", "legacy_created_at": "datetime", "legacy_published_at": "datetime", "legacy_media_paths": "string_list", "migration_batch": "string", "migration_checksum": "string"}
   }
 }
