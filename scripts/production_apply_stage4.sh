@@ -166,6 +166,42 @@ validate_public_base_url "$TEST_DATA/.env" || {
   exit 1
 }
 
+TEST_ADMIN_CREDENTIALS="$TEST_ROOT/stage5-test-admin.json"
+if [[ "$DEPLOYMENT_STAGE" == "5" ]]; then
+  # Create an isolated administrator in the disposable restored database.
+  # This avoids depending on the real administrator password from production.
+  python3 - "$TEST_DATA/data/cms.sqlite3" "$TEST_ADMIN_CREDENTIALS" <<'PY'
+import base64
+import hashlib
+import json
+import secrets
+import sqlite3
+import sys
+import uuid
+from datetime import UTC, datetime
+
+database_path, credentials_path = sys.argv[1:]
+username = f"stage5-rollout-{uuid.uuid4()}"
+password = secrets.token_urlsafe(32)
+salt = secrets.token_bytes(16)
+iterations = 260_000
+digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+encoded = "pbkdf2_sha256${}${}${}".format(
+    iterations,
+    base64.urlsafe_b64encode(salt).decode(),
+    base64.urlsafe_b64encode(digest).decode(),
+)
+with sqlite3.connect(database_path) as connection:
+    connection.execute(
+        "INSERT INTO users(id,username,password_hash,role,is_active,created_at) VALUES(?,?,?,?,1,?)",
+        (str(uuid.uuid4()), username, encoded, "admin", datetime.now(UTC).isoformat()),
+    )
+with open(credentials_path, "w", encoding="utf-8") as output:
+    json.dump({"username": username, "password": password}, output)
+PY
+  chmod 600 "$TEST_ADMIN_CREDENTIALS"
+fi
+
 TEST_STARTED=0
 cleanup() {
   local exit_code=$?
@@ -211,27 +247,18 @@ fi
 if [[ "$DEPLOYMENT_STAGE" == "5" ]]; then
   # Exercise draft creation and the exact server preview only on the disposable restore.
   # Credentials are read in-process and are never written to the terminal or report.
-  python3 - "$TEST_PORT" "$TEST_DATA/.env" "$PAVEL_CLEAN" <<'PY'
+  python3 - "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$PAVEL_CLEAN" <<'PY'
 import http.cookiejar
 import json
 import sys
 import urllib.error
 import urllib.request
 
-port, env_path, pavel_path = sys.argv[1:]
-values = {}
-with open(env_path, encoding="utf-8") as source:
-    for raw in source:
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        name, value = line.split("=", 1)
-        values[name.strip()] = value.strip().strip('"').strip("'")
-
-username = values.get("CMS_BOOTSTRAP_USER", "admin")
-password = values.get("CMS_BOOTSTRAP_PASSWORD", "")
-if not password:
-    raise SystemExit("CMS_BOOTSTRAP_PASSWORD is required for the disposable stage 5 workflow test")
+port, credentials_path, pavel_path = sys.argv[1:]
+with open(credentials_path, encoding="utf-8") as source:
+    credentials = json.load(source)
+username = credentials["username"]
+password = credentials["password"]
 
 base = f"http://127.0.0.1:{port}"
 cookie_jar = http.cookiejar.CookieJar()
