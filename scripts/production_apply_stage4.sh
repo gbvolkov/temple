@@ -90,6 +90,7 @@ PY
 
 validate_stage8_environment() {
   python3 - "$1" <<'PY'
+import ipaddress
 import sys
 from pathlib import Path
 
@@ -100,33 +101,61 @@ for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
         continue
     name, value = line.split("=", 1)
     values[name.strip()] = value.strip().strip('"').strip("'")
-required = (
-    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
-    "SMTP_SECURITY", "SUBMISSION_NOTIFY_TO", "SUBMISSION_IP_HASH_SECRET",
-    "SUBMISSION_TRUSTED_PROXY_NETWORKS",
+core_required = (
+    "SUBMISSION_IP_HASH_SECRET", "SUBMISSION_TRUSTED_PROXY_NETWORKS",
 )
-if any(not values.get(name) for name in required):
+smtp_fields = (
+    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+    "SMTP_SECURITY", "SUBMISSION_NOTIFY_TO",
+)
+if any(not values.get(name) for name in core_required):
     raise SystemExit(1)
-if any("replace-with" in values[name].lower() for name in required):
-    raise SystemExit(1)
-if values["SMTP_SECURITY"].lower() not in {"starttls", "ssl"}:
+if any("replace-with" in values[name].lower() for name in core_required):
     raise SystemExit(1)
 if len(values["SUBMISSION_IP_HASH_SECRET"]) < 32:
-    raise SystemExit(1)
-if "@" not in values["SMTP_FROM"] or any(
-    "@" not in item.strip() for item in values["SUBMISSION_NOTIFY_TO"].split(",")
-):
     raise SystemExit(1)
 try:
     for network in values["SUBMISSION_TRUSTED_PROXY_NETWORKS"].split(","):
         ipaddress.ip_network(network.strip(), strict=False)
 except ValueError:
     raise SystemExit(1)
+configured = [bool(values.get(name)) for name in smtp_fields]
+if any(configured) and not all(configured):
+    raise SystemExit(1)
+if not any(configured):
+    raise SystemExit(0)
+if any("replace-with" in values[name].lower() for name in smtp_fields):
+    raise SystemExit(1)
+if values["SMTP_SECURITY"].lower() not in {"starttls", "ssl"}:
+    raise SystemExit(1)
+if "@" not in values["SMTP_FROM"] or any(
+    "@" not in item.strip() for item in values["SUBMISSION_NOTIFY_TO"].split(",")
+):
+    raise SystemExit(1)
 try:
     port = int(values["SMTP_PORT"])
 except ValueError:
     raise SystemExit(1)
 raise SystemExit(0 if 1 <= port <= 65535 else 1)
+PY
+}
+
+stage8_email_enabled() {
+  python3 - "$1" <<'PY'
+import sys
+from pathlib import Path
+
+values = {}
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if line and not line.startswith("#") and "=" in line:
+        name, value = line.split("=", 1)
+        values[name.strip()] = value.strip().strip('"').strip("'")
+smtp_fields = (
+    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+    "SMTP_SECURITY", "SUBMISSION_NOTIFY_TO",
+)
+raise SystemExit(0 if all(values.get(name) for name in smtp_fields) else 1)
 PY
 }
 
@@ -189,9 +218,14 @@ validate_public_base_url .env || {
 }
 if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
   validate_stage8_environment .env || {
-    echo "Stage 8 SMTP, recipient, HMAC secret or trusted proxy settings are missing or invalid in .env" >&2
+    echo "Stage 8 requires a valid HMAC secret and proxy networks; SMTP must be either complete or fully disabled" >&2
     exit 1
   }
+  if stage8_email_enabled .env; then
+    STAGE8_EMAIL_MODE="enabled"
+  else
+    STAGE8_EMAIL_MODE="disabled"
+  fi
 fi
 validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE" "$SOURCE_SCHEMA"
 
@@ -450,8 +484,9 @@ if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
   require_equal "production outbox table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notification_outbox';")" "1"
   require_equal "production submission events table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submission_events';")" "1"
 
-  # Submit one production control note through the public API, require actual
-  # SMTP delivery, then close it as spam so it follows the 30-day retention rule.
+  # Submit one production control note through the public API. When SMTP is
+  # enabled, require delivery; otherwise require a durable pending outbox row.
+  # The control note is then closed as spam for the 30-day retention rule.
   STAGE8_CONTROL_REFERENCE="$(python3 - <<'PY'
 import json
 import secrets
@@ -480,13 +515,17 @@ PY
   STAGE8_CONTROL_ID="$(database_value data/cms.sqlite3 "SELECT id FROM submissions WHERE reference_code='$STAGE8_CONTROL_REFERENCE';")"
   [[ -n "$STAGE8_CONTROL_ID" ]] || { echo "Stage 8 control submission was not persisted" >&2; exit 1; }
 
-  DELIVERY_STATUS=""
-  for _ in $(seq 1 100); do
-    DELIVERY_STATUS="$(database_value data/cms.sqlite3 "SELECT status FROM notification_outbox WHERE submission_id='$STAGE8_CONTROL_ID';")"
-    [[ "$DELIVERY_STATUS" == "sent" || "$DELIVERY_STATUS" == "failed" ]] && break
-    sleep 1
-  done
-  require_equal "stage 8 control notification delivery" "$DELIVERY_STATUS" "sent"
+  if [[ "$STAGE8_EMAIL_MODE" == "enabled" ]]; then
+    DELIVERY_STATUS=""
+    for _ in $(seq 1 100); do
+      DELIVERY_STATUS="$(database_value data/cms.sqlite3 "SELECT status FROM notification_outbox WHERE submission_id='$STAGE8_CONTROL_ID';")"
+      [[ "$DELIVERY_STATUS" == "sent" || "$DELIVERY_STATUS" == "failed" ]] && break
+      sleep 1
+    done
+    require_equal "stage 8 control notification delivery" "$DELIVERY_STATUS" "sent"
+  else
+    require_equal "stage 8 disabled notification queue" "$(database_value data/cms.sqlite3 "SELECT status FROM notification_outbox WHERE submission_id='$STAGE8_CONTROL_ID';")" "pending"
+  fi
 
   python3 - data/cms.sqlite3 "$STAGE8_CONTROL_ID" <<'PY'
 import json
@@ -554,5 +593,6 @@ echo "PAVEL_CLEAN_URL=$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN"
 echo "POST_REPORT=$POST_REPORT"
 if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
   echo "CONTROL_SUBMISSION=$STAGE8_CONTROL_REFERENCE"
+  echo "SMTP_MODE=$STAGE8_EMAIL_MODE"
 fi
 echo "DEPLOYMENT_SECONDS=$DEPLOYMENT_SECONDS"
