@@ -18,6 +18,7 @@ from server.submissions import (
     cleanup_expired_submissions,
     client_ip,
     create_submission,
+    notification_configured,
     process_notification_once,
 )
 
@@ -201,6 +202,22 @@ def test_public_configuration_unicode_and_forwarded_ip_rules(tmp_path: Path) -> 
     })
     assert client_ip(trusted_request, trusted) == "203.0.113.15"
     assert client_ip(trusted_request, settings) == "10.0.0.2"
+
+
+def test_empty_smtp_environment_is_a_valid_disabled_mode(monkeypatch) -> None:
+    for name in (
+        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+        "SMTP_SECURITY", "SUBMISSION_NOTIFY_TO",
+    ):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv(
+        "SUBMISSION_IP_HASH_SECRET",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    )
+    settings = Settings.from_env()
+    assert settings.smtp_port == 587
+    assert settings.smtp_security == "starttls"
+    assert notification_configured(settings) is False
 
 
 def test_persistent_hour_and_day_limits(tmp_path: Path) -> None:

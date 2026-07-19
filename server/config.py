@@ -75,9 +75,11 @@ class Settings:
         password = os.getenv("CMS_BOOTSTRAP_PASSWORD")
         if environment == "development" and password is None:
             password = "temple-demo"
-        smtp_security = os.getenv("SMTP_SECURITY", "starttls").strip().lower()
+        smtp_security = os.getenv("SMTP_SECURITY", "").strip().lower() or "starttls"
         if smtp_security not in {"starttls", "ssl"}:
             raise ValueError("SMTP_SECURITY должен иметь значение starttls или ssl")
+        smtp_port_value = os.getenv("SMTP_PORT", "").strip()
+        smtp_port = int(smtp_port_value) if smtp_port_value else 587
         submission_secret = os.getenv("SUBMISSION_IP_HASH_SECRET") or None
         if submission_secret and len(submission_secret) < 32:
             raise ValueError("SUBMISSION_IP_HASH_SECRET должен содержать не менее 32 символов")
@@ -104,7 +106,7 @@ class Settings:
             max_video_bytes=int(os.getenv("CMS_MAX_VIDEO_BYTES", str(200 * 1024 * 1024))),
             max_document_bytes=int(os.getenv("CMS_MAX_DOCUMENT_BYTES", str(50 * 1024 * 1024))),
             smtp_host=os.getenv("SMTP_HOST") or None,
-            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_port=smtp_port,
             smtp_user=os.getenv("SMTP_USER") or None,
             smtp_password=os.getenv("SMTP_PASSWORD") or None,
             smtp_from=os.getenv("SMTP_FROM") or None,
