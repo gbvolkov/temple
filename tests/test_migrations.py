@@ -27,9 +27,9 @@ def legacy_database(path):
 def test_fresh_database_and_repeat_are_idempotent(tmp_path):
     database = tmp_path / "fresh.sqlite3"
     first = migrate(database)
-    assert [item["state"] for item in first] == ["applied"] * 5
+    assert [item["state"] for item in first] == ["applied"] * 6
     second = migrate(database)
-    assert [item["state"] for item in second] == ["unchanged"] * 5
+    assert [item["state"] for item in second] == ["unchanged"] * 6
     assert all(item["state"] == "applied" for item in migration_status(database))
     verify_migrations(database)
 
@@ -44,7 +44,7 @@ def test_existing_legacy_schema_is_stamped_without_losing_data(tmp_path):
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 5
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 6
 
 
 def test_dry_run_does_not_create_or_change_database(tmp_path):
@@ -52,7 +52,7 @@ def test_dry_run_does_not_create_or_change_database(tmp_path):
     legacy_database(database)
     before = database.read_bytes()
     pending = migrate(database, dry_run=True)
-    assert [item["version"] for item in pending] == [1, 2, 3, 4, 5]
+    assert [item["version"] for item in pending] == [1, 2, 3, 4, 5, 6]
     assert database.read_bytes() == before
     with sqlite3.connect(database) as connection:
         assert connection.execute(

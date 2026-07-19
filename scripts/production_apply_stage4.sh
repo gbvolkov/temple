@@ -110,6 +110,7 @@ CONTENTS="$(report_value database.metrics.contents)"
 REVISIONS="$(report_value database.metrics.revisions)"
 PUBLISHED="$(report_value database.by_status.published)"
 REVIEW_REQUIRED="$(report_value database.review_required)"
+BACKUP_USERS="$(report_value database.metrics.users)"
 CURRENT_SHA="$(git rev-parse HEAD)"
 BACKUP_SHA="$(report_value source.git_sha)"
 
@@ -169,7 +170,7 @@ validate_public_base_url "$TEST_DATA/.env" || {
 }
 
 TEST_ADMIN_CREDENTIALS="$TEST_ROOT/stage5-test-admin.json"
-if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" ]]; then
+if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" || "$DEPLOYMENT_STAGE" == "7" ]]; then
   # Create an isolated administrator in the disposable restored database.
   # This avoids depending on the real administrator password from production.
   python3 - "$TEST_DATA/data/cms.sqlite3" "$TEST_ADMIN_CREDENTIALS" <<'PY'
@@ -238,11 +239,15 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
 fi
 python3 -m server.migrations verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
 validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage $DEPLOYMENT_STAGE image"
-if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+if (( DEPLOYMENT_STAGE >= 6 )); then
   TEST_MEDIA_FILES="$(find "$TEST_DATA/data/media" -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "restored media index" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status='ready';")" "$TEST_MEDIA_FILES"
   require_equal "restored invalid media" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
   require_equal "restored missing legacy queue" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
+  require_equal "restored users after isolated admin" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM users;')" "$((BACKUP_USERS + 1))"
+  python3 scripts/stage7_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS"
 fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
@@ -362,11 +367,15 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
 fi
 python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
-if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
+if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "production media index" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status='ready';")" "$PRODUCTION_MEDIA_FILES"
   require_equal "production invalid media" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
   require_equal "production missing legacy queue" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
+  require_equal "production users" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM users;')" "$BACKUP_USERS"
+  require_equal "production user event table" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_events';")" "1"
 fi
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_ADDRESS"
 curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_PHONE"

@@ -10,7 +10,7 @@ import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import unquote
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile
@@ -61,6 +61,16 @@ from .workflow import (
     public_content as published_content,
     record_audit,
 )
+from .user_management import (
+    ROLES,
+    UserInputError,
+    normalize_username,
+    record_user_event,
+    serialize_user,
+    serialize_user_event,
+    validate_new_password,
+    validate_role,
+)
 
 
 ROLE_LEVEL = {"viewer": 0, "editor": 1, "publisher": 2, "admin": 3}
@@ -107,6 +117,37 @@ class MediaUpdate(BaseModel):
     alt_text: str = Field(default="", max_length=300)
 
 
+class UserCreatePayload(BaseModel):
+    username: str = Field(min_length=3, max_length=80)
+    password: str = Field(min_length=12, max_length=128)
+    role: Literal["viewer", "editor", "publisher", "admin"]
+
+
+class UserUpdatePayload(BaseModel):
+    version: int = Field(ge=1)
+    role: Literal["viewer", "editor", "publisher", "admin"]
+    is_active: bool
+
+
+class UserVersionPayload(BaseModel):
+    version: int = Field(ge=1)
+
+
+class PasswordChangePayload(BaseModel):
+    current_password: str = Field(min_length=1, max_length=300)
+    new_password: str = Field(min_length=12, max_length=128)
+
+
+class BulkContentItem(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
+    version: int = Field(ge=1)
+
+
+class BulkWorkflowPayload(BaseModel):
+    action: Literal["review", "archive", "publish"]
+    items: list[BulkContentItem] = Field(min_length=1, max_length=100)
+
+
 def load_schema(settings: Settings) -> dict:
     return json.loads(settings.schema_path.read_text(encoding="utf-8"))
 
@@ -117,9 +158,15 @@ def ensure_bootstrap_admin(settings: Settings) -> None:
     with transaction(settings.database_path) as connection:
         exists = connection.execute("SELECT 1 FROM users LIMIT 1").fetchone()
         if not exists:
+            now = utc_now()
             connection.execute(
-                "INSERT INTO users(id,username,password_hash,role,is_active,created_at) VALUES(?,?,?,?,1,?)",
-                (str(uuid.uuid4()), settings.bootstrap_user, hash_password(settings.bootstrap_password), "admin", utc_now()),
+                """INSERT INTO users(
+                     id,username,password_hash,role,is_active,created_at,updated_at,password_changed_at
+                   ) VALUES(?,?,?,?,1,?,?,?)""",
+                (
+                    str(uuid.uuid4()), settings.bootstrap_user,
+                    hash_password(settings.bootstrap_password), "admin", now, now, now,
+                ),
             )
 
 
@@ -239,13 +286,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(401, "Требуется вход в CMS")
         with connect(settings.database_path) as connection:
             row = connection.execute(
-                """SELECT users.*, sessions.csrf_token, sessions.expires_at FROM sessions
+                """SELECT users.*, sessions.csrf_token, sessions.expires_at,
+                          sessions.token_hash AS session_token_hash FROM sessions
                    JOIN users ON users.id=sessions.user_id WHERE sessions.token_hash=? AND users.is_active=1""",
                 (token_hash(raw),),
             ).fetchone()
         if not row or datetime.fromisoformat(row["expires_at"]) <= datetime.now(UTC):
             raise HTTPException(401, "Сессия истекла")
         return dict(row)
+
+    def session_user(user: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+        data = dict(user)
+        return {
+            "id": data["id"],
+            "username": data["username"],
+            "role": data["role"],
+            "is_active": bool(data["is_active"]),
+        }
 
     def require(min_role: str, *, mutation: bool = False):
         def dependency(
@@ -377,22 +434,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/admin/login")
     def login(payload: LoginPayload, response: Response):
         with transaction(settings.database_path) as connection:
-            user = connection.execute("SELECT * FROM users WHERE username=? AND is_active=1", (payload.username,)).fetchone()
+            user = connection.execute(
+                "SELECT * FROM users WHERE username=? COLLATE NOCASE AND is_active=1",
+                (payload.username.strip(),),
+            ).fetchone()
             if not user or not verify_password(payload.password, user["password_hash"]):
                 raise HTTPException(401, "Неверное имя пользователя или пароль")
             raw_token = secrets.token_urlsafe(36)
             csrf = secrets.token_urlsafe(24)
+            now = utc_now()
             expires = (datetime.now(UTC) + timedelta(hours=settings.session_hours)).isoformat(timespec="seconds")
-            connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (utc_now(),))
+            connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
             connection.execute(
                 "INSERT INTO sessions(token_hash,user_id,csrf_token,expires_at,created_at) VALUES(?,?,?,?,?)",
-                (token_hash(raw_token), user["id"], csrf, expires, utc_now()),
+                (token_hash(raw_token), user["id"], csrf, expires, now),
+            )
+            connection.execute(
+                "UPDATE users SET last_login_at=?,updated_at=? WHERE id=?",
+                (now, now, user["id"]),
+            )
+            record_user_event(
+                connection, actor_id=user["id"], target_user_id=user["id"], action="login",
             )
         response.set_cookie(
             "cms_session", raw_token, httponly=True, samesite="strict",
             secure=settings.environment == "production", max_age=settings.session_hours * 3600, path="/",
         )
-        return {"user": {"id": user["id"], "username": user["username"], "role": user["role"]}, "csrf_token": csrf}
+        return {"user": session_user(user), "csrf_token": csrf}
 
     @app.get("/api/admin/session")
     def session(request: Request):
@@ -400,16 +468,194 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             user = current_user(request)
         except HTTPException:
             return {"authenticated": False}
-        return {"authenticated": True, "user": {"id": user["id"], "username": user["username"], "role": user["role"]}, "csrf_token": user["csrf_token"]}
+        return {"authenticated": True, "user": session_user(user), "csrf_token": user["csrf_token"]}
 
     @app.post("/api/admin/logout")
-    def logout(request: Request, response: Response, _: dict = Depends(require("viewer", mutation=True))):
+    def logout(request: Request, response: Response, user: dict = Depends(require("viewer", mutation=True))):
         raw = request.cookies.get("cms_session")
         if raw:
             with transaction(settings.database_path) as connection:
                 connection.execute("DELETE FROM sessions WHERE token_hash=?", (token_hash(raw),))
+                record_user_event(
+                    connection, actor_id=user["id"], target_user_id=user["id"], action="logout",
+                )
         response.delete_cookie("cms_session", path="/")
         return {"ok": True}
+
+    @app.post("/api/admin/change-password")
+    def change_password(
+        payload: PasswordChangePayload,
+        response: Response,
+        user: dict = Depends(require("viewer", mutation=True)),
+    ):
+        try:
+            new_password = validate_new_password(payload.new_password, username=user["username"])
+        except UserInputError as error:
+            raise HTTPException(422, str(error)) from error
+        with transaction(settings.database_path) as connection:
+            current = connection.execute("SELECT * FROM users WHERE id=?", (user["id"],)).fetchone()
+            if not current or not verify_password(payload.current_password, current["password_hash"]):
+                raise HTTPException(401, "Текущий пароль указан неверно")
+            if verify_password(new_password, current["password_hash"]):
+                raise HTTPException(409, "Новый пароль должен отличаться от текущего")
+            now = utc_now()
+            connection.execute(
+                """UPDATE users SET password_hash=?,password_changed_at=?,updated_at=?,version=version+1
+                   WHERE id=?""",
+                (hash_password(new_password), now, now, user["id"]),
+            )
+            closed = connection.execute(
+                "DELETE FROM sessions WHERE user_id=?", (user["id"],)
+            ).rowcount
+            record_user_event(
+                connection, actor_id=user["id"], target_user_id=user["id"],
+                action="password_change", details={"closed_sessions": closed},
+            )
+        response.delete_cookie("cms_session", path="/")
+        return {"ok": True, "reauthenticate": True}
+
+    @app.get("/api/admin/users")
+    def list_users(_: dict = Depends(require("admin"))):
+        now = utc_now()
+        with connect(settings.database_path) as connection:
+            rows = connection.execute(
+                """SELECT u.*,COUNT(s.token_hash) AS active_sessions
+                   FROM users u LEFT JOIN sessions s
+                     ON s.user_id=u.id AND s.expires_at>?
+                   GROUP BY u.id ORDER BY u.username COLLATE NOCASE""",
+                (now,),
+            ).fetchall()
+        return {"items": [serialize_user(row) for row in rows], "roles": list(ROLES)}
+
+    @app.post("/api/admin/users", status_code=201)
+    def create_user(payload: UserCreatePayload, actor: dict = Depends(require("admin", mutation=True))):
+        try:
+            username = normalize_username(payload.username)
+            role = validate_role(payload.role)
+            password = validate_new_password(payload.password, username=username)
+        except UserInputError as error:
+            raise HTTPException(422, str(error)) from error
+        user_id = str(uuid.uuid4())
+        now = utc_now()
+        try:
+            with transaction(settings.database_path) as connection:
+                connection.execute(
+                    """INSERT INTO users(
+                         id,username,password_hash,role,is_active,version,created_at,updated_at,password_changed_at
+                       ) VALUES(?,?,?,?,1,1,?,?,?)""",
+                    (user_id, username, hash_password(password), role, now, now, now),
+                )
+                record_user_event(
+                    connection, actor_id=actor["id"], target_user_id=user_id,
+                    action="user_create", details={"role": role},
+                )
+                row = connection.execute(
+                    "SELECT users.*,0 AS active_sessions FROM users WHERE id=?", (user_id,)
+                ).fetchone()
+        except sqlite3.IntegrityError as error:
+            raise HTTPException(409, "Пользователь с таким именем уже существует") from error
+        return serialize_user(row)
+
+    @app.patch("/api/admin/users/{user_id}")
+    def update_user(
+        user_id: str,
+        payload: UserUpdatePayload,
+        actor: dict = Depends(require("admin", mutation=True)),
+    ):
+        try:
+            role = validate_role(payload.role)
+        except UserInputError as error:
+            raise HTTPException(422, str(error)) from error
+        with transaction(settings.database_path) as connection:
+            before = connection.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+            if not before:
+                raise HTTPException(404, "Пользователь не найден")
+            if before["version"] != payload.version:
+                raise HTTPException(409, "Учётная запись уже изменена; обновите список")
+            if user_id == actor["id"] and (role != "admin" or not payload.is_active):
+                raise HTTPException(409, "Нельзя снять собственные права администратора или заблокировать себя")
+            removes_active_admin = (
+                before["role"] == "admin"
+                and bool(before["is_active"])
+                and (role != "admin" or not payload.is_active)
+            )
+            if removes_active_admin:
+                active_admins = connection.execute(
+                    "SELECT COUNT(*) FROM users WHERE role='admin' AND is_active=1"
+                ).fetchone()[0]
+                if active_admins <= 1:
+                    raise HTTPException(409, "В CMS должен остаться хотя бы один активный администратор")
+            if before["role"] == role and bool(before["is_active"]) == payload.is_active:
+                return serialize_user({**dict(before), "active_sessions": 0})
+            now = utc_now()
+            connection.execute(
+                """UPDATE users SET role=?,is_active=?,updated_at=?,version=version+1
+                   WHERE id=?""",
+                (role, int(payload.is_active), now, user_id),
+            )
+            closed = 0
+            if not payload.is_active:
+                closed = connection.execute(
+                    "DELETE FROM sessions WHERE user_id=?", (user_id,)
+                ).rowcount
+            record_user_event(
+                connection, actor_id=actor["id"], target_user_id=user_id,
+                action="user_update",
+                details={
+                    "from_role": before["role"], "to_role": role,
+                    "from_active": bool(before["is_active"]), "to_active": payload.is_active,
+                    "closed_sessions": closed,
+                },
+            )
+            row = connection.execute(
+                """SELECT u.*,(SELECT COUNT(*) FROM sessions s
+                   WHERE s.user_id=u.id AND s.expires_at>?) AS active_sessions
+                   FROM users u WHERE u.id=?""",
+                (now, user_id),
+            ).fetchone()
+        return serialize_user(row)
+
+    @app.post("/api/admin/users/{user_id}/terminate-sessions")
+    def terminate_user_sessions(
+        user_id: str,
+        payload: UserVersionPayload,
+        actor: dict = Depends(require("admin", mutation=True)),
+    ):
+        if user_id == actor["id"]:
+            raise HTTPException(409, "Для завершения собственной сессии используйте кнопку выхода")
+        with transaction(settings.database_path) as connection:
+            target = connection.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+            if not target:
+                raise HTTPException(404, "Пользователь не найден")
+            if target["version"] != payload.version:
+                raise HTTPException(409, "Учётная запись уже изменена; обновите список")
+            closed = connection.execute("DELETE FROM sessions WHERE user_id=?", (user_id,)).rowcount
+            record_user_event(
+                connection, actor_id=actor["id"], target_user_id=user_id,
+                action="sessions_terminated", details={"closed_sessions": closed},
+            )
+        return {"ok": True, "closed_sessions": closed}
+
+    @app.get("/api/admin/user-events")
+    def user_events(
+        limit: int = Query(100, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("admin")),
+    ):
+        with connect(settings.database_path) as connection:
+            total = connection.execute("SELECT COUNT(*) FROM user_events").fetchone()[0]
+            rows = connection.execute(
+                """SELECT e.*,actor.username AS actor_username,target.username AS target_username
+                   FROM user_events e
+                   LEFT JOIN users actor ON actor.id=e.actor_id
+                   LEFT JOIN users target ON target.id=e.target_user_id
+                   ORDER BY e.created_at DESC,e.id DESC LIMIT ? OFFSET ?""",
+                (limit, offset),
+            ).fetchall()
+        return {
+            "items": [serialize_user_event(row) for row in rows],
+            "total": total, "limit": limit, "offset": offset,
+        }
 
     @app.get("/api/public/content")
     def public_content(content_type: str | None = None, limit: int = Query(50, ge=1, le=200)):
@@ -460,6 +706,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def content_index(
         content_type: str | None = None,
         status: str | None = None,
+        statuses: str | None = None,
         review_required: bool | None = None,
         q: str = "",
         limit: int = Query(100, ge=1, le=200),
@@ -474,6 +721,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if status:
             where.append("status=?")
             params.append(status)
+        if statuses:
+            requested_statuses = list(dict.fromkeys(
+                item.strip() for item in statuses.split(",") if item.strip()
+            ))
+            allowed_statuses = {"draft", "in_review", "scheduled", "published", "archived", "trash"}
+            if not requested_statuses or any(item not in allowed_statuses for item in requested_statuses):
+                raise HTTPException(422, "Неизвестный статус материала")
+            placeholders = ",".join("?" for _ in requested_statuses)
+            where.append(f"status IN ({placeholders})")
+            params.extend(requested_statuses)
         if review_required is not None:
             where.append("migration_review_required=?")
             params.append(int(review_required))
@@ -489,6 +746,69 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 [*params, limit, offset],
             ).fetchall()
         return {"items": [serialize_admin_content(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+    @app.post("/api/admin/content-bulk")
+    def bulk_content_workflow(
+        payload: BulkWorkflowPayload,
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        if payload.action in {"archive", "publish"} and ROLE_LEVEL[user["role"]] < ROLE_LEVEL["publisher"]:
+            raise HTTPException(403, "Только выпускающий редактор может публиковать и архивировать")
+        ids = [item.id for item in payload.items]
+        if len(set(ids)) != len(ids):
+            raise HTTPException(422, "Материал не должен повторяться в массовой операции")
+        batch_id = str(uuid.uuid4())
+        updated: list[dict[str, Any]] = []
+        with transaction(settings.database_path) as connection:
+            for item in payload.items:
+                before = content_or_404(connection, item.id)
+                require_version(before, item.version)
+                if payload.action == "review":
+                    if not before["migration_review_required"]:
+                        raise HTTPException(409, f"Материал «{before['title']}» уже проверен")
+                    connection.execute(
+                        "UPDATE contents SET migration_review_required=0,updated_at=? WHERE id=?",
+                        (utc_now(), item.id),
+                    )
+                    audit_action = "migration_review"
+                elif payload.action == "archive":
+                    require_state(
+                        before, {"draft", "in_review", "scheduled", "published"},
+                        "массовое архивирование",
+                    )
+                    connection.execute(
+                        """UPDATE contents SET status='archived',published_version=NULL,
+                           scheduled_at=NULL,reviewed_by=NULL,reviewed_at=NULL,
+                           deleted_at=NULL,updated_at=? WHERE id=?""",
+                        (utc_now(), item.id),
+                    )
+                    refresh_content_usages(connection, item.id)
+                    audit_action = "archive"
+                else:
+                    require_state(before, {"in_review"}, "массовая публикация")
+                    require_ready(connection, serialize_admin_content(before))
+                    require_public_slot(connection, before)
+                    now = utc_now()
+                    connection.execute(
+                        """UPDATE contents SET status='published',published_version=version,
+                           published_slug=COALESCE(published_slug,slug),published_at=?,
+                           scheduled_at=NULL,reviewed_by=?,reviewed_at=?,deleted_at=NULL,
+                           updated_at=? WHERE id=?""",
+                        (now, user["id"], now, now, item.id),
+                    )
+                    refresh_content_usages(connection, item.id)
+                    audit_action = "publish"
+                after = content_or_404(connection, item.id)
+                record_audit(
+                    connection, content_id=item.id, actor_id=user["id"],
+                    action=audit_action, before=before, after=after,
+                    details={"bulk": True, "batch_id": batch_id},
+                )
+                updated.append(serialize_admin_content(after))
+        return {
+            "ok": True, "action": payload.action, "batch_id": batch_id,
+            "updated": len(updated), "items": updated,
+        }
 
     @app.get("/api/admin/content-options")
     def content_options(

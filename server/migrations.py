@@ -461,6 +461,91 @@ def apply_media_library(connection: sqlite3.Connection) -> str:
     return f"media library schema created; preserved media rows: {after}"
 
 
+USER_WORKFLOW_COLUMNS = {
+    "version": "INTEGER NOT NULL DEFAULT 1",
+    "updated_at": "TEXT",
+    "last_login_at": "TEXT",
+    "password_changed_at": "TEXT",
+}
+
+USER_WORKFLOW_SQL = """
+CREATE TABLE user_events (
+  id TEXT PRIMARY KEY,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  target_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_user_events_created ON user_events(created_at DESC);
+CREATE INDEX idx_user_events_target ON user_events(target_user_id, created_at DESC);
+"""
+
+
+def validate_user_workflow_schema(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+    missing = sorted(set(USER_WORKFLOW_COLUMNS) - columns)
+    if missing:
+        raise MigrationError(
+            "Таблица users не завершена; отсутствуют поля: " + ", ".join(missing)
+        )
+    event_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(user_events)")
+    }
+    required_events = {
+        "id", "actor_id", "target_user_id", "action", "details_json", "created_at",
+    }
+    missing_events = sorted(required_events - event_columns)
+    if missing_events:
+        raise MigrationError(
+            "Таблица user_events не завершена; отсутствуют поля: "
+            + ", ".join(missing_events)
+        )
+    indexes = {
+        row["name"]
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")
+    }
+    required_indexes = {
+        "idx_users_username_nocase", "idx_user_events_created", "idx_user_events_target",
+    }
+    missing_indexes = sorted(required_indexes - indexes)
+    if missing_indexes:
+        raise MigrationError(
+            "После миграции пользователей отсутствуют индексы: "
+            + ", ".join(missing_indexes)
+        )
+
+
+def apply_user_workflow(connection: sqlite3.Connection) -> str:
+    before = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    duplicate = connection.execute(
+        """SELECT lower(username) AS normalized, COUNT(*) AS amount
+           FROM users GROUP BY lower(username) HAVING amount > 1 LIMIT 1"""
+    ).fetchone()
+    if duplicate:
+        raise MigrationError(
+            f"Имена пользователей отличаются только регистром: {duplicate['normalized']}"
+        )
+    existing_columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+    for name, definition in USER_WORKFLOW_COLUMNS.items():
+        if name not in existing_columns:
+            connection.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
+    connection.execute("UPDATE users SET updated_at=COALESCE(updated_at,created_at)")
+    for statement in USER_WORKFLOW_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    connection.execute(
+        "CREATE UNIQUE INDEX idx_users_username_nocase ON users(username COLLATE NOCASE)"
+    )
+    after = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if after != before:
+        raise MigrationError(
+            f"Количество пользователей изменилось во время schema migration: {before} -> {after}"
+        )
+    validate_user_workflow_schema(connection)
+    return f"user workflow schema created; preserved users: {after}"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -509,6 +594,16 @@ MIGRATIONS = (
             MEDIA_LIBRARY_SQL,
             repr(sorted(MEDIA_LIBRARY_COLUMNS.items())),
             inspect.getsource(validate_media_library_schema),
+        )),
+    ),
+    Migration(
+        6,
+        "users_and_editorial_workflow",
+        apply_user_workflow,
+        "\n".join((
+            USER_WORKFLOW_SQL,
+            repr(sorted(USER_WORKFLOW_COLUMNS.items())),
+            inspect.getsource(validate_user_workflow_schema),
         )),
     ),
 )
@@ -584,6 +679,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_clean_redirects(connection)
             if any(item.get("version") == 5 and item["state"] == "applied" for item in status):
                 validate_media_library_schema(connection)
+            if any(item.get("version") == 6 and item["state"] == "applied" for item in status):
+                validate_user_workflow_schema(connection)
         finally:
             connection.close()
     return status

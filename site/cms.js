@@ -5,15 +5,26 @@
   const previewFrame = document.querySelector("[data-content-preview]");
   const panel = document.querySelector("[data-cms-panel]");
   const roleLevel = { viewer: 0, editor: 1, publisher: 2, admin: 3 };
+  const roleLabels = { viewer: "Наблюдатель", editor: "Редактор", publisher: "Выпускающий", admin: "Администратор" };
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" } };
+  const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" }, bulk: { action: "review", q: "", offset: 0, total: 0, items: [], selected: new Set() }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
   const can = role => Boolean(state.user) && roleLevel[state.user.role] >= roleLevel[role];
   const definition = () => state.schema.content_types[state.currentType];
+
+  function updateSessionUi() {
+    const user = state.user;
+    document.querySelector(".cms-user strong").textContent = user?.username || "Не выполнен вход";
+    document.querySelector(".cms-user small").textContent = user ? roleLabels[user.role] || user.role : "";
+    document.querySelector(".cms-user__avatar").textContent = (user?.username || "?").slice(0, 1).toUpperCase();
+    document.querySelectorAll("[data-admin-only]").forEach(element => { element.hidden = !can("admin"); });
+    document.querySelectorAll("[data-open-profile],[data-logout]").forEach(element => { element.hidden = !user; });
+  }
 
   async function apiRequest(path, options = {}, responseType = "json") {
     const headers = { ...(options.headers || {}) };
@@ -650,14 +661,76 @@
     renderEditor(state.currentType, state.current); await loadContentList(); toast(`Версия ${version} восстановлена как новый черновик`);
   }
 
+  function bulkActionConfig(action = state.bulk.action) {
+    return {
+      review: { label: "Отметить проверенными", query: "review_required=true", confirm: "Снять отметку миграционной проверки у выбранных материалов?" },
+      publish: { label: "Опубликовать", query: "status=in_review", confirm: "Опубликовать выбранные материалы?" },
+      archive: { label: "Архивировать", query: "statuses=draft,in_review,scheduled,published", confirm: "Переместить выбранные материалы в архив?" },
+    }[action];
+  }
+
+  function bulkAllowed(action = state.bulk.action) {
+    return action === "review" ? can("editor") : can("publisher");
+  }
+
+  function renderWorkflowPanel() {
+    if (!can("publisher") && state.bulk.action !== "review") state.bulk.action = "review";
+    const actionButtons = ["review", ...(can("publisher") ? ["publish", "archive"] : [])].map(action => {
+      const label = { review: "Миграционная проверка", publish: "Готово к публикации", archive: "Архивирование" }[action];
+      return `<button class="${state.bulk.action === action ? "is-active" : ""}" type="button" data-bulk-action="${action}">${label}</button>`;
+    }).join("");
+    panel.innerHTML = `<div class="workflow-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакционная очередь</div><h1>Массовые действия</h1><p>Операция выполняется атомарно: при конфликте ни один выбранный материал не изменяется.</p></div></div><nav class="media-tabs">${actionButtons}</nav><div class="workflow-toolbar"><input type="search" value="${escapeHtml(state.bulk.q)}" placeholder="Название, slug или старый URL" data-bulk-search><button class="button button--ghost button--compact" type="button" data-bulk-select-all${bulkAllowed() ? "" : " hidden"}>Выбрать страницу</button><button class="button button--primary button--compact" type="button" data-bulk-apply${bulkAllowed() ? "" : " hidden"}>${escapeHtml(bulkActionConfig().label)}</button></div><div class="bulk-list" data-bulk-list><div class="history-empty">Загружаем очередь…</div></div><div class="media-pagination"><span data-bulk-count></span><button class="button button--ghost button--compact" type="button" data-bulk-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-bulk-next>Дальше →</button></div></div>`;
+    loadBulkQueue().catch(error => toast(error.message));
+  }
+
+  async function loadBulkQueue() {
+    const config = bulkActionConfig();
+    const params = new URLSearchParams({ limit: "100", offset: String(state.bulk.offset), q: state.bulk.q });
+    for (const pair of config.query.split("&")) { const [name, value] = pair.split("="); params.set(name, value); }
+    const result = await apiRequest(`/api/admin/content-index?${params}`);
+    state.bulk.items = result.items;
+    state.bulk.total = result.total;
+    const ids = new Set(result.items.map(item => item.id));
+    state.bulk.selected = new Set([...state.bulk.selected].filter(id => ids.has(id)));
+    const list = document.querySelector("[data-bulk-list]");
+    if (!list) return;
+    list.innerHTML = result.items.map(item => `<article class="bulk-item"><input type="checkbox" data-bulk-check="${escapeHtml(item.id)}"${state.bulk.selected.has(item.id) ? " checked" : ""}${bulkAllowed() ? "" : " disabled"} aria-label="Выбрать ${escapeHtml(item.title)}"><button type="button" data-bulk-open="${escapeHtml(item.id)}" data-bulk-type="${escapeHtml(item.content_type)}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · ${escapeHtml(statusLabels[item.status] || item.status)} · v${item.version}</small></button>${item.migration_review_required ? '<span class="state-pill state-pill--warn">Требует проверки</span>' : '<span class="state-pill">Проверен</span>'}</article>`).join("") || '<div class="history-empty">Для этого действия материалов нет</div>';
+    document.querySelector("[data-bulk-count]").textContent = `${Math.min(state.bulk.offset + 1, result.total)}–${Math.min(state.bulk.offset + result.items.length, result.total)} из ${result.total} · выбрано ${state.bulk.selected.size}`;
+    document.querySelector("[data-bulk-prev]").disabled = state.bulk.offset === 0;
+    document.querySelector("[data-bulk-next]").disabled = state.bulk.offset + result.items.length >= result.total;
+    const apply = document.querySelector("[data-bulk-apply]");
+    if (apply) apply.disabled = !state.bulk.selected.size;
+  }
+
+  async function applyBulkAction() {
+    const config = bulkActionConfig();
+    if (!state.bulk.selected.size || !confirm(config.confirm)) return;
+    const versions = new Map(state.bulk.items.map(item => [item.id, item.version]));
+    const items = [...state.bulk.selected].map(id => ({ id, version: versions.get(id) })).filter(item => item.version);
+    const result = await apiRequest("/api/admin/content-bulk", { method: "POST", body: JSON.stringify({ action: state.bulk.action, items }) });
+    state.bulk.selected.clear();
+    await loadBulkQueue();
+    toast(`Обновлено материалов: ${result.updated}`);
+  }
+
+  async function renderUsersPanel() {
+    if (!can("admin")) { panel.innerHTML = '<div class="history-empty">Управление пользователями доступно только администратору.</div>'; return; }
+    panel.innerHTML = '<div class="history-empty">Загружаем пользователей…</div>';
+    const [users, events] = await Promise.all([apiRequest("/api/admin/users"), apiRequest("/api/admin/user-events?limit=100")]);
+    state.users = users.items;
+    panel.innerHTML = `<div class="users-panel"><div class="users-panel__head"><div><div class="eyebrow">Доступ к CMS</div><h1>Пользователи</h1><p>Роли определяют доступ к содержимому, публикации и администрированию.</p></div><button class="button button--primary" type="button" data-user-create>Создать пользователя</button></div><div class="users-table" data-users-list>${users.items.map(user => `<article class="user-row" data-user-id="${escapeHtml(user.id)}" data-version="${user.version}"><div class="user-row__identity"><span>${escapeHtml(user.username.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(user.username)}</strong><small>${user.last_login_at ? `Последний вход: ${escapeHtml(formatDate(user.last_login_at))}` : "Ещё не входил"}</small></div></div><label>Роль<select data-user-role>${Object.keys(roleLabels).map(role => `<option value="${role}"${role === user.role ? " selected" : ""}>${escapeHtml(roleLabels[role])}</option>`).join("")}</select></label><label class="user-active"><input type="checkbox" data-user-active${user.is_active ? " checked" : ""}> Активен</label><div class="user-row__sessions"><b>${user.active_sessions}</b><small>активных сессий</small></div><div class="user-row__actions"><button class="button button--ghost button--compact" type="button" data-user-save>Сохранить</button><button class="button button--ghost button--compact" type="button" data-user-terminate${user.id === state.user.id || !user.active_sessions ? " disabled" : ""}>Завершить сессии</button></div></article>`).join("")}</div><section class="user-events"><h2>Журнал доступа</h2><div class="history-list">${events.items.map(item => `<article class="history-item"><div class="history-item__head"><b>${escapeHtml(userEventLabels[item.action] || item.action)}</b><span class="history-badge">${escapeHtml(item.target_username || "удалённый пользователь")}</span></div><p>${escapeHtml(formatDate(item.created_at))} · ${escapeHtml(item.actor_username || "система")}</p></article>`).join("") || '<div class="history-empty">Событий пока нет</div>'}</div></section></div>`;
+  }
+
   function showPanel(name) {
     document.querySelector("[data-editor-pane]").hidden = true;
     document.querySelector("[data-preview-pane]").hidden = true;
     panel.hidden = false;
     document.querySelectorAll("[data-content-type]").forEach(button => button.classList.remove("is-active"));
     document.querySelectorAll("[data-panel]").forEach(button => button.classList.toggle("is-active", button.dataset.panel === name));
+    if (name === "workflow") renderWorkflowPanel();
     if (name === "media") renderMediaPanel();
-    if (name === "settings") panel.innerHTML = '<div class="eyebrow">Настройки</div><h1>Контентная схема 1.3</h1><p>Поля, типы материалов и настройки медиатеки формируются из единой серверной схемы. Управление пользователями остаётся этапу 7.</p>';
+    if (name === "users") renderUsersPanel().catch(error => toast(error.message));
+    if (name === "settings") panel.innerHTML = `<div class="eyebrow">Настройки</div><h1>Контентная схема ${escapeHtml(state.schema.schema_version)}</h1><p>Поля, роли, редакционный workflow и настройки медиатеки формируются сервером.</p>`;
     if (name === "migration") { panel.innerHTML = '<div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><section class="review-dashboard" data-review-dashboard><p class="review-summary" data-review-summary>Загружаем прогресс…</p><div class="review-progress"><span data-review-progress></span></div><div class="review-types" data-review-types></div><button class="button button--primary" type="button" data-review-start>Начать проверку</button></section>'; refreshMigrationStatus().catch(error => toast(error.message)); }
   }
 
@@ -722,6 +795,33 @@
     const target = event.target.closest("button,a"); if (!target) return;
     if (target.dataset.contentType) selectContentType(target.dataset.contentType);
     if (target.dataset.panel) showPanel(target.dataset.panel);
+    if (target.matches("[data-open-profile]")) document.querySelector("[data-password-dialog]").showModal();
+    if (target.matches("[data-password-close]")) closeDialog("[data-password-dialog]");
+    if (target.matches("[data-user-create-close]")) closeDialog("[data-user-create-dialog]");
+    if (target.matches("[data-user-create]")) document.querySelector("[data-user-create-dialog]").showModal();
+    if (target.matches("[data-logout]")) {
+      try { await apiRequest("/api/admin/logout", { method: "POST" }); } catch (_) { /* The session may already be revoked. */ }
+      state.user = null; state.csrf = ""; state.list = []; updateSessionUi(); renderEditor(); document.querySelector("[data-content-picker]").hidden = true; document.querySelector("[data-content-count]").textContent = "0 из 0"; document.querySelector("[data-save-status]").textContent = "Вход не выполнен"; document.querySelector("[data-login-dialog]").showModal(); toast("Сеанс завершён");
+    }
+    if (target.dataset.bulkAction) { state.bulk.action = target.dataset.bulkAction; state.bulk.offset = 0; state.bulk.selected.clear(); renderWorkflowPanel(); }
+    if (target.matches("[data-bulk-select-all]")) { state.bulk.items.forEach(item => state.bulk.selected.add(item.id)); await loadBulkQueue().catch(error => toast(error.message)); }
+    if (target.matches("[data-bulk-apply]")) await applyBulkAction().catch(error => toast(error.message));
+    if (target.matches("[data-bulk-prev]")) { state.bulk.offset = Math.max(0, state.bulk.offset - 100); state.bulk.selected.clear(); await loadBulkQueue().catch(error => toast(error.message)); }
+    if (target.matches("[data-bulk-next]")) { state.bulk.offset += 100; state.bulk.selected.clear(); await loadBulkQueue().catch(error => toast(error.message)); }
+    if (target.dataset.bulkOpen) { selectContentType(target.dataset.bulkType); await openRecord(target.dataset.bulkOpen).catch(error => toast(error.message)); }
+    if (target.matches("[data-user-save]")) {
+      const row = target.closest("[data-user-id]");
+      try {
+        await apiRequest(`/api/admin/users/${row.dataset.userId}`, { method: "PATCH", body: JSON.stringify({ version: Number(row.dataset.version), role: row.querySelector("[data-user-role]").value, is_active: row.querySelector("[data-user-active]").checked }) });
+        await renderUsersPanel(); toast("Учётная запись обновлена");
+      } catch (error) { toast(error.message); }
+    }
+    if (target.matches("[data-user-terminate]")) {
+      const row = target.closest("[data-user-id]");
+      if (confirm("Завершить все активные сессии этого пользователя?")) {
+        try { const result = await apiRequest(`/api/admin/users/${row.dataset.userId}/terminate-sessions`, { method: "POST", body: JSON.stringify({ version: Number(row.dataset.version) }) }); await renderUsersPanel(); toast(`Завершено сессий: ${result.closed_sessions}`); } catch (error) { toast(error.message); }
+      }
+    }
     if (target.matches("[data-create-current]")) { state.current = null; renderEditor(state.currentType, null); }
     if (target.matches("[data-cms-menu]")) document.body.classList.toggle("cms-menu-open");
     if (target.dataset.previewSize) applyPreviewSize(target.dataset.previewSize);
@@ -799,9 +899,20 @@
     }, 250);
   });
 
+  let bulkSearchTimer;
+  document.addEventListener("input", event => {
+    if (!event.target.matches("[data-bulk-search]")) return;
+    clearTimeout(bulkSearchTimer);
+    bulkSearchTimer = setTimeout(() => {
+      state.bulk.q = event.target.value.trim(); state.bulk.offset = 0; state.bulk.selected.clear();
+      loadBulkQueue().catch(error => toast(error.message));
+    }, 250);
+  });
+
   document.addEventListener("change", async event => {
     const input = event.target;
     try {
+      if (input.matches("[data-bulk-check]")) { if (input.checked) state.bulk.selected.add(input.dataset.bulkCheck); else state.bulk.selected.delete(input.dataset.bulkCheck); await loadBulkQueue(); }
       if (input.matches("[data-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaDialog(); }
       if (input.matches("[data-media-usage]")) { state.media.usage = input.value; state.media.offset = 0; await loadMediaDialog(); }
       if (input.matches("[data-panel-media-kind]")) { state.media.kind = input.value; state.media.offset = 0; await loadMediaPanel(); }
@@ -940,7 +1051,22 @@
   let searchTimer;
   document.querySelector("[data-content-search]").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadContentList().catch(error => toast(error.message)), 220); });
   document.querySelector("[data-review-only]").addEventListener("change", () => loadContentList().catch(error => toast(error.message)));
-  document.querySelector("[data-login-form]").addEventListener("submit", async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { const session = await apiRequest("/api/admin/login", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password") }) }); state.user = session.user; state.csrf = session.csrf_token; closeDialog("[data-login-dialog]"); document.querySelector("[data-save-status]").textContent = "CMS подключена"; document.querySelector(".cms-user strong").textContent = state.user.username; document.querySelector(".cms-user small").textContent = state.user.role; renderEditor(); await loadContentList(); } catch (error) { document.querySelector("[data-login-error]").textContent = error.message; } });
+  document.querySelector("[data-login-form]").addEventListener("submit", async event => { event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); try { const session = await apiRequest("/api/admin/login", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password") }) }); state.user = session.user; state.csrf = session.csrf_token; formElement.querySelector('[name="password"]').value = ""; closeDialog("[data-login-dialog]"); document.querySelector("[data-save-status]").textContent = "CMS подключена"; updateSessionUi(); renderEditor(); await loadContentList(); } catch (error) { console.error("CMS login initialization failed", error); document.querySelector("[data-login-error]").textContent = error.message; } });
+  document.querySelector("[data-password-form]").addEventListener("submit", async event => {
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const error = document.querySelector("[data-password-error]"); error.textContent = "";
+    if (form.get("new_password") !== form.get("confirm_password")) { error.textContent = "Новые пароли не совпадают"; return; }
+    try {
+      await apiRequest("/api/admin/change-password", { method: "POST", body: JSON.stringify({ current_password: form.get("current_password"), new_password: form.get("new_password") }) });
+      formElement.reset(); closeDialog("[data-password-dialog]"); state.user = null; state.csrf = ""; state.list = []; updateSessionUi(); renderEditor(); document.querySelector("[data-content-picker]").hidden = true; document.querySelector("[data-content-count]").textContent = "0 из 0"; document.querySelector("[data-save-status]").textContent = "Вход не выполнен"; document.querySelector("[data-login-dialog]").showModal(); toast("Пароль изменён. Войдите заново");
+    } catch (requestError) { error.textContent = requestError.message; }
+  });
+  document.querySelector("[data-user-create-form]").addEventListener("submit", async event => {
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const error = document.querySelector("[data-user-create-error]"); error.textContent = "";
+    try {
+      await apiRequest("/api/admin/users", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password"), role: form.get("role") }) });
+      formElement.reset(); closeDialog("[data-user-create-dialog]"); await renderUsersPanel(); toast("Пользователь создан");
+    } catch (requestError) { error.textContent = requestError.message; }
+  });
   document.querySelector("[data-media-dialog]").addEventListener("close", () => {
     state.media.chooser = null;
     state.media.selected.clear();
@@ -977,9 +1103,9 @@
     renderNavigation();
     applyPreviewSize();
     const session = await apiRequest("/api/admin/session");
-    if (!session.authenticated) { document.querySelector("[data-login-dialog]").showModal(); renderEditor(); return; }
+    if (!session.authenticated) { updateSessionUi(); document.querySelector("[data-login-dialog]").showModal(); renderEditor(); return; }
     state.user = session.user; state.csrf = session.csrf_token;
-    document.querySelector(".cms-user strong").textContent = state.user.username; document.querySelector(".cms-user small").textContent = state.user.role;
+    updateSessionUi();
     document.querySelector("[data-save-status]").textContent = `CMS подключена · схема ${state.schema.schema_version}`;
     renderEditor(); await loadContentList();
     const linkedContent = new URLSearchParams(location.search).get("content");

@@ -45,7 +45,10 @@ def database_report(database: Path) -> dict:
         quick_check = [row[0] for row in connection.execute("PRAGMA quick_check").fetchall()]
         foreign_key_errors = [dict(row) for row in connection.execute("PRAGMA foreign_key_check").fetchall()]
         metrics = {}
-        for table in ("users", "sessions", "contents", "revisions", "redirects", "migration_runs", "media", "audit_events"):
+        for table in (
+            "users", "sessions", "contents", "revisions", "redirects", "migration_runs",
+            "media", "audit_events", "user_events",
+        ):
             metrics[table] = scalar(connection, f"SELECT COUNT(*) FROM {table}") if table_exists(connection, table) else None
         by_status = {}
         by_type = {}

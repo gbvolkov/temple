@@ -14,7 +14,7 @@
   <header class="cms-topbar">
     <a class="cms-logo" href="{{ public_base_url }}/" aria-label="На сайт"><span>✣</span><strong>Редактор сайта</strong></a>
     <div class="cms-topbar__center"><span class="status-dot"></span><span data-save-status>Проверяем подключение к CMS…</span></div>
-    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="{{ public_base_url }}/" target="_blank" rel="noopener">Открыть сайт ↗</a><button class="button button--primary button--compact" type="button" data-save-draft>Сохранить</button></div>
+    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="{{ public_base_url }}/" target="_blank" rel="noopener">Открыть сайт ↗</a><button class="button button--ghost button--compact" type="button" data-open-profile>Пароль</button><button class="button button--ghost button--compact" type="button" data-logout>Выйти</button><button class="button button--primary button--compact" type="button" data-save-draft>Сохранить</button></div>
   </header>
   <div class="cms-shell">
     <aside class="cms-sidebar" aria-label="Типы материалов">
@@ -22,8 +22,10 @@
       <nav data-content-nav><div class="cms-sidebar__label">Содержание</div></nav>
       <nav>
         <div class="cms-sidebar__label">Управление</div>
+        <button class="cms-type" type="button" data-panel="workflow"><span>✓</span> Редакционная очередь</button>
         <button class="cms-type" type="button" data-panel="media"><span>◫</span> Медиатека</button>
         <button class="cms-type" type="button" data-panel="migration"><span>⇄</span> Миграция</button>
+        <button class="cms-type" type="button" data-panel="users" data-admin-only hidden><span>♙</span> Пользователи</button>
         <button class="cms-type" type="button" data-panel="settings"><span>⚙</span> Настройки</button>
       </nav>
       <div class="cms-user"><div class="cms-user__avatar">Р</div><div><strong>Редактор</strong><small>Контент и публикации</small></div></div>
@@ -72,6 +74,29 @@
       <label class="field">Пароль<input name="password" type="password" autocomplete="current-password" required></label>
       <p class="form-error" data-login-error role="alert"></p>
       <div class="form-actions"><button class="button button--ghost" type="button" data-login-close>Отмена</button><button class="button button--primary" type="submit">Войти</button></div>
+    </form>
+  </dialog>
+  <dialog class="modal account-dialog" data-password-dialog aria-labelledby="password-title">
+    <form class="modal__surface account-form" data-password-form>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-password-close>×</button>
+      <div class="eyebrow">Безопасность учётной записи</div><h2 id="password-title">Сменить пароль</h2>
+      <p>После смены пароля все открытые сессии будут завершены. Войдите в CMS заново.</p>
+      <label class="field">Текущий пароль<input name="current_password" type="password" autocomplete="current-password" required></label>
+      <label class="field">Новый пароль<input name="new_password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+      <label class="field">Повторите новый пароль<input name="confirm_password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+      <p class="form-error" data-password-error role="alert"></p>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-password-close>Отмена</button><button class="button button--primary" type="submit">Сменить пароль</button></div>
+    </form>
+  </dialog>
+  <dialog class="modal account-dialog" data-user-create-dialog aria-labelledby="user-create-title">
+    <form class="modal__surface account-form" data-user-create-form>
+      <button class="modal__close" type="button" aria-label="Закрыть" data-user-create-close>×</button>
+      <div class="eyebrow">Новая учётная запись</div><h2 id="user-create-title">Создать пользователя</h2>
+      <label class="field">Имя пользователя<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,79}" autocomplete="off" required></label>
+      <label class="field">Временный пароль<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label>
+      <label class="field">Роль<select name="role"><option value="viewer">Наблюдатель</option><option value="editor">Редактор</option><option value="publisher">Выпускающий</option><option value="admin">Администратор</option></select></label>
+      <p class="form-error" data-user-create-error role="alert"></p>
+      <div class="form-actions"><button class="button button--ghost" type="button" data-user-create-close>Отмена</button><button class="button button--primary" type="submit">Создать</button></div>
     </form>
   </dialog>
   <dialog class="modal link-dialog" data-link-dialog aria-labelledby="link-title">
