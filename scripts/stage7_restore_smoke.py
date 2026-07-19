@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import http.cookiejar
+import http.cookies
 import json
 import secrets
 import sys
@@ -9,9 +9,25 @@ import urllib.request
 
 
 def client(base: str):
-    jar = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    opener = urllib.request.build_opener()
     csrf = ""
+    session_cookie = ""
+
+    def capture_session_cookie(headers) -> None:
+        nonlocal session_cookie
+        for header in headers.get_all("Set-Cookie", []):
+            cookie = http.cookies.SimpleCookie()
+            cookie.load(header)
+            morsel = cookie.get("cms_session")
+            if morsel is None:
+                continue
+            if not morsel.value or morsel["max-age"] == "0":
+                session_cookie = ""
+            else:
+                # The restored production image correctly marks this cookie Secure.
+                # The disposable smoke endpoint is plain HTTP on loopback, so send
+                # the captured value explicitly without weakening application flags.
+                session_cookie = f"cms_session={morsel.value}"
 
     def request(path: str, *, method: str = "GET", payload=None):
         nonlocal csrf
@@ -22,12 +38,16 @@ def client(base: str):
             body = json.dumps(payload).encode()
         if csrf and method not in {"GET", "HEAD"}:
             headers["X-CSRF-Token"] = csrf
+        if session_cookie:
+            headers["Cookie"] = session_cookie
         call = urllib.request.Request(base + path, data=body, headers=headers, method=method)
         try:
             with opener.open(call, timeout=20) as response:
+                capture_session_cookie(response.headers)
                 raw = response.read().decode()
                 return response.status, json.loads(raw) if raw else None
         except urllib.error.HTTPError as error:
+            capture_session_cookie(error.headers)
             raw = error.read().decode()
             return error.code, json.loads(raw) if raw else None
 
