@@ -39,6 +39,20 @@ TEST_DATA="$TEST_ROOT/$BACKUP_ID"
 TEST_CONTAINER="temple-stage${DEPLOYMENT_STAGE}-test-${BACKUP_ID//[^a-zA-Z0-9]/-}"
 POST_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-post-report.json"
 
+remove_test_root() {
+  case "$TEST_ROOT" in
+    "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*)
+      if [[ -e "$TEST_ROOT" ]]; then
+        sudo rm -rf -- "$TEST_ROOT"
+      fi
+      ;;
+    *)
+      echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2
+      return 1
+      ;;
+  esac
+}
+
 for file in "$ARCHIVE" "$CHECKSUM" "$BASELINE_REPORT" "$RESTORE_REPORT"; do
   test -r "$file" || { echo "Required backup artifact is missing: $file" >&2; exit 1; }
 done
@@ -244,8 +258,8 @@ test -n "$CONTACT_ADDRESS" || { echo "Published site_contact.address is required
 test -n "$CONTACT_PHONE" || { echo "Published site_contact.phone is required before stage 4" >&2; exit 1; }
 
 if [[ -e "$TEST_ROOT" ]]; then
-  echo "Test restore destination already exists: $TEST_ROOT" >&2
-  exit 1
+  echo "Removing stale disposable restore: $TEST_ROOT"
+  remove_test_root
 fi
 if command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$TEST_PORT "; then
   echo "Stage 4 test port $TEST_PORT is already in use" >&2
@@ -305,13 +319,15 @@ fi
 TEST_STARTED=0
 cleanup() {
   local exit_code=$?
+  local cleanup_code=0
+  set +e
   if [[ "$TEST_STARTED" -eq 1 ]]; then
     sudo docker stop "$TEST_CONTAINER" >/dev/null 2>&1 || true
   fi
-  case "$TEST_ROOT" in
-    "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
-    *) echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2 ;;
-  esac
+  remove_test_root || cleanup_code=$?
+  if [[ "$exit_code" -eq 0 && "$cleanup_code" -ne 0 ]]; then
+    exit_code="$cleanup_code"
+  fi
   exit "$exit_code"
 }
 trap cleanup EXIT
@@ -459,10 +475,7 @@ fi
 
 sudo docker stop "$TEST_CONTAINER" >/dev/null
 TEST_STARTED=0
-case "$TEST_ROOT" in
-  "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*) rm -rf -- "$TEST_ROOT" ;;
-  *) echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2; exit 1 ;;
-esac
+remove_test_root
 trap - EXIT
 
 # Production is changed only after the restored copy passes every check.
