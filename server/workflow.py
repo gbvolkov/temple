@@ -11,6 +11,7 @@ from typing import Any
 
 from .db import row_to_content, transaction, utc_now
 from .media_library import media_reference_problems, refresh_content_usages
+from .search import sync_content_search
 
 
 LOGGER = logging.getLogger(__name__)
@@ -140,6 +141,7 @@ def publish_due_content(
                 continue
             after = connection.execute("SELECT * FROM contents WHERE id=?", (before["id"],)).fetchone()
             refresh_content_usages(connection, before["id"])
+            sync_content_search(connection, before["id"])
             record_audit(
                 connection,
                 content_id=before["id"],

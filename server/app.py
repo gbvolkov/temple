@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import secrets
 import shutil
@@ -14,7 +15,7 @@ from typing import Any, Literal
 from urllib.parse import unquote
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -38,6 +39,14 @@ from .media_library import (
     store_upload,
 )
 from .security import hash_password, token_hash, verify_password
+from .search import (
+    SEARCHABLE_TYPES,
+    TYPE_LABELS as SEARCH_TYPE_LABELS,
+    SearchError,
+    reconcile_search_index,
+    search_public,
+    sync_content_search,
+)
 from .submissions import (
     MAX_PUBLIC_PAYLOAD_BYTES,
     BurstRateLimiter,
@@ -70,6 +79,7 @@ from .public_site import (
     base_context,
     content_view,
     external_url,
+    format_date,
     feature_href,
     is_school_item,
     pages_by_placement,
@@ -79,6 +89,16 @@ from .public_site import (
     published_page,
     published_related_content,
     service_groups,
+)
+from .seo import (
+    SITE_NAME,
+    SocialPreviewError,
+    build_seo_context,
+    robots_text,
+    rss_xml,
+    sitemap_xml,
+    site_social_preview_path,
+    social_preview_path,
 )
 from .workflow import (
     admin_content as serialize_admin_content,
@@ -100,6 +120,7 @@ from .user_management import (
 
 ROLE_LEVEL = {"viewer": 0, "editor": 1, "publisher": 2, "admin": 3}
 TYPE_ALIASES = {"leaflet": "leaflet_issue", "section": "parish_section"}
+LOGGER = logging.getLogger(__name__)
 
 
 class LoginPayload(BaseModel):
@@ -258,6 +279,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         init_database(settings.database_path)
+        reconcile_search_index(settings.database_path)
         settings.media_dir.mkdir(parents=True, exist_ok=True)
         settings.derivatives_dir.mkdir(parents=True, exist_ok=True)
         ensure_bootstrap_admin(settings)
@@ -415,6 +437,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         content_type: str,
         data: dict[str, Any],
     ) -> None:
+        if content_type in {"news", "gallery", "parish_section", "page", "clergy"}:
+            for field, maximum, label in (
+                ("seo_title", 70, "SEO-заголовок"),
+                ("seo_description", 200, "SEO-описание"),
+            ):
+                value = data.get(field)
+                if value is not None and not isinstance(value, str):
+                    raise HTTPException(422, f"{label} должен быть строкой")
+                if isinstance(value, str) and len(value.strip()) > maximum:
+                    raise HTTPException(422, f"{label} не должен превышать {maximum} символов")
+            social_image = data.get("social_image")
+            if social_image is not None and not isinstance(social_image, str):
+                raise HTTPException(422, "Изображение для соцсетей должно быть локальным медиафайлом")
+            if isinstance(social_image, str) and social_image and not social_image.startswith("/media/"):
+                raise HTTPException(422, "Изображение для соцсетей нужно выбрать из медиатеки")
         if content_type == "page":
             placement = data.get("placement", "standalone")
             if placement not in PAGE_PLACEMENTS:
@@ -719,6 +756,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with connect(settings.database_path) as connection:
             return [published_content(connection, row) for row in connection.execute(query, params).fetchall()]
 
+    @app.get("/api/public/search")
+    def public_search_api(
+        q: str = Query(min_length=2, max_length=200),
+        content_type: str | None = None,
+        page: int = Query(1, ge=1),
+        per_page: int = Query(20, ge=1, le=50),
+    ):
+        try:
+            return search_public(
+                settings.database_path,
+                q,
+                content_type=content_type,
+                page=page,
+                per_page=per_page,
+            ).as_dict()
+        except SearchError as error:
+            raise HTTPException(422, str(error)) from error
+
     @app.get("/api/public/content/{slug}")
     def public_content_item(slug: str):
         with connect(settings.database_path) as connection:
@@ -980,6 +1035,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     refresh_content_usages(connection, item.id)
                     audit_action = "publish"
                 after = content_or_404(connection, item.id)
+                if payload.action in {"archive", "publish"}:
+                    sync_content_search(connection, item.id)
                 record_audit(
                     connection, content_id=item.id, actor_id=user["id"],
                     action=audit_action, before=before, after=after,
@@ -1176,6 +1233,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             row = content_or_404(connection, content_id)
             refresh_content_usages(connection, content_id)
+            sync_content_search(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="publish",
                 before=before, after=row,
@@ -1222,6 +1280,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             row = content_or_404(connection, content_id)
             refresh_content_usages(connection, content_id)
+            sync_content_search(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="archive",
                 before=before, after=row,
@@ -1242,6 +1301,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             row = content_or_404(connection, content_id)
             refresh_content_usages(connection, content_id)
+            sync_content_search(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="trash",
                 before=before, after=row,
@@ -1266,6 +1326,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             row = content_or_404(connection, content_id)
             refresh_content_usages(connection, content_id)
+            sync_content_search(connection, content_id)
             record_audit(
                 connection, content_id=content_id, actor_id=user["id"], action="restore",
                 before=before, after=row,
@@ -1724,6 +1785,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     def render_public(request: Request, template_name: str, context: dict[str, Any], status_code: int = 200):
+        context = dict(context)
+        context["seo"] = build_seo_context(
+            settings,
+            path=request.url.path,
+            query_params=request.query_params,
+            page_title=str(context.get("page_title") or SITE_NAME),
+            contact=context.get("contact") or {},
+            item=context.get("item"),
+            noindex=bool(context.get("seo_noindex")) or status_code >= 400 or request.url.path == "/search",
+            preview=bool(context.get("preview_mode")),
+        )
         return templates.TemplateResponse(
             request=request,
             name=template_name,
@@ -1738,6 +1810,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             public_context("", "Страница не найдена"),
             status_code=404,
         )
+
+    @app.exception_handler(Exception)
+    async def public_server_error(request: Request, error: Exception):
+        LOGGER.error(
+            "Unhandled request error at %s", request.url.path,
+            exc_info=(type(error), error, error.__traceback__),
+        )
+        if request.url.path == "/api" or request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": "Внутренняя ошибка сервера"}, status_code=500)
+        try:
+            return render_public(
+                request,
+                "500.html",
+                public_context("", "Ошибка сервера", seo_noindex=True),
+                status_code=500,
+            )
+        except Exception:
+            return HTMLResponse(
+                "<!doctype html><html lang='ru'><title>Ошибка сервера</title>"
+                "<h1>Сайт временно недоступен</h1></html>",
+                status_code=500,
+            )
 
     def preview_record(payload: PreviewPayload, normalized_data: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -1830,6 +1924,110 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def parse_archive_page(value: str) -> int | None:
         return int(value) if re.fullmatch(r"[1-9]\d*", value or "") else None
+
+    @app.get("/__stage9-error-test", include_in_schema=False)
+    def seo_error_test(request: Request):
+        if settings.environment != "test":
+            return render_not_found(request)
+        raise RuntimeError("stage 9 public error test")
+
+    @app.get("/search", response_class=HTMLResponse, include_in_schema=False)
+    def public_search_page(
+        request: Request,
+        q: str = "",
+        content_type: str | None = Query(default=None, alias="type"),
+        page: str = "1",
+    ):
+        page_number = parse_archive_page(page)
+        if page_number is None:
+            return render_not_found(request)
+        query = re.sub(r"\s+", " ", q).strip()
+        result = None
+        error_message = ""
+        status_code = 200
+        if content_type and content_type not in SEARCHABLE_TYPES:
+            error_message = "Неизвестный тип материала."
+            status_code = 400
+        elif query:
+            try:
+                result = search_public(
+                    settings.database_path,
+                    query,
+                    content_type=content_type,
+                    page=page_number,
+                    per_page=20,
+                )
+            except SearchError as error:
+                error_message = str(error)
+                status_code = 400
+            if result and result.invalid_page:
+                return render_not_found(request)
+            if result:
+                for item in result.items:
+                    item["date"] = format_date(item.get("published_at"))
+        return render_public(
+            request,
+            "search.html",
+            public_context(
+                "", "Поиск", query=query, selected_type=content_type or "",
+                search_result=result, search_error=error_message,
+                search_types=[
+                    {"value": value, "label": SEARCH_TYPE_LABELS[value]}
+                    for value in sorted(SEARCHABLE_TYPES, key=lambda key: SEARCH_TYPE_LABELS[key])
+                ],
+                seo_noindex=True,
+            ),
+            status_code=status_code,
+        )
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def public_sitemap():
+        return Response(
+            content=sitemap_xml(settings),
+            media_type="application/xml",
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    @app.get("/robots.txt", include_in_schema=False)
+    def public_robots():
+        return PlainTextResponse(
+            robots_text(settings),
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    @app.get("/rss.xml", include_in_schema=False)
+    def public_rss():
+        return Response(
+            content=rss_xml(settings),
+            media_type="application/rss+xml",
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    @app.get("/social-preview/content/{content_id}/v{version}.jpg", include_in_schema=False)
+    def public_social_preview(content_id: str, version: int):
+        try:
+            path = social_preview_path(settings, content_id, version)
+        except SocialPreviewError as error:
+            raise HTTPException(404, str(error)) from error
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get("/social-preview/site.jpg", include_in_schema=False)
+    def public_site_social_preview():
+        return FileResponse(
+            site_social_preview_path(settings),
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def public_home(request: Request):
@@ -2026,7 +2224,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/pages/{slug}", response_class=HTMLResponse, include_in_schema=False)
     def public_page_detail(request: Request, slug: str):
-        return public_detail_response(request, slug, ("page",), "about", "/about")
+        raw = published_item(settings.database_path, slug, ("page",))
+        if raw is None:
+            return render_not_found(request)
+        placement = str((raw.get("data") or {}).get("placement") or "standalone")
+        target = {
+            "about_history": "/about",
+            "about_shrine": "/about",
+            "school_home": "/school",
+            "schedule_info": "/schedule",
+        }.get(placement)
+        if target:
+            return RedirectResponse(target, status_code=301)
+        item = content_view(raw)
+        return render_public(
+            request,
+            "detail.html",
+            public_context(
+                "about", item["title"], item=item, back_url="/about",
+                related_items=[
+                    content_view(related)
+                    for related in published_related_content(settings.database_path, raw)
+                ],
+            ),
+        )
 
     @app.get("/index.html", include_in_schema=False)
     def old_index():

@@ -81,7 +81,7 @@ def test_content_schema_is_the_single_editor_source() -> None:
     schema = json.loads((ROOT / "site" / "cms-schema.json").read_text(encoding="utf-8"))
     cms_js = (ROOT / "site" / "cms.js").read_text(encoding="utf-8")
 
-    assert schema["schema_version"] == "1.4.0"
+    assert schema["schema_version"] == "1.5.0"
     assert set(schema["ui"]["block_types"]) == {
         "paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout",
     }

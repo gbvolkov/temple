@@ -11,6 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY pyproject.toml ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir "av>=14,<17" "fastapi>=0.115,<1" "jinja2>=3.1,<4" "olefile>=0.47,<1" "pillow>=11.2,<13" "pypdfium2>=4.30,<5" "python-multipart>=0.0.20,<1" "tzdata>=2025.2" "uvicorn[standard]>=0.32,<1"
 
 COPY server ./server

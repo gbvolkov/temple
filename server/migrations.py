@@ -21,6 +21,19 @@ from .public_urls import (
     is_legacy_index,
     legacy_index_target,
 )
+from .search import (
+    SEARCH_COLUMNS,
+    SEARCH_INDEX_SQL,
+    SEARCHABLE_TYPES,
+    _plain_text,
+    _published_snapshot,
+    _search_document,
+    public_content_url,
+    rebuild_search_index,
+    searchable_rows,
+    sync_content_search,
+    validate_search_schema,
+)
 
 
 MIGRATION_TABLE_SQL = """
@@ -657,6 +670,31 @@ def apply_visitor_submissions(connection: sqlite3.Connection) -> str:
     return "visitor submission queue and notification outbox created"
 
 
+def apply_public_search(connection: sqlite3.Connection) -> str:
+    preserved = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in (
+            "contents", "revisions", "users", "media", "redirects", "submissions",
+            "notification_outbox", "submission_events",
+        )
+    }
+    connection.execute(SEARCH_INDEX_SQL)
+    indexed = rebuild_search_index(connection)
+    validate_search_schema(connection)
+    after = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in preserved
+    }
+    if after != preserved:
+        raise MigrationError(
+            f"Количество существующих записей изменилось во время FTS5 migration: {preserved} -> {after}"
+        )
+    foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+    if foreign_key_errors:
+        raise MigrationError(f"Миграция поиска нарушила внешние ключи: {len(foreign_key_errors)}")
+    return f"public FTS5 search created; indexed publications: {indexed}"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -725,6 +763,24 @@ MIGRATIONS = (
             VISITOR_SUBMISSIONS_SQL,
             repr(sorted((name, sorted(columns)) for name, columns in VISITOR_SUBMISSION_REQUIRED_COLUMNS.items())),
             inspect.getsource(validate_visitor_submissions_schema),
+        )),
+    ),
+    Migration(
+        8,
+        "public_search_and_seo",
+        apply_public_search,
+        "\n".join((
+            SEARCH_INDEX_SQL,
+            repr(sorted(SEARCH_COLUMNS)),
+            repr(sorted(SEARCHABLE_TYPES)),
+            inspect.getsource(_plain_text),
+            inspect.getsource(_published_snapshot),
+            inspect.getsource(public_content_url),
+            inspect.getsource(_search_document),
+            inspect.getsource(searchable_rows),
+            inspect.getsource(sync_content_search),
+            inspect.getsource(validate_search_schema),
+            inspect.getsource(rebuild_search_index),
         )),
     ),
 )
@@ -804,6 +860,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_user_workflow_schema(connection)
             if any(item.get("version") == 7 and item["state"] == "applied" for item in status):
                 validate_visitor_submissions_schema(connection)
+            if any(item.get("version") == 8 and item["state"] == "applied" for item in status):
+                validate_search_schema(connection)
         finally:
             connection.close()
     return status

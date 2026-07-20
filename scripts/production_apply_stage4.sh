@@ -181,6 +181,15 @@ validate_database() {
     require_equal "$label outbox table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notification_outbox';")" "1"
     require_equal "$label submission events table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submission_events';")" "1"
   fi
+  if (( expected_schema >= 8 )); then
+    require_equal "$label FTS5 table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='content_search' AND lower(sql) LIKE '%fts5%';")" "1"
+    local expected_searchable indexed_searchable stale_searchable
+    expected_searchable="$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash') AND content_type IN ('news','page','parish_section','clergy','gallery','service','leaflet_issue','video','site_contact');")"
+    indexed_searchable="$(database_value "$database" "SELECT COUNT(*) FROM content_search;")"
+    require_equal "$label FTS5 publications" "$indexed_searchable" "$expected_searchable"
+    stale_searchable="$(database_value "$database" "SELECT COUNT(*) FROM content_search s LEFT JOIN contents c ON c.id=s.content_id AND CAST(c.published_version AS TEXT)=s.published_version WHERE c.id IS NULL OR c.status IN ('archived','trash');")"
+    require_equal "$label stale FTS5 rows" "$stale_searchable" "0"
+  fi
 }
 
 CONTENTS="$(report_value database.metrics.contents)"
@@ -216,7 +225,7 @@ validate_public_base_url .env || {
   echo "PUBLIC_BASE_URL must be $PUBLIC_BASE_URL_EXPECTED in .env" >&2
   exit 1
 }
-if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+if (( DEPLOYMENT_STAGE >= 8 )); then
   validate_stage8_environment .env || {
     echo "Stage 8 requires a valid HMAC secret and proxy networks; SMTP must be either complete or fully disabled" >&2
     exit 1
@@ -258,7 +267,7 @@ validate_public_base_url "$TEST_DATA/.env" || {
 }
 
 TEST_ADMIN_CREDENTIALS="$TEST_ROOT/stage5-test-admin.json"
-if [[ "$DEPLOYMENT_STAGE" == "5" || "$DEPLOYMENT_STAGE" == "6" || "$DEPLOYMENT_STAGE" == "7" || "$DEPLOYMENT_STAGE" == "8" ]]; then
+if (( DEPLOYMENT_STAGE >= 5 )); then
   # Create an isolated administrator in the disposable restored database.
   # This avoids depending on the real administrator password from production.
   python3 - "$TEST_DATA/data/cms.sqlite3" "$TEST_ADMIN_CREDENTIALS" <<'PY'
@@ -308,7 +317,7 @@ cleanup() {
 trap cleanup EXIT
 
 TEST_ENV_ARGS=()
-if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+if (( DEPLOYMENT_STAGE >= 8 )); then
   validate_stage8_environment "$TEST_DATA/.env" || {
     echo "The restored .env does not contain complete stage 8 notification settings" >&2
     exit 1
@@ -348,8 +357,12 @@ if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
   require_equal "restored users after isolated admin" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM users;')" "$((BACKUP_USERS + 1))"
   python3 scripts/stage7_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS"
 fi
-if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
+if (( DEPLOYMENT_STAGE >= 8 )); then
   python3 scripts/stage8_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
+  python3 scripts/stage9_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
+  python3 -m server.search verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
 fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
@@ -469,6 +482,9 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
 fi
 python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
+if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
+  python3 -m server.search verify --database data/cms.sqlite3 >/dev/null
+fi
 if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "production media index" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status='ready';")" "$PRODUCTION_MEDIA_FILES"
@@ -571,6 +587,16 @@ require_equal "external CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' 
 require_equal "external health status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/api/health")" "200"
 curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -Fq "$CONTACT_ADDRESS"
 curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -Fq "$CONTACT_PHONE"
+if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
+  require_equal "external search status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/search")" "200"
+  require_equal "external sitemap status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/sitemap.xml")" "200"
+  require_equal "external robots status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/robots.txt")" "200"
+  require_equal "external RSS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/rss.xml")" "200"
+  PAVEL_SOCIAL="/social-preview/content/$PAVEL_ID/v8.jpg"
+  require_equal "external social preview status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PAVEL_SOCIAL")" "200"
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN" | grep -Fq "<link rel=\"canonical\" href=\"$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN\">"
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED/robots.txt" | grep -Fq "Sitemap: $PUBLIC_BASE_URL_EXPECTED/sitemap.xml"
+fi
 
 python3 -m server.baseline report \
   --database data/cms.sqlite3 \

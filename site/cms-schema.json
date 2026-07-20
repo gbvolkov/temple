@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.4.0",
+  "schema_version": "1.5.0",
   "locale": "ru-RU",
   "ui": {
     "groups": {
@@ -7,7 +7,8 @@
       "content": "Содержание",
       "media": "Медиа",
       "relations": "Связанные материалы",
-      "publication": "Размещение и публикация"
+      "publication": "Размещение и публикация",
+      "seo": "Поиск и социальные сети"
     },
     "content_order": ["home_feature", "news", "service", "gallery", "leaflet_issue", "parish_section", "page", "clergy", "video", "site_contact"],
     "icons": {"home_feature": "★", "news": "▤", "service": "◷", "gallery": "▦", "leaflet_issue": "▧", "parish_section": "◇", "page": "≡", "clergy": "✣", "video": "▶", "site_contact": "⌖"},
@@ -60,6 +61,9 @@
         "cover": {"label": "Главное изображение", "type": "image", "group": "media", "required": true},
         "cover_alt": {"label": "Описание главного изображения", "type": "string", "group": "media", "required": true},
         "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "Оставьте пустым, чтобы использовать заголовок материала."},
+        "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "Оставьте пустым, чтобы использовать краткое описание или начало текста."},
+        "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "Станет фоном брендированной карточки 1200×630. По умолчанию используется обложка."},
         "featured": {"label": "Показывать на главной", "type": "boolean", "group": "publication", "default": false}
       }
     },
@@ -85,7 +89,10 @@
         "summary": {"label": "Описание", "type": "text", "group": "content"},
         "cover": {"label": "Обложка альбома", "type": "image", "group": "media", "required": true},
         "photos": {"label": "Фотографии", "type": "image_list", "group": "media", "required": true, "max_items": 100},
-        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20}
+        "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "По умолчанию используется название альбома."},
+        "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "По умолчанию используется описание альбома."},
+        "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "По умолчанию используется обложка альбома."}
       }
     },
     "leaflet_issue": {
@@ -112,6 +119,9 @@
         "email": {"label": "Электронная почта", "type": "email", "group": "content"},
         "schedule": {"label": "Регулярное расписание", "type": "schedule", "group": "content"},
         "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
+        "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "По умолчанию используется название направления."},
+        "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "По умолчанию используется краткое описание."},
+        "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "По умолчанию используется обложка направления."},
         "order": {"label": "Порядок на странице", "type": "integer", "group": "publication", "default": 100}
       }
     },
@@ -127,6 +137,9 @@
         "schedule": {"label": "Регулярное расписание", "type": "schedule", "group": "content"},
         "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
         "parent": {"label": "Родительская страница", "type": "relation", "group": "relations", "targets": ["page"]},
+        "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "По умолчанию используется заголовок страницы."},
+        "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "По умолчанию используется вводный текст или начало страницы."},
+        "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "По умолчанию используется главное изображение."},
         "placement": {"label": "Размещение", "type": "enum", "group": "publication", "default": "standalone", "values": [{"value": "standalone", "label": "Отдельная страница"}, {"value": "about_history", "label": "О храме — история"}, {"value": "about_shrine", "label": "О храме — святыня"}, {"value": "school_home", "label": "Воскресная школа"}, {"value": "schedule_info", "label": "Расписание — пояснение"}]},
         "navigation_order": {"label": "Порядок в навигации", "type": "integer", "group": "publication", "default": 100}
       }
@@ -140,6 +153,9 @@
         "name_day": {"label": "День тезоименитства", "type": "string", "group": "main"},
         "photo": {"label": "Фотография", "type": "image", "group": "media"},
         "biography": {"label": "Биография", "type": "blocks", "group": "content", "required": true, "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
+        "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "По умолчанию используется имя священнослужителя."},
+        "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "По умолчанию используется начало биографии."},
+        "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "По умолчанию используется фотография."},
         "order": {"label": "Порядок на странице", "type": "integer", "group": "publication", "default": 100}
       }
     },

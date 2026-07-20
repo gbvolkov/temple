@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% from "_macros.html" import hero, empty_state %}
+{% block content %}
+{{ hero('Поиск по сайту','Новости, страницы, духовенство, расписание и материалы приходского архива.','Поиск') }}
+<section class="section section--white search-section"><div class="shell">
+  <form class="public-search" action="/search" method="get" role="search">
+    <label for="site-search-query">Что найти</label>
+    <div class="public-search__row"><input id="site-search-query" type="search" name="q" value="{{ query }}" minlength="2" maxlength="200" required placeholder="Например, расписание или имя священнослужителя"><button class="button button--primary" type="submit">Найти</button></div>
+    {% if selected_type %}<input type="hidden" name="type" value="{{ selected_type }}">{% endif %}
+    {% if search_error %}<p class="form-error" role="alert">{{ search_error }}</p>{% endif %}
+  </form>
+
+  {% if search_result %}
+    {% set all_count = search_result.facets.values()|sum %}
+    <nav class="search-filters" aria-label="Фильтр результатов">
+      <a href="/search?q={{ query|urlencode }}"{% if not selected_type %} aria-current="page" class="is-active"{% endif %}>Все <span>{{ all_count }}</span></a>
+      {% for item in search_types %}{% set amount = search_result.facets.get(item.value,0) %}{% if amount or selected_type == item.value %}<a href="/search?q={{ query|urlencode }}&amp;type={{ item.value }}"{% if selected_type == item.value %} aria-current="page" class="is-active"{% endif %}>{{ item.label }} <span>{{ amount }}</span></a>{% endif %}{% endfor %}
+    </nav>
+    <div class="search-summary">Найдено: <strong>{{ search_result.total }}</strong></div>
+    {% if search_result.items %}<div class="search-results">
+      {% for item in search_result.items %}<article class="search-result"><div><span>{{ item.type_label }}</span>{% if item.date %}<time>{{ item.date }}</time>{% endif %}</div><h2><a href="{{ item.url }}">{{ item.title }}</a></h2>{% if item.excerpt %}<p>{{ item.excerpt }}</p>{% endif %}<a class="text-link" href="{{ item.url }}">Открыть материал →</a></article>{% endfor %}
+    </div>{% if search_result.pages > 1 %}<nav class="pagination" aria-label="Страницы результатов">
+      {% if search_result.page > 1 %}<a href="/search?q={{ query|urlencode }}{% if selected_type %}&amp;type={{ selected_type }}{% endif %}&amp;page={{ search_result.page - 1 }}">← Предыдущая</a>{% else %}<span></span>{% endif %}
+      <span>Страница {{ search_result.page }} из {{ search_result.pages }}</span>
+      {% if search_result.page < search_result.pages %}<a href="/search?q={{ query|urlencode }}{% if selected_type %}&amp;type={{ selected_type }}{% endif %}&amp;page={{ search_result.page + 1 }}">Следующая →</a>{% else %}<span></span>{% endif %}
+    </nav>{% endif %}
+    {% else %}{{ empty_state('Ничего не найдено','Попробуйте сократить запрос или выбрать другой раздел.') }}{% endif %}
+  {% elif query %}
+    {{ empty_state('Поиск не выполнен','Исправьте запрос и попробуйте ещё раз.') }}
+  {% else %}
+    {{ empty_state('Введите запрос','Поиск работает только по материалам, опубликованным на сайте.') }}
+  {% endif %}
+</div></section>
+{% endblock %}

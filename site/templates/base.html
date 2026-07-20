@@ -4,9 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#18222d">
-  <meta name="description" content="{{ page_description|default('Официальный сайт храма святителя Иннокентия в Бескудникове') }}">
+  <meta name="description" content="{{ seo.description }}">
+  <meta name="robots" content="{{ seo.robots }}">
+  <link rel="canonical" href="{{ seo.canonical }}">
+  <link rel="alternate" type="application/rss+xml" title="Новости храма святителя Иннокентия" href="{{ seo.rss_url }}">
+  <meta property="og:title" content="{{ seo.title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:url" content="{{ seo.canonical }}">
+  <meta property="og:type" content="{{ seo.og_type }}">
+  <meta property="og:site_name" content="Храм святителя Иннокентия">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:image" content="{{ seo.image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ seo.image_alt }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+  <meta name="twitter:image" content="{{ seo.image }}">
+  {% if seo.published_time %}<meta property="article:published_time" content="{{ seo.published_time }}">{% endif %}
+  {% if seo.modified_time %}<meta property="article:modified_time" content="{{ seo.modified_time }}">{% endif %}
+  <script type="application/ld+json">{{ seo.json_ld|tojson }}</script>
   <link rel="icon" href="data:,">
-  <title>{{ page_title }} | Храм святителя Иннокентия</title>
+  <title>{{ seo.full_title }}</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="{% if active_nav == 'home' %}is-home{% endif %}">
@@ -18,6 +38,7 @@
         <span class="brand__name">Храм святителя Иннокентия<br><small>Бескудниково · Москва</small></span>
       </a>
       <div class="header-actions">
+        <a class="header-search" href="/search" aria-label="Открыть поиск по сайту"><span aria-hidden="true">⌕</span><b>Поиск</b></a>
         <a class="header-schedule" href="/schedule" aria-label="{% if next_service %}Ближайшая служба {{ next_service.header_date }} в {{ next_service.time }}. {% endif %}Открыть расписание">
           <span class="header-schedule__dot" aria-hidden="true"></span>
           <span><small>{% if next_service %}Ближайшая служба{% else %}Богослужения{% endif %}</small><b>{% if next_service %}<span class="header-service-date">{{ next_service.header_date }}</span><span class="header-service-date header-service-date--short">{{ next_service.short_date }}</span> · {{ next_service.time }}{% else %}Расписание{% endif %}</b></span>
@@ -42,7 +63,7 @@
               {% if next_service %}<time>{{ next_service.date }} · {{ next_service.time }}</time><strong>{{ next_service.title }}</strong>{% else %}<strong>Расписание уточняется</strong>{% endif %}
               <a href="/schedule">Открыть расписание <span>→</span></a>
             </div>
-            <div class="menu-panel__actions"><button class="button button--primary" type="button" data-note-open>Подать записку</button>{% if contact.available %}<a class="button button--light" href="/about#contacts">Как добраться</a>{% endif %}</div>
+            <div class="menu-panel__actions"><a class="button button--primary" href="/search">⌕&nbsp; Поиск по сайту</a><button class="button button--light" type="button" data-note-open>Подать записку</button>{% if contact.available %}<a class="button button--light" href="/about#contacts">Как добраться</a>{% endif %}</div>
             <div class="menu-panel__secondary"><a href="/news">Новости</a><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a>{% if contact.available and contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}</div>
           </aside>
         </div>
@@ -62,7 +83,7 @@
   <footer class="site-footer">
     <div class="shell site-footer__grid">
       <div><div class="brand brand--footer"><span class="brand__mark" aria-hidden="true">✣</span><span class="brand__name">Храм святителя Иннокентия<br><small>в Бескудникове</small></span></div><p>Патриаршее подворье Русской Православной Церкви.</p></div>
-      <div><h2>Быстрые ссылки</h2><button class="footer-button" type="button" data-note-open>Подать записку</button><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a></div>
+      <div><h2>Быстрые ссылки</h2><button class="footer-button" type="button" data-note-open>Подать записку</button><a href="/search">Поиск</a><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a><a href="/rss.xml">RSS новостей</a></div>
       <div><h2>Контакты</h2>{% if contact.available %}{% if contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}{% if contact.address %}<p>{{ contact.address }}</p>{% endif %}{% else %}<p>Контакты готовятся к публикации.</p>{% endif %}</div>
       <div><h2>Мы на связи</h2>{% if contact.links %}{% for link in contact.links %}<a href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }} ↗</a>{% endfor %}{% else %}<a href="/about#contacts">Раздел контактов</a>{% endif %}</div>
     </div>
