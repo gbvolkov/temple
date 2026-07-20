@@ -12,6 +12,17 @@ def main() -> None:
     base = f"http://127.0.0.1:{port}"
     public_request, _ = client(base)
 
+    with sqlite3.connect(database_path) as connection:
+        initial_submissions = connection.execute(
+            "SELECT COUNT(*) FROM submissions"
+        ).fetchone()[0]
+        initial_new_submissions = connection.execute(
+            "SELECT COUNT(*) FROM submissions WHERE status='new'"
+        ).fetchone()[0]
+        initial_outbox = connection.execute(
+            "SELECT COUNT(*) FROM notification_outbox"
+        ).fetchone()[0]
+
     status, note = public_request(
         "/api/public/submissions/prayer-note",
         method="POST",
@@ -55,8 +66,15 @@ def main() -> None:
     admin_login(credentials["username"], credentials["password"])
 
     status, listing = admin_request("/api/admin/submissions?limit=10")
-    assert status == 200 and listing["total"] == 2 and listing["new_total"] == 2, listing
+    assert (
+        status == 200
+        and listing["total"] == initial_submissions + 2
+        and listing["new_total"] == initial_new_submissions + 2
+    ), listing
     note_item = next(item for item in listing["items"] if item["reference_code"] == note["reference_code"])
+    school_item = next(
+        item for item in listing["items"] if item["reference_code"] == school["reference_code"]
+    )
     status, detail = admin_request(f"/api/admin/submissions/{note_item['id']}")
     assert status == 200 and detail["payload"]["names"] == ["Тестовая Записка"], detail
     assert detail["notification"]["configured"] is False
@@ -82,24 +100,35 @@ def main() -> None:
         event["action"] == "notification_retried" for event in retried["events"]
     ), retried
 
+    editor_username = f"stage8.editor.{secrets.token_hex(6)}"
     editor_password = "Aa1!" + secrets.token_urlsafe(24)
     status, editor = admin_request(
         "/api/admin/users",
         method="POST",
-        payload={"username": "stage8.editor", "password": editor_password, "role": "editor"},
+        payload={"username": editor_username, "password": editor_password, "role": "editor"},
     )
     assert status == 201, editor
     editor_request, editor_login = client(base)
-    editor_login("stage8.editor", editor_password)
+    editor_login(editor_username, editor_password)
     status, _ = editor_request("/api/admin/submissions")
     assert status == 403
 
     with sqlite3.connect(database_path) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM submissions").fetchone()[0] == 2
-        assert connection.execute("SELECT COUNT(*) FROM notification_outbox").fetchone()[0] == 2
+        assert (
+            connection.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]
+            == initial_submissions + 2
+        )
+        assert (
+            connection.execute("SELECT COUNT(*) FROM notification_outbox").fetchone()[0]
+            == initial_outbox + 2
+        )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         event_payload = "\n".join(
-            row[0] for row in connection.execute("SELECT details_json FROM submission_events")
+            row[0]
+            for row in connection.execute(
+                "SELECT details_json FROM submission_events WHERE submission_id IN (?, ?)",
+                (note_item["id"], school_item["id"]),
+            )
         )
         assert "Тестовая Записка" not in event_payload
 
