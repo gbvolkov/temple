@@ -387,9 +387,9 @@ done
 PAVEL_SLUG="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT published_slug FROM contents WHERE id='$PAVEL_ID';")"
 PAVEL_CLEAN="/about/clergy/$PAVEL_SLUG"
 require_equal "test Pavel clean route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$PAVEL_CLEAN")" "200"
-curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -Fq "$CONTACT_ADDRESS"
-curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -Fq "$CONTACT_PHONE"
-if curl -fsS "http://127.0.0.1:$TEST_PORT/cms.html" | grep -Fq 'temple-demo'; then
+curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
+curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_PHONE" >/dev/null
+if curl -fsS "http://127.0.0.1:$TEST_PORT/cms.html" | grep -F 'temple-demo' >/dev/null; then
   echo "CMS still exposes the demonstration password" >&2
   exit 1
 fi
@@ -589,8 +589,8 @@ with sqlite3.connect(database) as connection:
         )
 PY
 fi
-curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_ADDRESS"
-curl -fsS http://127.0.0.1:8000/about | grep -Fq "$CONTACT_PHONE"
+curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_ADDRESS" >/dev/null
+curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_PHONE" >/dev/null
 
 require_equal "external site status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/")" "200"
 require_equal "external school status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/school")" "200"
@@ -598,8 +598,8 @@ require_equal "external Pavel status" "$(curl -ksS -o /dev/null -w '%{http_code}
 require_equal "public-domain CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/cms.html")" "404"
 require_equal "external CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' 'https://cms.temple.gbvolkoff.name:8443/cms.html')" "200"
 require_equal "external health status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/api/health")" "200"
-curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -Fq "$CONTACT_ADDRESS"
-curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -Fq "$CONTACT_PHONE"
+curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
+curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_PHONE" >/dev/null
 if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
   require_equal "external search status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/search")" "200"
   require_equal "external sitemap status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/sitemap.xml")" "200"
@@ -607,8 +607,8 @@ if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
   require_equal "external RSS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/rss.xml")" "200"
   PAVEL_SOCIAL="/social-preview/content/$PAVEL_ID/v8.jpg"
   require_equal "external social preview status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PAVEL_SOCIAL")" "200"
-  curl -ksS "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN" | grep -Fq "<link rel=\"canonical\" href=\"$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN\">"
-  curl -ksS "$PUBLIC_BASE_URL_EXPECTED/robots.txt" | grep -Fq "Sitemap: $PUBLIC_BASE_URL_EXPECTED/sitemap.xml"
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN" | grep -F "<link rel=\"canonical\" href=\"$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN\">" >/dev/null
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED/robots.txt" | grep -F "Sitemap: $PUBLIC_BASE_URL_EXPECTED/sitemap.xml" >/dev/null
 fi
 
 python3 -m server.baseline report \
