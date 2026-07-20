@@ -4,6 +4,7 @@ import json
 import sqlite3
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from stage7_restore_smoke import client
@@ -24,7 +25,8 @@ def main() -> None:
         credentials = json.load(source)
 
     public_request, _ = client(base)
-    status, existing = public_request("/api/public/search?q=Павел")
+    existing_query = urllib.parse.urlencode({"q": "Павел"})
+    status, existing = public_request(f"/api/public/search?{existing_query}")
     assert status == 200 and existing["total"] >= 1, existing
 
     admin_request, admin_login = client(base)
