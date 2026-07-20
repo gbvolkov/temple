@@ -375,7 +375,8 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
     --media-dir /data/media \
     --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
 fi
-python3 -m server.migrations verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
+sudo docker exec "$TEST_CONTAINER" python -m server.migrations verify \
+  --database /data/cms.sqlite3 >/dev/null
 validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage $DEPLOYMENT_STAGE image"
 if (( DEPLOYMENT_STAGE >= 6 )); then
   TEST_MEDIA_FILES="$(find "$TEST_DATA/data/media" -type f ! -path '*/.*' | wc -l | tr -d ' ')"
@@ -514,7 +515,8 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
     --media-dir /data/media \
     --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
 fi
-python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
+sudo docker compose exec -T "$SERVICE" python -m server.migrations verify \
+  --database /data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
 if (( DEPLOYMENT_STAGE >= 9 )); then
   python3 -m server.search verify --database data/cms.sqlite3 >/dev/null
