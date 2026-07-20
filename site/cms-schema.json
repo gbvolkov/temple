@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5.0",
+  "schema_version": "1.6.0",
   "locale": "ru-RU",
   "ui": {
     "groups": {
@@ -187,8 +187,8 @@
   },
   "roles": {
     "viewer": ["read", "view_media", "view_workflow"],
-    "editor": ["read", "create", "edit", "view_media", "upload_media", "edit_media", "request_review", "bulk_migration_review"],
-    "publisher": ["all_editor_permissions", "return_to_draft", "schedule", "publish", "archive", "trash", "restore", "bulk_publish", "bulk_archive"],
+    "editor": ["read", "create", "edit", "view_media", "upload_media", "edit_media", "request_review", "migration_audit", "migration_propose"],
+    "publisher": ["all_editor_permissions", "return_to_draft", "schedule", "publish", "archive", "trash", "restore", "bulk_publish", "bulk_archive", "migration_batches", "migration_finalize"],
     "admin": ["all_publisher_permissions", "manage_users", "terminate_sessions", "delete_media", "reindex_media", "run_migration"]
   },
   "workflow": {

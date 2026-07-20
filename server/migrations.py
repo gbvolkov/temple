@@ -34,6 +34,13 @@ from .search import (
     sync_content_search,
     validate_search_schema,
 )
+from .migration_acceptance import (
+    ACCEPTANCE_REQUIRED_COLUMNS,
+    ACCEPTANCE_REQUIRED_INDEXES,
+    ACCEPTANCE_SCHEMA_SQL,
+    apply_acceptance_schema,
+    validate_acceptance_schema,
+)
 
 
 MIGRATION_TABLE_SQL = """
@@ -783,6 +790,17 @@ MIGRATIONS = (
             inspect.getsource(rebuild_search_index),
         )),
     ),
+    Migration(
+        9,
+        "migration_editorial_acceptance",
+        apply_acceptance_schema,
+        "\n".join((
+            ACCEPTANCE_SCHEMA_SQL,
+            repr(sorted((name, sorted(columns)) for name, columns in ACCEPTANCE_REQUIRED_COLUMNS.items())),
+            repr(sorted(ACCEPTANCE_REQUIRED_INDEXES)),
+            inspect.getsource(validate_acceptance_schema),
+        )),
+    ),
 )
 
 
@@ -862,6 +880,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_visitor_submissions_schema(connection)
             if any(item.get("version") == 8 and item["state"] == "applied" for item in status):
                 validate_search_schema(connection)
+            if any(item.get("version") == 9 and item["state"] == "applied" for item in status):
+                validate_acceptance_schema(connection)
         finally:
             connection.close()
     return status

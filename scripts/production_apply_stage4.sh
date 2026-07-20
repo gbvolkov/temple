@@ -204,6 +204,12 @@ validate_database() {
     stale_searchable="$(database_value "$database" "SELECT COUNT(*) FROM content_search s LEFT JOIN contents c ON c.id=s.content_id AND CAST(c.published_version AS TEXT)=s.published_version WHERE c.id IS NULL OR c.status IN ('archived','trash');")"
     require_equal "$label stale FTS5 rows" "$stale_searchable" "0"
   fi
+  if (( expected_schema >= 9 )); then
+    for table in migration_audit_runs migration_audit_items migration_review_issues migration_review_batches migration_review_batch_items migration_review_events migration_link_cache; do
+      require_equal "$label stage 10 table $table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$table';")" "1"
+    done
+    require_equal "$label finalized pending decisions" "$(database_value "$database" "SELECT COUNT(*) FROM migration_review_batch_items bi JOIN migration_review_batches b ON b.id=bi.batch_id WHERE b.status='finalized' AND bi.disposition='pending';")" "0"
+  fi
 }
 
 CONTENTS="$(report_value database.metrics.contents)"
@@ -211,6 +217,7 @@ REVISIONS="$(report_value database.metrics.revisions)"
 PUBLISHED="$(report_value database.by_status.published)"
 REVIEW_REQUIRED="$(report_value database.review_required)"
 BACKUP_USERS="$(report_value database.metrics.users)"
+BACKUP_MEDIA="$(report_value database.metrics.media)"
 CURRENT_SHA="$(git rev-parse HEAD)"
 BACKUP_SHA="$(report_value source.git_sha)"
 
@@ -221,6 +228,13 @@ git merge-base --is-ancestor "$BACKUP_SHA" "$CURRENT_SHA" || {
   exit 1
 }
 require_equal "backup schema version" "$(report_value database.schema_version)" "$SOURCE_SCHEMA"
+if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
+  require_equal "stage 10 baseline contents" "$CONTENTS" "1758"
+  require_equal "stage 10 baseline revisions" "$REVISIONS" "3581"
+  require_equal "stage 10 baseline redirects" "$(report_value database.metrics.redirects)" "1606"
+  require_equal "stage 10 baseline media" "$BACKUP_MEDIA" "13701"
+  require_equal "stage 10 baseline review-required" "$REVIEW_REQUIRED" "1756"
+fi
 BACKUP_EPOCH="$(date -u -d "$(report_value generated_at)" +%s)"
 NOW_EPOCH="$(date -u +%s)"
 if (( NOW_EPOCH - BACKUP_EPOCH > 86400 )); then
@@ -380,6 +394,13 @@ if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
   python3 scripts/stage9_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
   python3 -m server.search verify --database "$TEST_DATA/data/cms.sqlite3" >/dev/null
 fi
+if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
+  # Full ruleset on the disposable restore, including cached two-attempt
+  # external-link checks. The command changes only acceptance tables.
+  sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance scan >/dev/null
+  sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance verify >/dev/null
+  python3 scripts/stage10_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
+fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
@@ -495,8 +516,30 @@ if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
 fi
 python3 -m server.migrations verify --database data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
-if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
+if (( DEPLOYMENT_STAGE >= 9 )); then
   python3 -m server.search verify --database data/cms.sqlite3 >/dev/null
+fi
+if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
+  # The production audit and draft pilot must not clear migration flags or
+  # alter content/revisions. The isolated admin used for restore never reaches
+  # this database; production uses an existing active administrator as actor.
+  STAGE10_REVIEW_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')"
+  STAGE10_CONTENTS_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')"
+  STAGE10_REVISIONS_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM revisions;')"
+  STAGE10_WORKFLOW_BEFORE="$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
+  STAGE10_ACTOR_ID="$(database_value data/cms.sqlite3 "SELECT id FROM users WHERE role='admin' AND is_active=1 ORDER BY created_at,id LIMIT 1;")"
+  test -n "$STAGE10_ACTOR_ID" || { echo "An active production administrator is required for the pilot batch" >&2; exit 1; }
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance scan >/dev/null
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance verify >/dev/null
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance create-pilot --actor-id "$STAGE10_ACTOR_ID" >/dev/null
+  require_equal "stage 10 review flags" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$STAGE10_REVIEW_BEFORE"
+  require_equal "stage 10 contents" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')" "$STAGE10_CONTENTS_BEFORE"
+  require_equal "stage 10 revisions" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM revisions;')" "$STAGE10_REVISIONS_BEFORE"
+  require_equal "stage 10 workflow states" "$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")" "$STAGE10_WORKFLOW_BEFORE"
+  require_equal "stage 10 media" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM media;')" "13701"
+  require_equal "stage 10 pilot drafts" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM migration_review_batches WHERE status='draft' AND filters_json LIKE '%\"pilot\":\"stage10-core\"%';")" "1"
+  STAGE10_PILOT_ID="$(database_value data/cms.sqlite3 "SELECT id FROM migration_review_batches WHERE status='draft' AND filters_json LIKE '%\"pilot\":\"stage10-core\"%' LIMIT 1;")"
+  validate_database data/cms.sqlite3 "production after stage 10 audit"
 fi
 if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
@@ -600,7 +643,7 @@ require_equal "external CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' 
 require_equal "external health status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/api/health")" "200"
 curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
 curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_PHONE" >/dev/null
-if [[ "$DEPLOYMENT_STAGE" == "9" ]]; then
+if (( DEPLOYMENT_STAGE >= 9 )); then
   require_equal "external search status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/search")" "200"
   require_equal "external sitemap status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/sitemap.xml")" "200"
   require_equal "external robots status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/robots.txt")" "200"
@@ -633,5 +676,9 @@ echo "POST_REPORT=$POST_REPORT"
 if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
   echo "CONTROL_SUBMISSION=$STAGE8_CONTROL_REFERENCE"
   echo "SMTP_MODE=$STAGE8_EMAIL_MODE"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
+  echo "PILOT_BATCH_ID=$STAGE10_PILOT_ID"
+  echo "MIGRATION_REVIEW_REQUIRED=$STAGE10_REVIEW_BEFORE"
 fi
 echo "DEPLOYMENT_SECONDS=$DEPLOYMENT_SECONDS"

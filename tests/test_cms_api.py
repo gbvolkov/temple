@@ -250,13 +250,12 @@ def test_csrf_media_and_migration(tmp_path):
             headers={"X-CSRF-Token": csrf},
             json={"version": item["version"]},
         )
-        assert reviewed.status_code == 200
-        assert reviewed.json()["migration_review_required"] is False
-        assert reviewed.json()["version"] == item["version"]
+        assert reviewed.status_code == 409
+        assert "редакционную партию" in reviewed.json()["detail"]
         reviewed_events = client.get(f"/api/admin/contents/{item['id']}/audit-events").json()["items"]
-        assert [event["action"] for event in reviewed_events[:2]] == ["migration_review", "import_create"]
+        assert [event["action"] for event in reviewed_events[:1]] == ["import_create"]
         remaining = client.get("/api/admin/content-index", params={"review_required": "true", "limit": 200}).json()
-        assert remaining["total"] == 166
+        assert remaining["total"] == 167
 
 
 def test_server_rendered_public_routes_use_published_snapshot(tmp_path):

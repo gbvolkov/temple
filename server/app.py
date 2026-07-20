@@ -38,6 +38,23 @@ from .media_library import (
     serialize_media,
     store_upload,
 )
+from .migration_acceptance import (
+    AcceptanceError,
+    acceptance_scheduler,
+    acceptance_summary,
+    cancel_batch,
+    create_batch,
+    create_pilot_batch,
+    execute_audit_run,
+    finalize_batch,
+    get_audit_run,
+    get_batch,
+    list_batches,
+    list_issues,
+    queue_audit,
+    submit_batch,
+    update_batch_item,
+)
 from .security import hash_password, token_hash, verify_password
 from .search import (
     SEARCHABLE_TYPES,
@@ -194,6 +211,36 @@ class BulkWorkflowPayload(BaseModel):
     items: list[BulkContentItem] = Field(min_length=1, max_length=100)
 
 
+class MigrationAuditPayload(BaseModel):
+    content_type: str | None = None
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    check_external: bool = True
+
+
+class MigrationBatchCreatePayload(BaseModel):
+    name: str = Field(min_length=1, max_length=180)
+    kind: Literal["priority", "archive"]
+    content_ids: list[str] = Field(min_length=1, max_length=50)
+    filters: dict[str, Any] = Field(default_factory=dict)
+    sample_rate: float = Field(default=0.1, gt=0, le=1)
+
+
+class MigrationBatchItemPayload(BaseModel):
+    version: int = Field(ge=1)
+    manual_reviewed: bool = False
+    disposition: Literal["pending", "accept", "archive", "trash"] = "pending"
+    warning_acknowledgements: dict[str, str] = Field(default_factory=dict)
+    note: str = Field(default="", max_length=2000)
+
+
+class MigrationBatchVersionPayload(BaseModel):
+    version: int = Field(ge=1)
+
+
+class MigrationBatchFinalizePayload(MigrationBatchVersionPayload):
+    warning_acknowledgements: dict[str, str] = Field(default_factory=dict)
+
+
 def load_schema(settings: Settings) -> dict:
     return json.loads(settings.schema_path.read_text(encoding="utf-8"))
 
@@ -287,12 +334,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             publication_scheduler(settings.database_path, media_dir=settings.media_dir)
         )
         submission_task = asyncio.create_task(submission_scheduler(settings))
+        acceptance_task = asyncio.create_task(acceptance_scheduler(settings))
         try:
             yield
         finally:
             scheduler_task.cancel()
             submission_task.cancel()
-            for task in (scheduler_task, submission_task):
+            acceptance_task.cancel()
+            for task in (scheduler_task, submission_task, acceptance_task):
                 with suppress(asyncio.CancelledError):
                     await task
 
@@ -388,6 +437,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(403, "Неверный CSRF-токен")
             return user
         return dependency
+
+    def acceptance_http_error(error: AcceptanceError) -> HTTPException:
+        return HTTPException(error.status_code, str(error))
 
     def content_or_404(connection: sqlite3.Connection, content_id: str) -> sqlite3.Row:
         row = connection.execute("SELECT * FROM contents WHERE id=?", (content_id,)).fetchone()
@@ -988,6 +1040,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: BulkWorkflowPayload,
         user: dict = Depends(require("editor", mutation=True)),
     ):
+        if payload.action == "review":
+            raise HTTPException(
+                409,
+                "Массовая отметка миграционных материалов отключена; используйте аудит и редакционную партию",
+            )
         if payload.action in {"archive", "publish"} and ROLE_LEVEL[user["role"]] < ROLE_LEVEL["publisher"]:
             raise HTTPException(403, "Только выпускающий редактор может публиковать и архивировать")
         ids = [item.id for item in payload.items]
@@ -999,15 +1056,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             for item in payload.items:
                 before = content_or_404(connection, item.id)
                 require_version(before, item.version)
-                if payload.action == "review":
-                    if not before["migration_review_required"]:
-                        raise HTTPException(409, f"Материал «{before['title']}» уже проверен")
-                    connection.execute(
-                        "UPDATE contents SET migration_review_required=0,updated_at=? WHERE id=?",
-                        (utc_now(), item.id),
-                    )
-                    audit_action = "migration_review"
-                elif payload.action == "archive":
+                if payload.action == "archive":
                     require_state(
                         before, {"draft", "in_review", "scheduled", "published"},
                         "массовое архивирование",
@@ -1162,21 +1211,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/admin/contents/{content_id}/review")
     def review_content(content_id: str, payload: VersionPayload, user: dict = Depends(require("editor", mutation=True))):
-        with transaction(settings.database_path) as connection:
+        with connect(settings.database_path) as connection:
             before = content_or_404(connection, content_id)
             require_version(before, payload.version)
-            if not before["migration_review_required"]:
-                return serialize_admin_content(before)
-            connection.execute(
-                "UPDATE contents SET migration_review_required=0,updated_at=? WHERE id=?",
-                (utc_now(), content_id),
-            )
-            row = connection.execute("SELECT * FROM contents WHERE id=?", (content_id,)).fetchone()
-            record_audit(
-                connection, content_id=content_id, actor_id=user["id"], action="migration_review",
-                before=before, after=row,
-            )
-        return serialize_admin_content(row)
+        if not before["migration_review_required"]:
+            return serialize_admin_content(before)
+        raise HTTPException(
+            409,
+            "Старая отметка проверки больше не снимает миграционный флаг; запустите аудит и включите материал в редакционную партию",
+        )
 
     @app.post("/api/admin/contents/{content_id}/submit-review")
     def submit_review(content_id: str, payload: VersionPayload, user: dict = Depends(require("editor", mutation=True))):
@@ -1732,7 +1775,195 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
             totals["reviewed"] = int(totals["contents"] or 0) - int(totals["review_required"] or 0)
         source = settings.legacy_crawl_path if settings.legacy_crawl_path and settings.legacy_crawl_path.exists() else settings.legacy_sections_path
-        return {"runs": runs, "totals": totals, "by_type": by_type, "review_by_type": review_by_type, "source": source.name}
+        acceptance = acceptance_summary(settings.database_path)
+        return {
+            "runs": runs,
+            "totals": totals,
+            "by_type": by_type,
+            "review_by_type": review_by_type,
+            "source": source.name,
+            "acceptance": acceptance,
+        }
+
+    @app.post("/api/admin/migration/audits", status_code=202)
+    def create_migration_audit(
+        payload: MigrationAuditPayload | None = None,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        payload = payload or MigrationAuditPayload()
+        scope = {
+            key: value for key, value in {
+                "content_type": TYPE_ALIASES.get(payload.content_type, payload.content_type)
+                if payload.content_type else None,
+                "year": payload.year,
+                "check_external": payload.check_external,
+            }.items() if value is not None
+        }
+        return queue_audit(settings.database_path, actor_id=user["id"], scope=scope)
+
+    @app.get("/api/admin/migration/audits/{run_id}")
+    def migration_audit(run_id: str, _: dict = Depends(require("viewer"))):
+        try:
+            return get_audit_run(settings.database_path, run_id)
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/contents/{content_id}/migration-audit")
+    async def audit_single_content(
+        content_id: str,
+        payload: MigrationAuditPayload | None = None,
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        payload = payload or MigrationAuditPayload()
+        with connect(settings.database_path) as connection:
+            content_or_404(connection, content_id)
+        run = queue_audit(
+            settings.database_path,
+            actor_id=user["id"],
+            scope={"content_id": content_id, "check_external": payload.check_external},
+        )
+        try:
+            return await asyncio.to_thread(
+                execute_audit_run,
+                settings.database_path,
+                settings.schema_path,
+                settings.media_dir,
+                settings.site_dir,
+                run["id"],
+                check_external=payload.check_external,
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.get("/api/admin/migration/issues")
+    def migration_issues(
+        severity: str | None = None,
+        code: str | None = None,
+        status: str | None = "open",
+        content_type: str | None = None,
+        year: int | None = Query(default=None, ge=1900, le=2100),
+        q: str = "",
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        try:
+            return list_issues(
+                settings.database_path,
+                severity=severity,
+                code=code,
+                status=status,
+                content_type=TYPE_ALIASES.get(content_type, content_type) if content_type else None,
+                year=year,
+                q=q,
+                limit=limit,
+                offset=offset,
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.get("/api/admin/migration/batches")
+    def migration_batches(status: str | None = None, _: dict = Depends(require("viewer"))):
+        return list_batches(settings.database_path, status=status)
+
+    @app.post("/api/admin/migration/batches", status_code=201)
+    def create_migration_batch(
+        payload: MigrationBatchCreatePayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        try:
+            return create_batch(
+                settings.database_path,
+                name=payload.name,
+                kind=payload.kind,
+                content_ids=payload.content_ids,
+                actor_id=user["id"],
+                filters=payload.filters,
+                sample_rate=payload.sample_rate,
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/batches/pilot", status_code=201)
+    def create_migration_pilot(user: dict = Depends(require("publisher", mutation=True))):
+        try:
+            return create_pilot_batch(settings.database_path, actor_id=user["id"])
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.get("/api/admin/migration/batches/{batch_id}")
+    def migration_batch(batch_id: str, _: dict = Depends(require("viewer"))):
+        try:
+            return get_batch(settings.database_path, batch_id)
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.patch("/api/admin/migration/batches/{batch_id}/items/{content_id}")
+    def migration_batch_item(
+        batch_id: str,
+        content_id: str,
+        payload: MigrationBatchItemPayload,
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        try:
+            return update_batch_item(
+                settings.database_path,
+                batch_id=batch_id,
+                content_id=content_id,
+                item_version=payload.version,
+                actor_id=user["id"],
+                manual_reviewed=payload.manual_reviewed,
+                disposition=payload.disposition,
+                warning_acknowledgements=payload.warning_acknowledgements,
+                note=payload.note,
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/batches/{batch_id}/submit")
+    def submit_migration_batch(
+        batch_id: str,
+        payload: MigrationBatchVersionPayload,
+        user: dict = Depends(require("editor", mutation=True)),
+    ):
+        try:
+            return submit_batch(
+                settings.database_path, batch_id=batch_id,
+                version=payload.version, actor_id=user["id"],
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/batches/{batch_id}/finalize")
+    def finalize_migration_batch(
+        batch_id: str,
+        payload: MigrationBatchFinalizePayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        try:
+            return finalize_batch(
+                settings.database_path,
+                batch_id=batch_id,
+                version=payload.version,
+                actor_id=user["id"],
+                warning_acknowledgements=payload.warning_acknowledgements,
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/batches/{batch_id}/cancel")
+    def cancel_migration_batch(
+        batch_id: str,
+        payload: MigrationBatchVersionPayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        try:
+            return cancel_batch(
+                settings.database_path, batch_id=batch_id,
+                version=payload.version, actor_id=user["id"],
+            )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
 
     @app.post("/api/admin/migration/import")
     def import_legacy(dry_run: bool = True, user: dict = Depends(require("admin", mutation=True))):

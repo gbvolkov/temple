@@ -107,7 +107,7 @@ def test_migration_8_backfill_verify_and_reindex_are_idempotent(tmp_path: Path) 
     assert settings.database_path.read_bytes() == before
     with sqlite3.connect(settings.database_path) as connection:
         connection.row_factory = sqlite3.Row
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 8
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 9
         assert "fts5" in connection.execute(
             "SELECT sql FROM sqlite_master WHERE name='content_search'"
         ).fetchone()[0].lower()

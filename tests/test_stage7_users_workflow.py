@@ -81,7 +81,7 @@ def test_user_workflow_migration_is_idempotent(tmp_path: Path) -> None:
         assert connection.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_events'"
         ).fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 8
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 9
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
@@ -172,8 +172,14 @@ def test_roles_and_atomic_bulk_workflow(tmp_path: Path) -> None:
             "/api/admin/content-bulk", headers=editor_headers,
             json={"action": "review", "items": [{"id": first["id"], "version": 1}, {"id": second["id"], "version": 1}]},
         )
-        assert reviewed.status_code == 200
-        assert reviewed.json()["updated"] == 2
+        assert reviewed.status_code == 409
+        with sqlite3.connect(settings.database_path) as connection:
+            # Stage 7's publication assertions continue from records that are
+            # already accepted; Stage 10 tests cover the acceptance workflow.
+            connection.execute(
+                "UPDATE contents SET migration_review_required=0 WHERE id IN (?,?)",
+                (first["id"], second["id"]),
+            )
 
         first = editor_client.post(
             f"/api/admin/contents/{first['id']}/submit-review", headers=editor_headers,
