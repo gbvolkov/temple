@@ -702,6 +702,62 @@ def apply_public_search(connection: sqlite3.Connection) -> str:
     return f"public FTS5 search created; indexed publications: {indexed}"
 
 
+MEDIA_REINDEX_JOBS_SQL = """
+CREATE TABLE media_reindex_jobs (
+  id TEXT PRIMARY KEY,
+  actor_id TEXT REFERENCES users(id),
+  singleton INTEGER NOT NULL DEFAULT 1 CHECK(singleton=1),
+  dry_run INTEGER NOT NULL DEFAULT 0 CHECK(dry_run IN (0,1)),
+  status TEXT NOT NULL CHECK(status IN ('queued','running','completed','failed')),
+  phase TEXT NOT NULL CHECK(phase IN ('queued','scanning','applying','usages','completed','failed')),
+  total_files INTEGER NOT NULL DEFAULT 0,
+  processed_files INTEGER NOT NULL DEFAULT 0,
+  ready INTEGER NOT NULL DEFAULT 0,
+  invalid INTEGER NOT NULL DEFAULT 0,
+  created INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  usages INTEGER NOT NULL DEFAULT 0,
+  missing_issues INTEGER NOT NULL DEFAULT 0,
+  error_count INTEGER NOT NULL DEFAULT 0,
+  errors_json TEXT NOT NULL DEFAULT '[]',
+  error TEXT,
+  created_at TEXT NOT NULL,
+  started_at TEXT,
+  updated_at TEXT NOT NULL,
+  finished_at TEXT
+);
+CREATE INDEX idx_media_reindex_jobs_created ON media_reindex_jobs(created_at DESC);
+CREATE UNIQUE INDEX idx_media_reindex_jobs_one_active ON media_reindex_jobs(singleton)
+  WHERE status IN ('queued','running');
+"""
+
+MEDIA_REINDEX_JOB_COLUMNS = {
+    "id", "actor_id", "singleton", "dry_run", "status", "phase", "total_files",
+    "processed_files", "ready", "invalid", "created", "updated", "usages",
+    "missing_issues", "error_count", "errors_json", "error", "created_at",
+    "started_at", "updated_at", "finished_at",
+}
+
+
+def validate_media_reindex_jobs_schema(connection: sqlite3.Connection) -> None:
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(media_reindex_jobs)")}
+    missing = MEDIA_REINDEX_JOB_COLUMNS - columns
+    if missing:
+        raise MigrationError("После миграции reindex jobs отсутствуют поля: " + ", ".join(sorted(missing)))
+    indexes = {row[1] for row in connection.execute("PRAGMA index_list(media_reindex_jobs)")}
+    expected = {"idx_media_reindex_jobs_created", "idx_media_reindex_jobs_one_active"}
+    if not expected <= indexes:
+        raise MigrationError("После миграции reindex jobs отсутствуют индексы: " + ", ".join(sorted(expected - indexes)))
+
+
+def apply_media_reindex_jobs(connection: sqlite3.Connection) -> str:
+    for statement in MEDIA_REINDEX_JOBS_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    validate_media_reindex_jobs_schema(connection)
+    return "durable media reindex job queue created"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -801,6 +857,16 @@ MIGRATIONS = (
             inspect.getsource(validate_acceptance_schema),
         )),
     ),
+    Migration(
+        10,
+        "media_reindex_jobs",
+        apply_media_reindex_jobs,
+        "\n".join((
+            MEDIA_REINDEX_JOBS_SQL,
+            repr(sorted(MEDIA_REINDEX_JOB_COLUMNS)),
+            inspect.getsource(validate_media_reindex_jobs_schema),
+        )),
+    ),
 )
 
 
@@ -882,6 +948,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_search_schema(connection)
             if any(item.get("version") == 9 and item["state"] == "applied" for item in status):
                 validate_acceptance_schema(connection)
+            if any(item.get("version") == 10 and item["state"] == "applied" for item in status):
+                validate_media_reindex_jobs_schema(connection)
         finally:
             connection.close()
     return status

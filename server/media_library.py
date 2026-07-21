@@ -12,7 +12,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO, Iterable
+from typing import Any, BinaryIO, Callable, Iterable
 
 import olefile
 import pypdfium2 as pdfium
@@ -490,6 +490,7 @@ def index_library(
     *,
     missing_report: Path | None = None,
     dry_run: bool = False,
+    progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     files = sorted(
         path for path in media_dir.rglob("*")
@@ -499,10 +500,12 @@ def index_library(
         "files": len(files), "ready": 0, "invalid": 0, "created": 0, "updated": 0,
         "errors": [], "usages": 0, "missing_issues": 0, "dry_run": dry_run,
     }
+    prepared: list[dict[str, Any]] = []
     connection = connect(database_path)
     try:
-        connection.execute("BEGIN IMMEDIATE")
-        for path in files:
+        if progress:
+            progress({**report, "phase": "scanning", "processed_files": 0, "total_files": len(files)})
+        for processed, path in enumerate(files, start=1):
             stored_name = path.relative_to(media_dir).as_posix()
             existing = connection.execute(
                 "SELECT id,source,original_name FROM media WHERE stored_name=?", (stored_name,)
@@ -522,30 +525,37 @@ def index_library(
                 report["invalid"] += 1
                 report["errors"].append({"url": media_url(stored_name), "error": error})
             if not dry_run:
-                _insert_or_update_media(
-                    connection,
-                    media_id=media_id,
-                    original_name=original_name,
-                    stored_name=stored_name,
-                    size_bytes=path.stat().st_size,
-                    sha256=digest,
-                    inspection=inspection,
-                    source=existing["source"] if existing and existing["source"] else "legacy",
-                    status=status,
-                    error=error,
-                )
+                prepared.append({
+                    "media_id": media_id,
+                    "original_name": original_name,
+                    "stored_name": stored_name,
+                    "size_bytes": path.stat().st_size,
+                    "sha256": digest,
+                    "inspection": inspection,
+                    "source": existing["source"] if existing and existing["source"] else "legacy",
+                    "status": status,
+                    "error": error,
+                })
             report["updated" if existing else "created"] += 1
+            if progress:
+                progress({**report, "phase": "scanning", "processed_files": processed, "total_files": len(files)})
         if not dry_run:
+            if progress:
+                progress({**report, "phase": "applying", "processed_files": len(files), "total_files": len(files)})
+            connection.execute("BEGIN IMMEDIATE")
+            for item in prepared:
+                _insert_or_update_media(connection, **item)
             report["missing_issues"] = import_missing_issues(connection, missing_report)
             connection.commit()
-        else:
-            connection.rollback()
     except Exception:
-        connection.rollback()
+        if connection.in_transaction:
+            connection.rollback()
         raise
     finally:
         connection.close()
     if not dry_run:
+        if progress:
+            progress({**report, "phase": "usages", "processed_files": len(files), "total_files": len(files)})
         report["usages"] = rebuild_usages(database_path)
     return report
 

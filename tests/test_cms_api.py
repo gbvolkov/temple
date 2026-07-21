@@ -691,3 +691,23 @@ def test_workflow_roles_and_invalid_transitions(tmp_path):
             f"/api/admin/contents/{item['id']}/archive",
             headers={"X-CSRF-Token": viewer_csrf}, json={"version": item["version"]},
         ).status_code == 403
+
+
+def test_admin_diagnostics_are_authenticated_and_safe(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        assert client.get("/api/admin/diagnostics").status_code == 401
+        login(client)
+        response = client.get("/api/admin/diagnostics")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] in {"ok", "warning", "error"}
+        assert set(payload) == {
+            "status", "generated_at", "application", "database", "search", "storage", "migration",
+        }
+        assert payload["database"]["quick_check"] == "ok"
+        assert payload["database"]["foreign_key_errors"] == 0
+        assert payload["storage"]["missing_originals"] == 0
+        assert payload["application"]["environment"] == "test"
+        serialized = response.text.lower()
+        assert "test-password" not in serialized
+        assert str(tmp_path).lower().replace("\\", "/") not in serialized.replace("\\", "/")

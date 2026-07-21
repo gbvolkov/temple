@@ -17,7 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "httpx>=0.28,<1",
+  "httpx2>=2.7,<3",
   "pytest>=8.3,<9",
 ]
 crawl = [
@@ -26,5 +26,5 @@ crawl = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not e2e'"
 pythonpath = ["."]

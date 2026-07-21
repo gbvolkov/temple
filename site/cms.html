@@ -15,7 +15,7 @@
   <header class="cms-topbar">
     <a class="cms-logo" href="{{ public_base_url }}/" aria-label="На сайт"><span>✣</span><strong>Редактор сайта</strong></a>
     <div class="cms-topbar__center"><span class="status-dot"></span><span data-save-status>Проверяем подключение к CMS…</span></div>
-    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="{{ public_base_url }}/" target="_blank" rel="noopener">Открыть сайт ↗</a><button class="button button--ghost button--compact" type="button" data-open-profile>Пароль</button><button class="button button--ghost button--compact" type="button" data-logout>Выйти</button><button class="button button--primary button--compact" type="button" data-save-draft>Сохранить</button></div>
+    <div class="cms-topbar__actions"><a class="button button--ghost button--compact" href="{{ public_base_url }}/" target="_blank" rel="noopener">Открыть сайт ↗</a><button class="button button--primary button--compact" type="button" data-login-open hidden>Войти</button><button class="button button--ghost button--compact" type="button" data-open-profile>Пароль</button><button class="button button--ghost button--compact" type="button" data-logout>Выйти</button><button class="button button--primary button--compact" type="button" data-save-draft>Сохранить</button></div>
   </header>
   <div class="cms-shell">
     <aside class="cms-sidebar" aria-label="Типы материалов">
@@ -31,22 +31,27 @@
         <button class="cms-type" type="button" data-panel="settings"><span>⚙</span> Настройки</button>
       </nav>
       <div class="cms-user"><div class="cms-user__avatar">Р</div><div><strong>Редактор</strong><small>Контент и публикации</small></div></div>
+      <div class="cms-mobile-account" data-mobile-account><button class="button button--ghost button--compact" type="button" data-mobile-open-profile>Сменить пароль</button><button class="button button--ghost button--compact" type="button" data-mobile-logout>Выйти</button></div>
     </aside>
-    <main class="cms-main" id="editor">
+    <main class="cms-main" id="editor" tabindex="-1">
       <div class="cms-mobile-head"><button class="cms-mobile-menu" type="button" data-cms-menu>☰</button><strong data-mobile-title>Новости и анонсы</strong></div>
       <section class="editor-pane" data-editor-pane>
-        <div class="content-picker" data-content-picker hidden><label>Найти материал<input type="search" data-content-search placeholder="Название или старый URL" autocomplete="off"></label><label>Открыть существующий материал<select data-content-select><option value="">Новый материал</option></select></label><label class="review-filter"><input type="checkbox" data-review-only> Только требующие проверки</label><span data-content-count></span></div>
+        <div class="content-picker" data-content-picker hidden><label>Найти материал<input type="search" data-content-search placeholder="Название или старый URL" autocomplete="off"></label><label>Открыть существующий материал<select data-content-select><option value="">Новый материал</option></select></label><label class="review-filter"><input type="checkbox" data-review-only> Только требующие проверки</label><div class="content-picker__pagination"><span data-content-count></span><button class="button button--ghost button--compact" type="button" data-content-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-content-next>Дальше →</button></div><small class="content-picker__hint" data-content-limit-hint hidden>Показана текущая страница. Используйте поиск, чтобы найти остальные материалы.</small></div>
         <div class="editor-head"><div><div class="eyebrow">Новый материал</div><h1 data-editor-title>Новая новость</h1><p data-editor-help>Заполните понятные поля — технические настройки CMS скрыты.</p></div><div class="editor-head__status"><span>Черновик</span></div></div>
         <section class="workflow-card" data-workflow-card hidden><div><div class="eyebrow">Публикация</div><strong data-workflow-state>Черновик</strong><small data-workflow-note></small></div><div class="workflow-actions" data-workflow-actions></div></section>
+        <section class="readiness-errors" data-readiness-errors role="alert" aria-live="assertive" hidden></section>
         <form class="editor-form" data-editor-form autocomplete="off"></form>
       </section>
       <aside class="preview-pane" data-preview-pane>
-        <div class="preview-head"><div><strong>Предпросмотр</strong><small>Обновляется автоматически</small></div><div class="preview-switch" role="group" aria-label="Размер предпросмотра"><button class="is-active" type="button" data-preview-size="desktop" aria-label="Предпросмотр на ПК">ПК</button><button type="button" data-preview-size="mobile" aria-label="Предпросмотр на смартфоне">Телефон</button></div></div>
+        <div class="preview-head"><div><strong>Предпросмотр</strong><small data-preview-message aria-live="polite">Обновляется автоматически</small></div><div class="preview-switch" role="group" aria-label="Размер предпросмотра"><button class="is-active" type="button" data-preview-size="desktop" aria-label="Предпросмотр на ПК">ПК</button><button type="button" data-preview-size="mobile" aria-label="Предпросмотр на смартфоне">Телефон</button></div></div>
         <div class="preview-stage"><iframe class="content-preview" data-content-preview title="Точный предпросмотр публичной страницы" sandbox="allow-scripts"></iframe></div>
       </aside>
       <section class="cms-panel" data-cms-panel hidden></section>
     </main>
   </div>
+  <dialog class="modal account-dialog" data-unsaved-dialog aria-labelledby="unsaved-title">
+    <div class="modal__surface account-form"><div class="eyebrow">Несохранённые изменения</div><h2 id="unsaved-title">Что сделать с текущей работой?</h2><p>Переход закроет текущий редактор. Выберите, сохранить изменения или остаться.</p><p class="form-error" data-unsaved-error role="alert"></p><div class="form-actions"><button class="button button--ghost" type="button" data-unsaved-stay>Остаться</button><button class="button button--danger" type="button" data-unsaved-discard>Не сохранять</button><button class="button button--primary" type="button" data-unsaved-save>Сохранить и продолжить</button></div></div>
+  </dialog>
   <dialog class="modal publish-dialog" data-publish-dialog aria-labelledby="publish-title">
     <div class="modal__surface"><button class="modal__close" type="button" aria-label="Закрыть" data-publish-close>×</button><div class="eyebrow">Проверка перед публикацией</div><h2 id="publish-title">Материал готов?</h2><div class="publish-checklist"><label><input type="checkbox" checked> Заголовок и дата проверены</label><label><input type="checkbox" checked> Предпросмотр на ПК просмотрен</label><label><input type="checkbox" checked> Предпросмотр на смартфоне просмотрен</label><label><input type="checkbox"> Alt-текст изображения заполнен</label></div><p data-publish-note>Материал будет опубликован на новом сайте. Старый MODX при этом не изменяется.</p><div class="form-actions"><button class="button button--ghost" type="button" data-publish-close>Вернуться</button><button class="button button--primary" type="button" data-publish-confirm>Подтвердить публикацию</button></div></div>
   </dialog>
@@ -94,7 +99,7 @@
     <form class="modal__surface account-form" data-user-create-form>
       <button class="modal__close" type="button" aria-label="Закрыть" data-user-create-close>×</button>
       <div class="eyebrow">Новая учётная запись</div><h2 id="user-create-title">Создать пользователя</h2>
-      <label class="field">Имя пользователя<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,79}" autocomplete="off" required></label>
+      <label class="field">Имя пользователя<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,79}" autocomplete="off" required></label>
       <label class="field">Временный пароль<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label>
       <label class="field">Роль<select name="role"><option value="viewer">Наблюдатель</option><option value="editor">Редактор</option><option value="publisher">Выпускающий</option><option value="admin">Администратор</option></select></label>
       <p class="form-error" data-user-create-error role="alert"></p>

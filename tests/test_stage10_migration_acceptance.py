@@ -100,7 +100,7 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
             table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("contents", "revisions", "users", "media", "redirects", "submissions")
         }
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 9
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 10
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:
@@ -144,6 +144,9 @@ def test_audit_rules_repeat_without_content_changes_and_old_bypass_is_closed(tmp
         issues = client.get(f"/api/admin/migration/issues?q={item['title']}").json()["items"]
         codes = {issue["code"] for issue in issues}
         assert {"fallback_date_2000", "required_field_missing", "legacy_text", "legacy_navigation_text"} <= codes
+        code_search = client.get("/api/admin/migration/issues?q=required_field_missing&severity=blocker").json()
+        assert code_search["total"] >= 1
+        assert {issue["code"] for issue in code_search["items"]} == {"required_field_missing"}
         assert next(issue for issue in issues if issue["code"] == "fallback_date_2000")["severity"] == "blocker"
         with sqlite3.connect(settings.database_path) as connection:
             assert connection.execute(

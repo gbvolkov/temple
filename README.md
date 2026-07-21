@@ -93,6 +93,30 @@ node --check site/app.js
 node --check site/cms.js
 ```
 
+### Постоянная Playwright-регрессия CMS
+
+Браузерные тесты всегда создают отдельные БД и медиатеку. Функциональные профили не используют `data/`. Профиль реальных данных принимает пути явно, открывает источник read-only и выполняет миграции только на SQLite backup-копии.
+
+```powershell
+uv sync --group dev --group crawl
+uv run playwright install chromium
+
+# Короткая обязательная проверка
+uv run python scripts/run_cms_regression.py --profile smoke
+
+# Полный автономный набор, включая реестр функциональных регрессий
+uv run python scripts/run_cms_regression.py --profile full
+
+# Проверка копирования и миграции текущих runtime-данных без изменения источника
+uv run python scripts/run_cms_regression.py --profile source-data `
+  --source-db data/cms.sqlite3 `
+  --source-media data/media
+```
+
+Артефакты сохраняются в `output/playwright/cms-regression/<UTC timestamp>/`. Неожиданное изменение поведения открытого дефекта, `XPASS`, повреждение baseline или изменение source-data завершают прогон с ошибкой. Для визуальной диагностики доступен параметр `--headed`.
+
+Фактическое автоматизированное покрытие перечислено assertion-by-assertion в `tests/e2e/coverage.json`. Все функциональные группы исходного 111-шагового аудита перенесены в постоянную регрессию; `known_gaps` пуст. Все зарегистрированные `CMS-01`–`CMS-17` теперь проверяются как положительные регрессии; функциональных `XFAIL` в full-профиле нет. Source-data профиль отдельно сохраняет ожидаемые `XFAIL` для трёх нерешённых расхождений миграционных данных. Результаты ревью тестов описаны в `outputs/cms-test-suite-review.md`.
+
 ## Публикация и рабочие версии
 
 CMS хранит рабочую и опубликованную ревизии раздельно. Сохранение изменений

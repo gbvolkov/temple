@@ -966,9 +966,9 @@ def list_issues(
         where.append("c.data_json LIKE ?")
         params.append(f"%{year:04d}%")
     if q.strip():
-        where.append("(c.title LIKE ? OR COALESCE(c.legacy_url,'') LIKE ? OR i.message LIKE ?)")
+        where.append("(c.title LIKE ? OR COALESCE(c.legacy_url,'') LIKE ? OR i.message LIKE ? OR i.code LIKE ?)")
         term = f"%{q.strip()}%"
-        params.extend((term, term, term))
+        params.extend((term, term, term, term))
     clause = " AND ".join(where)
     with connect(database_path) as connection:
         total = connection.execute(

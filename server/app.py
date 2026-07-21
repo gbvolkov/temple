@@ -10,6 +10,7 @@ import sqlite3
 import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import unquote
@@ -21,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from .config import Settings
+from .baseline import database_report, media_summary
 from .content_blocks import ContentDataError, EDITABLE_RELATION_TYPES, prepare_content_data
 from .db import connect, init_database, row_to_content, slugify, transaction, utc_now
 from .full_import import build_full_plan, execute_plan
@@ -28,7 +30,6 @@ from .importer import media_mapping, run_import
 from .media_library import (
     MediaError,
     ensure_derivative,
-    index_library,
     media_reference_problems,
     media_row,
     rebuild_usages,
@@ -37,6 +38,13 @@ from .media_library import (
     resolve_media_path,
     serialize_media,
     store_upload,
+)
+from .media_reindex import (
+    MediaReindexError,
+    get_job as get_media_reindex_job,
+    latest_job as latest_media_reindex_job,
+    media_reindex_scheduler,
+    queue_job as queue_media_reindex_job,
 )
 from .migration_acceptance import (
     AcceptanceError,
@@ -61,6 +69,7 @@ from .search import (
     TYPE_LABELS as SEARCH_TYPE_LABELS,
     SearchError,
     reconcile_search_index,
+    search_index_problems,
     search_public,
     sync_content_search,
 )
@@ -335,13 +344,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         submission_task = asyncio.create_task(submission_scheduler(settings))
         acceptance_task = asyncio.create_task(acceptance_scheduler(settings))
+        media_reindex_task = asyncio.create_task(media_reindex_scheduler(settings))
         try:
             yield
         finally:
             scheduler_task.cancel()
             submission_task.cancel()
             acceptance_task.cancel()
-            for task in (scheduler_task, submission_task, acceptance_task):
+            media_reindex_task.cancel()
+            for task in (scheduler_task, submission_task, acceptance_task, media_reindex_task):
                 with suppress(asyncio.CancelledError):
                     await task
 
@@ -440,6 +451,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def acceptance_http_error(error: AcceptanceError) -> HTTPException:
         return HTTPException(error.status_code, str(error))
+
+    def media_reindex_http_error(error: MediaReindexError) -> HTTPException:
+        detail: str | dict[str, Any] = str(error)
+        if error.active_job_id:
+            detail = {"message": str(error), "active_job_id": error.active_job_id}
+        return HTTPException(error.status_code, detail)
 
     def content_or_404(connection: sqlite3.Connection, content_id: str) -> sqlite3.Row:
         row = connection.execute("SELECT * FROM contents WHERE id=?", (content_id,)).fetchone()
@@ -1663,18 +1680,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         shutil.rmtree(settings.derivatives_dir / media_id, ignore_errors=True)
         return Response(status_code=204)
 
-    @app.post("/api/admin/media/reindex")
-    async def reindex_media(
+    @app.post("/api/admin/media/reindex", status_code=202)
+    def reindex_media(
         dry_run: bool = True,
-        _: dict = Depends(require("admin", mutation=True)),
+        user: dict = Depends(require("admin", mutation=True)),
     ):
-        return await asyncio.to_thread(
-            index_library,
-            settings.database_path,
-            settings.media_dir,
-            missing_report=settings.root / "outputs" / "missing-legacy-media.csv",
-            dry_run=dry_run,
-        )
+        try:
+            return queue_media_reindex_job(
+                settings.database_path, actor_id=user["id"], dry_run=dry_run
+            )
+        except MediaReindexError as error:
+            raise media_reindex_http_error(error) from error
+
+    @app.get("/api/admin/media-reindex")
+    def reindex_media_latest(_: dict = Depends(require("viewer"))):
+        return {"item": latest_media_reindex_job(settings.database_path)}
+
+    @app.get("/api/admin/media-reindex/{job_id}")
+    def reindex_media_status(job_id: str, _: dict = Depends(require("viewer"))):
+        try:
+            return get_media_reindex_job(settings.database_path, job_id)
+        except MediaReindexError as error:
+            raise media_reindex_http_error(error) from error
 
     @app.get("/api/admin/media-issues")
     def list_media_issues(
@@ -1744,6 +1771,71 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 {"issue_id": issue_id, "source_url": current["source_url"]},
             )
         return {"media": item, "deduplicated": deduplicated, "issue_id": issue_id}
+
+    @app.get("/api/admin/diagnostics")
+    def diagnostics(_: dict = Depends(require("viewer"))):
+        database = database_report(settings.database_path)
+        storage_files = media_summary(settings.media_dir)
+        with connect(settings.database_path) as connection:
+            indexed_documents = int(connection.execute("SELECT COUNT(*) FROM content_search").fetchone()[0])
+            index_problems = search_index_problems(connection)
+            media_records = int(connection.execute("SELECT COUNT(*) FROM media").fetchone()[0])
+            invalid_media = int(connection.execute("SELECT COUNT(*) FROM media WHERE status!='ready'").fetchone()[0])
+            missing_originals = sum(
+                not resolve_media_path(settings.media_dir, row["stored_name"]).is_file()
+                for row in connection.execute("SELECT stored_name FROM media WHERE status='ready'")
+            )
+            migration_row = connection.execute(
+                "SELECT status FROM migration_runs ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+            audit_row = connection.execute(
+                "SELECT status FROM migration_audit_runs ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+            contents = int(connection.execute("SELECT COUNT(*) FROM contents").fetchone()[0])
+            review_required = int(connection.execute(
+                "SELECT COUNT(*) FROM contents WHERE migration_review_required=1"
+            ).fetchone()[0])
+        database_status = "ok" if database["quick_check"] == ["ok"] and not database["foreign_key_error_count"] else "error"
+        search_status = "ok" if not index_problems else "warning"
+        storage_status = "ok" if not invalid_media and not missing_originals else "error"
+        migration_state = "ok" if not review_required else "warning"
+        component_statuses = (database_status, search_status, storage_status, migration_state)
+        overall = "error" if "error" in component_statuses else "warning" if "warning" in component_statuses else "ok"
+        try:
+            application_version = package_version("sv-innokenty-cms")
+        except PackageNotFoundError:
+            application_version = "development"
+        return {
+            "status": overall,
+            "generated_at": utc_now(),
+            "application": {
+                "status": "ok", "version": application_version,
+                "environment": settings.environment,
+                "content_schema_version": schema["schema_version"],
+            },
+            "database": {
+                "status": database_status, "schema_version": database["schema_version"],
+                "size_bytes": database["size_bytes"],
+                "quick_check": ", ".join(database["quick_check"]),
+                "foreign_key_errors": database["foreign_key_error_count"],
+                "counts": database["metrics"],
+            },
+            "search": {
+                "status": search_status, "indexed_documents": indexed_documents,
+                "problem_count": len(index_problems),
+            },
+            "storage": {
+                "status": storage_status, "media_records": media_records,
+                "physical_files": storage_files["files"], "size_bytes": storage_files["size_bytes"],
+                "invalid_records": invalid_media, "missing_originals": missing_originals,
+            },
+            "migration": {
+                "status": migration_state, "contents": contents,
+                "review_required": review_required,
+                "latest_import_status": migration_row["status"] if migration_row else None,
+                "latest_audit_status": audit_row["status"] if audit_row else None,
+            },
+        }
 
     @app.get("/api/admin/migration")
     def migration_status(_: dict = Depends(require("viewer"))):

@@ -8,6 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import av
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -15,6 +16,13 @@ from server.app import create_app
 from server.config import Settings
 from server.db import init_database
 from server.media_library import index_library
+from server.media_reindex import (
+    MediaReindexError,
+    execute_next_job,
+    get_job,
+    queue_job,
+    recover_interrupted_jobs,
+)
 from server.security import hash_password
 
 
@@ -107,11 +115,82 @@ def test_media_migration_is_idempotent_and_preserves_existing_rows(tmp_path: Pat
         assert "missing_media_issues" in {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 9
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 10
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 9
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 10
+
+
+def test_reindex_job_is_durable_exclusive_and_reports_progress(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    settings.media_dir.mkdir(parents=True)
+    (settings.media_dir / "job-photo.jpg").write_bytes(image_bytes())
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.execute(
+            "INSERT INTO users(id,username,password_hash,role,is_active,created_at) VALUES('job-admin','job-admin',?,'admin',1,'now')",
+            (hash_password("job-password"),),
+        )
+        actor_id = connection.execute("SELECT id FROM users WHERE username='job-admin'").fetchone()[0]
+    queued = queue_job(settings.database_path, actor_id=actor_id)
+    assert queued["status"] == queued["phase"] == "queued"
+    with pytest.raises(MediaReindexError) as conflict:
+        queue_job(settings.database_path, actor_id=actor_id)
+    assert conflict.value.status_code == 409
+    assert conflict.value.active_job_id == queued["id"]
+
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.execute(
+            "UPDATE media_reindex_jobs SET status='running',phase='scanning' WHERE id=?",
+            (queued["id"],),
+        )
+    assert recover_interrupted_jobs(settings.database_path) == 1
+    assert get_job(settings.database_path, queued["id"])["status"] == "queued"
+
+    completed = execute_next_job(settings)
+    assert completed and completed["status"] == completed["phase"] == "completed"
+    assert completed["processed_files"] == completed["total_files"] == 1
+    assert completed["percent"] == 100
+    assert completed["ready"] == 1
+    assert completed["error_count"] == 0
+
+
+def test_reindex_job_failure_is_safe_and_retryable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.execute(
+            "INSERT INTO users(id,username,password_hash,role,is_active,created_at) VALUES('job-admin','job-admin',?,'admin',1,'now')",
+            (hash_password("job-password"),),
+        )
+        actor_id = connection.execute("SELECT id FROM users WHERE username='job-admin'").fetchone()[0]
+    queued = queue_job(settings.database_path, actor_id=actor_id)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError(str(settings.root / "private" / "failure.txt"))
+
+    monkeypatch.setattr("server.media_reindex.index_library", fail)
+    failed = execute_next_job(settings)
+    assert failed and failed["status"] == failed["phase"] == "failed"
+    assert str(settings.root) not in failed["error"]
+    retry = queue_job(settings.database_path, actor_id=actor_id)
+    assert retry["id"] != queued["id"]
+
+
+def test_reindex_api_requires_admin_and_returns_job_contract(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/api/admin/media-reindex").status_code == 401
+        headers = login(client)
+        response = client.post("/api/admin/media/reindex?dry_run=true", headers=headers)
+        assert response.status_code == 202
+        job = response.json()
+        assert job["status"] in {"queued", "running", "completed"}
+        assert {"id", "phase", "processed_files", "total_files", "percent", "errors"} <= set(job)
+        latest = client.get("/api/admin/media-reindex")
+        assert latest.status_code == 200
+        assert latest.json()["item"]["id"] == job["id"]
 
 
 def test_upload_validates_bytes_deduplicates_and_builds_derivatives(tmp_path: Path) -> None:

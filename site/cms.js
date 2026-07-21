@@ -9,7 +9,7 @@
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", migration_accept: "Принят после миграции", migration_archive: "Архивирован при приёмке", migration_trash: "Перемещён в корзину при приёмке", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files" }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -24,7 +24,8 @@
     document.querySelector(".cms-user__avatar").textContent = (user?.username || "?").slice(0, 1).toUpperCase();
     document.querySelectorAll("[data-admin-only]").forEach(element => { element.hidden = !can("admin"); });
     document.querySelectorAll("[data-publisher-only]").forEach(element => { element.hidden = !can("publisher"); });
-    document.querySelectorAll("[data-open-profile],[data-logout]").forEach(element => { element.hidden = !user; });
+    document.querySelectorAll("[data-open-profile],[data-logout],[data-mobile-open-profile],[data-mobile-logout]").forEach(element => { element.hidden = !user; });
+    document.querySelectorAll("[data-login-open]").forEach(element => { element.hidden = Boolean(user); });
   }
 
   async function apiRequest(path, options = {}, responseType = "json") {
@@ -32,17 +33,16 @@
     if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
     if (state.csrf && !["GET", "HEAD"].includes(options.method || "GET")) headers["X-CSRF-Token"] = state.csrf;
     const response = await fetch(path, { credentials: "same-origin", ...options, headers });
-    if (responseType === "text") {
-      const text = await response.text();
-      if (!response.ok) throw new Error(text || `Ошибка CMS (${response.status})`);
-      return text;
-    }
-    const body = await response.json().catch(() => ({}));
+    const text = await response.text();
+    const body = responseType === "text" && response.ok ? text : (() => { try { return JSON.parse(text || "{}"); } catch { return {}; } })();
     if (!response.ok) {
       const detail = body.detail;
       const message = typeof detail === "string" ? detail : detail?.message || `Ошибка CMS (${response.status})`;
       const fields = detail?.fields?.length ? `: ${detail.fields.join(", ")}` : "";
-      throw new Error(message + fields);
+      if (response.status === 401 && ["Требуется вход в CMS", "Сессия истекла"].includes(message)) enterUnauthenticatedState(message);
+      const error = new Error(message + fields);
+      error.status = response.status;
+      throw error;
     }
     return body;
   }
@@ -53,6 +53,44 @@
     element.classList.add("is-visible");
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => element.classList.remove("is-visible"), 3000);
+  }
+
+  function enterUnauthenticatedState(message = "Сессия истекла") {
+    if (!state.user && state.reauthenticating) return;
+    state.user = null; state.csrf = ""; state.list = []; state.reauthenticating = true;
+    updateSessionUi(); updateEditableState();
+    document.querySelector("[data-content-picker]").hidden = true;
+    document.querySelector("[data-content-count]").textContent = "0 из 0";
+    document.querySelector("[data-save-status]").textContent = state.dirty ? "Сессия истекла · изменения сохранены локально" : "Требуется повторный вход";
+    const loginDialog = document.querySelector("[data-login-dialog]");
+    document.querySelector("[data-login-error]").textContent = state.dirty ? `${message}. Несохранённые изменения сохранены в редакторе.` : message;
+    if (!loginDialog.open) loginDialog.showModal();
+  }
+
+  function guardUnsavedChanges(continuation) {
+    if (!state.dirty) return Promise.resolve(continuation());
+    if (state.pendingNavigation) return Promise.resolve(false);
+    state.pendingNavigation = continuation;
+    document.querySelector("[data-unsaved-error]").textContent = "";
+    document.querySelector("[data-unsaved-dialog]").showModal();
+    return Promise.resolve(false);
+  }
+
+  async function resolveUnsavedChanges(action) {
+    const dialog = document.querySelector("[data-unsaved-dialog]");
+    const continuation = state.pendingNavigation;
+    if (!continuation) { if (dialog.open) dialog.close(); return; }
+    if (action === "stay") { state.pendingNavigation = null; dialog.close(); return; }
+    if (action === "save") {
+      const button = dialog.querySelector("[data-unsaved-save]");
+      button.disabled = true;
+      try { await saveDraft(); }
+      catch (error) { document.querySelector("[data-unsaved-error]").textContent = error.message; button.disabled = false; return; }
+      button.disabled = false;
+    } else state.dirty = false;
+    state.pendingNavigation = null;
+    dialog.close();
+    await continuation();
   }
 
   function formatDate(value, withTime = true) {
@@ -309,9 +347,10 @@
       const renderer = fieldRenderers[field.type] || fieldRenderers.string;
       groups.get(group).push(renderer(name, field, value));
     }
-    editorForm.innerHTML = [...groups.entries()].map(([group, fields]) => `<section class="field-card"><h2>${escapeHtml(state.schema.ui.groups[group] || group)}</h2><div class="schema-fields">${fields.join("")}</div></section>`).join("") + `<div class="form-footer"><span class="field-help">Сохранение создаёт новую рабочую версию только при изменении содержимого.</span><button class="button button--primary" type="button" data-save-draft>Сохранить</button></div>`;
+    editorForm.innerHTML = [...groups.entries()].map(([group, fields]) => `<section class="field-card"><h2>${escapeHtml(state.schema.ui.groups[group] || group)}</h2><div class="schema-fields">${fields.join("")}</div></section>`).join("") + `<div class="form-footer"><span class="draft-readiness-note">Поля со * обязательны для отправки на проверку и публикации. Неполный черновик можно сохранить.</span><button class="button button--primary" type="button" data-save-draft>Сохранить</button></div>`;
     initializeFields(record);
-    state.dirty = !record;
+    state.dirty = false;
+    clearRequiredValidation();
     renderMigrationWarning(record);
     renderWorkflow();
     updateEditableState();
@@ -432,6 +471,45 @@
     return { content_id: state.current?.id || null, content_type: state.currentType, title: title || item.title, slug: state.current?.slug || null, data };
   }
 
+  function clearRequiredValidation() {
+    const summary = document.querySelector("[data-readiness-errors]");
+    summary.hidden = true; summary.innerHTML = "";
+    editorForm.querySelectorAll(".schema-field.has-validation-error").forEach(wrapper => {
+      wrapper.classList.remove("has-validation-error");
+      wrapper.querySelectorAll("input,textarea,select,[contenteditable]").forEach(control => control.removeAttribute("aria-invalid"));
+    });
+  }
+
+  function missingRequiredFields(payload = editorPayload()) {
+    const fields = definition().fields || {};
+    return Object.entries(fields).filter(([name, field]) => {
+      if (!field.required) return false;
+      const wrapper = editorForm.querySelector(`[data-schema-field="${CSS.escape(name)}"]`);
+      const value = name === "title" ? serializeField(wrapper, field) : payload.data?.[name];
+      return value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
+    }).map(([name, field]) => ({ name, label: field.label || name }));
+  }
+
+  function showRequiredValidation(missing) {
+    clearRequiredValidation();
+    if (!missing.length) return true;
+    const summary = document.querySelector("[data-readiness-errors]");
+    summary.innerHTML = `<h2>Материал пока нельзя отправить</h2><p>Неполный черновик можно сохранить. Для смены статуса заполните:</p><ul>${missing.map(field => `<li><button type="button" data-required-field="${escapeHtml(field.name)}">${escapeHtml(field.label)}</button></li>`).join("")}</ul>`;
+    summary.hidden = false;
+    for (const field of missing) {
+      const wrapper = editorForm.querySelector(`[data-schema-field="${CSS.escape(field.name)}"]`);
+      wrapper?.classList.add("has-validation-error");
+      wrapper?.querySelectorAll("input,textarea,select,[contenteditable]").forEach(control => control.setAttribute("aria-invalid", "true"));
+    }
+    summary.focus?.();
+    const first = editorForm.querySelector(`[data-schema-field="${CSS.escape(missing[0].name)}"]`);
+    (first?.querySelector("input,textarea,select,[contenteditable],button") || first)?.focus();
+    first?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return false;
+  }
+
+  function ensureWorkflowReady() { return showRequiredValidation(missingRequiredFields()); }
+
   async function saveDraft() {
     if (!can("editor")) throw new Error("Недостаточно прав для сохранения");
     const payload = editorPayload();
@@ -447,15 +525,47 @@
 
   async function loadContentList() {
     if (!state.user) return;
+    state.contentList.abort?.abort();
+    const controller = new AbortController();
+    state.contentList.abort = controller;
+    const requestId = ++state.contentList.requestId;
     const query = document.querySelector("[data-content-search]").value.trim();
     const review = document.querySelector("[data-review-only]").checked ? "&review_required=true" : "";
-    const result = await apiRequest(`/api/admin/content-index?content_type=${encodeURIComponent(state.currentType)}&limit=100&q=${encodeURIComponent(query)}${review}`);
+    let result;
+    try {
+      result = await apiRequest(`/api/admin/content-index?content_type=${encodeURIComponent(state.currentType)}&limit=${state.contentList.limit}&offset=${state.contentList.offset}&q=${encodeURIComponent(query)}${review}`, { signal: controller.signal });
+    } catch (error) {
+      if (error.name === "AbortError") return false;
+      throw error;
+    }
+    if (requestId !== state.contentList.requestId) return false;
     state.list = result.items;
+    state.contentList.total = result.total;
     const select = document.querySelector("[data-content-select]");
     select.innerHTML = `<option value="">Новый материал</option>${state.list.map(item => `<option value="${escapeHtml(item.id)}">${item.is_public ? "●" : item.migration_review_required ? "!" : "○"} ${escapeHtml(item.title)} · ${escapeHtml(statusLabels[item.status] || item.status)} v${item.version}</option>`).join("")}`;
     if (state.current) select.value = state.current.id;
     document.querySelector("[data-content-picker]").hidden = false;
-    document.querySelector("[data-content-count]").textContent = `${state.list.length} из ${result.total}`;
+    const start = result.total ? state.contentList.offset + 1 : 0;
+    const end = Math.min(state.contentList.offset + state.list.length, result.total);
+    document.querySelector("[data-content-count]").textContent = `${start}–${end} из ${result.total}`;
+    document.querySelector("[data-content-prev]").disabled = state.contentList.offset === 0;
+    document.querySelector("[data-content-next]").disabled = state.contentList.offset + state.list.length >= result.total;
+    document.querySelector("[data-content-limit-hint]").hidden = result.total <= state.contentList.limit;
+    return true;
+  }
+
+  function resetContentPicker() {
+    document.querySelector("[data-content-search]").value = "";
+    document.querySelector("[data-review-only]").checked = false;
+    const select = document.querySelector("[data-content-select]");
+    select.innerHTML = '<option value="">Новый материал</option>';
+    select.value = "";
+    state.list = [];
+    state.contentList.offset = 0; state.contentList.total = 0;
+    document.querySelector("[data-content-count]").textContent = "0 из 0";
+    document.querySelector("[data-content-prev]").disabled = true;
+    document.querySelector("[data-content-next]").disabled = true;
+    document.querySelector("[data-content-limit-hint]").hidden = true;
   }
 
   async function openRecord(id) {
@@ -470,6 +580,44 @@
   function schedulePreview() {
     clearTimeout(state.previewTimer);
     state.previewTimer = setTimeout(updatePreview, 450);
+  }
+
+  function clearPreviewValidation() {
+    editorForm.querySelectorAll("[data-block-id]").forEach(card => {
+      card.classList.remove("has-validation-error");
+      card.removeAttribute("aria-invalid");
+      card.querySelector("[data-block-validation]")?.remove();
+    });
+  }
+
+  function validatePreviewPayload(payload) {
+    const errors = [];
+    const internalMediaUrl = value => /^\/(?:media|assets)\//.test(String(value || "").trim());
+    const httpsUrl = value => { try { return new URL(String(value || "")).protocol === "https:"; } catch { return false; } };
+    for (const value of Object.values(payload.data || {})) {
+      if (!Array.isArray(value)) continue;
+      for (const block of value.filter(item => item && typeof item === "object" && item.id && item.type)) {
+        const data = block.data || {};
+        let message = "";
+        if (block.type === "image" && (!internalMediaUrl(data.image) || !String(data.alt || "").trim())) message = "Выберите изображение и заполните alt-текст.";
+        if (block.type === "gallery" && (!Array.isArray(data.items) || !data.items.length || data.items.some(item => !internalMediaUrl(item.image) || !String(item.alt || "").trim()))) message = "Добавьте изображения и заполните alt-текст для каждого элемента галереи.";
+        if (block.type === "video" && !httpsUrl(data.url)) message = "Укажите корректную HTTPS-ссылку на видео.";
+        if (block.type === "file" && (!internalMediaUrl(data.url) || !String(data.label || "").trim())) message = "Выберите файл и укажите его название.";
+        if (message) errors.push({ id: block.id, message });
+      }
+    }
+    return errors;
+  }
+
+  function renderPreviewValidation(errors) {
+    clearPreviewValidation();
+    for (const error of errors) {
+      const card = editorForm.querySelector(`[data-block-id="${CSS.escape(error.id)}"]`);
+      if (!card) continue;
+      card.classList.add("has-validation-error");
+      card.setAttribute("aria-invalid", "true");
+      card.querySelector(".block-card__body")?.insertAdjacentHTML("beforeend", `<p class="block-validation-error" data-block-validation role="alert">${escapeHtml(error.message)}</p>`);
+    }
   }
 
   function applyPreviewSize(size = state.previewSize) {
@@ -495,14 +643,30 @@
   async function updatePreview() {
     if (!state.user || !state.schema) return;
     state.previewAbort?.abort();
-    state.previewAbort = new AbortController();
     const payload = editorPayload();
+    const validationErrors = validatePreviewPayload(payload);
+    const message = document.querySelector("[data-preview-message]");
+    if (validationErrors.length) {
+      renderPreviewValidation(validationErrors);
+      message.textContent = "Заполните отмеченные поля — последний успешный предпросмотр сохранён";
+      message.classList.add("is-error");
+      previewFrame.classList.remove("is-loading");
+      return;
+    }
+    clearPreviewValidation();
+    message.textContent = "Обновляется автоматически";
+    message.classList.remove("is-error");
+    state.previewAbort = new AbortController();
     previewFrame.classList.add("is-loading");
     try {
       const html = await apiRequest("/api/admin/content-preview", { method: "POST", body: JSON.stringify(payload), signal: state.previewAbort.signal }, "text");
       previewFrame.srcdoc = html;
     } catch (error) {
-      if (error.name !== "AbortError") previewFrame.srcdoc = `<div style="font:16px sans-serif;padding:30px;color:#8b2f22"><b>Предпросмотр недоступен</b><p>${escapeHtml(error.message)}</p></div>`;
+      if (error.name !== "AbortError") {
+        message.textContent = "Предпросмотр временно недоступен — показана последняя успешная версия";
+        message.classList.add("is-error");
+        toast(error.message);
+      }
     } finally { previewFrame.classList.remove("is-loading"); }
   }
 
@@ -520,7 +684,9 @@
         const body = (() => { try { return JSON.parse(request.responseText || "{}"); } catch { return {}; } })();
         if (request.status >= 200 && request.status < 300) { resolve(body); return; }
         const detail = body.detail;
-        reject(new Error(typeof detail === "string" ? detail : detail?.message || `Ошибка загрузки (${request.status})`));
+        const message = typeof detail === "string" ? detail : detail?.message || `Ошибка загрузки (${request.status})`;
+        if (request.status === 401 && ["Требуется вход в CMS", "Сессия истекла"].includes(message)) enterUnauthenticatedState(message);
+        reject(new Error(message));
       });
       request.addEventListener("error", () => reject(new Error("Сеть прервала загрузку файла")));
       request.send(form);
@@ -577,16 +743,16 @@
 
   function openMediaChooser({ kind = "", multiple = false, apply }) {
     state.media.chooser = { multiple, apply };
-    state.media.kind = kind;
-    state.media.offset = 0;
+    state.media.q = ""; state.media.kind = kind; state.media.usage = ""; state.media.offset = 0;
     state.media.selected.clear();
-    document.querySelector("[data-media-kind]").value = kind;
-    document.querySelector("[data-media-search]").value = "";
-    document.querySelector("[data-media-usage]").value = "";
-    document.querySelector("[data-media-dialog-title]").textContent = multiple ? "Выбрать несколько файлов" : "Выбрать файл";
-    document.querySelector("[data-library-upload]").accept = kind === "image" ? ".jpg,.jpeg,.png,.webp" : kind === "video" ? ".mp4" : ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt,.mp4";
-    document.querySelector("[data-library-upload]").multiple = multiple;
-    document.querySelector("[data-media-dialog]").showModal();
+    const dialog = document.querySelector("[data-media-dialog]");
+    dialog.querySelector("[data-media-kind]").value = kind;
+    dialog.querySelector("[data-media-search]").value = "";
+    dialog.querySelector("[data-media-usage]").value = "";
+    dialog.querySelector("[data-media-dialog-title]").textContent = multiple ? "Выбрать несколько файлов" : "Выбрать файл";
+    dialog.querySelector("[data-library-upload]").accept = kind === "image" ? ".jpg,.jpeg,.png,.webp" : kind === "video" ? ".mp4" : ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt,.mp4";
+    dialog.querySelector("[data-library-upload]").multiple = multiple;
+    dialog.showModal();
     loadMediaDialog().catch(error => toast(error.message));
   }
 
@@ -599,8 +765,51 @@
   function renderMediaPanel() {
     panel.innerHTML = `<div class="media-panel-head"><div><div class="eyebrow">Управление файлами</div><h1>Медиатека</h1><p>Оригиналы сохраняют постоянные URL. Повторное использование не создаёт копий.</p></div>${can("editor") ? '<label class="button button--primary">Загрузить файлы<input class="cms-file-input" type="file" multiple data-panel-media-upload accept=".jpg,.jpeg,.png,.webp,.mp4,.pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt"></label>' : ""}</div><nav class="media-tabs"><button class="is-active" type="button" data-media-tab="files">Файлы</button><button type="button" data-media-tab="issues">Утрачено</button></nav><div class="media-panel-toolbar"><input type="search" placeholder="Поиск по имени, alt или материалу" data-panel-media-search><select data-panel-media-kind><option value="">Все типы</option><option value="image">Изображения</option><option value="video">Видео</option><option value="document">Документы</option></select><select data-panel-media-usage><option value="">Любое использование</option><option value="used">Используется</option><option value="unused">Не используется</option></select>${can("admin") ? '<button class="button button--ghost button--compact" type="button" data-media-reindex>Проверить индекс</button>' : ""}</div><div class="media-grid media-grid--panel" data-panel-media-grid></div><div class="media-pagination"><span data-panel-media-count></span><button class="button button--ghost button--compact" type="button" data-panel-media-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-panel-media-next>Дальше →</button></div>`;
     panel.querySelector(".media-panel-head")?.setAttribute("data-media-dropzone", "");
+    panel.querySelector(".media-panel-toolbar")?.insertAdjacentHTML("afterend", '<div data-media-reindex-status hidden></div>');
     state.media.offset = 0; state.media.q = ""; state.media.kind = ""; state.media.usage = ""; state.media.panelTab = "files";
     loadMediaPanel().catch(error => toast(error.message));
+    if (can("admin")) loadReindexStatus().catch(error => toast(error.message));
+  }
+
+  const reindexPhaseLabels = { queued: "В очереди", scanning: "Проверяем файлы", applying: "Обновляем индекс", usages: "Сверяем использование", completed: "Завершено", failed: "Ошибка" };
+
+  function renderReindexStatus(job) {
+    const host = panel.querySelector("[data-media-reindex-status]");
+    const button = panel.querySelector("[data-media-reindex]");
+    if (!host || !button) return;
+    if (!job) { host.hidden = true; button.disabled = false; button.textContent = "Проверить индекс"; return; }
+    const active = ["queued", "running"].includes(job.status);
+    const percent = Math.max(0, Math.min(100, Number(job.percent || 0)));
+    host.hidden = false;
+    host.className = "reindex-progress";
+    host.setAttribute("role", "status");
+    host.setAttribute("aria-live", "polite");
+    host.innerHTML = `<strong>${escapeHtml(reindexPhaseLabels[job.phase] || job.phase)} · ${percent}%</strong><div class="reindex-progress__bar" aria-hidden="true"><span style="width:${percent}%"></span></div><span data-reindex-count>${Number(job.processed_files || 0).toLocaleString("ru-RU")} из ${Number(job.total_files || 0).toLocaleString("ru-RU")}</span><small>Готово: ${Number(job.ready || 0).toLocaleString("ru-RU")} · ошибок: ${Number(job.error_count || 0).toLocaleString("ru-RU")}${job.status === "completed" ? ` · связей: ${Number(job.usages || 0).toLocaleString("ru-RU")}` : ""}${job.error ? ` · ${escapeHtml(job.error)}` : ""}</small>`;
+    button.disabled = active;
+    button.textContent = active ? `${Number(job.processed_files || 0).toLocaleString("ru-RU")} из ${Number(job.total_files || 0).toLocaleString("ru-RU")}` : job.status === "failed" ? "Повторить проверку" : "Проверить индекс";
+  }
+
+  async function loadReindexStatus(jobId = null) {
+    clearTimeout(state.media.reindexTimer);
+    if (!panel.querySelector("[data-media-reindex-status]")) return;
+    const result = await apiRequest(jobId ? `/api/admin/media-reindex/${encodeURIComponent(jobId)}` : "/api/admin/media-reindex");
+    const job = jobId ? result : result.item;
+    const previousStatus = state.media.reindexLastStatus;
+    state.media.reindexJobId = job?.id || null;
+    state.media.reindexLastStatus = job?.status || null;
+    renderReindexStatus(job);
+    if (["queued", "running"].includes(previousStatus) && job?.status === "completed") await loadMediaPanel();
+    if (job && ["queued", "running"].includes(job.status)) {
+      state.media.reindexTimer = setTimeout(() => loadReindexStatus(job.id).catch(error => toast(error.message)), 500);
+    }
+  }
+
+  async function startReindex() {
+    const job = await apiRequest("/api/admin/media/reindex?dry_run=false", { method: "POST" });
+    state.media.reindexJobId = job.id;
+    renderReindexStatus(job);
+    state.media.reindexTimer = setTimeout(() => loadReindexStatus(job.id).catch(error => toast(error.message)), 250);
+    toast("Переиндексация поставлена в очередь");
   }
 
   async function loadMediaPanel() {
@@ -648,8 +857,8 @@
     toast(`Аудит завершён: ${Number(result.counts.blocker || 0)} блокирующих, ${Number(result.counts.warning || 0)} предупреждений`);
   }
 
-  async function submitReview() { if (state.dirty || !state.current) await saveDraft(); await postWorkflow("submit-review"); toast("Материал отправлен на проверку"); }
-  async function publishCurrent() { await postWorkflow("publish"); toast("Материал опубликован"); }
+  async function submitReview() { if (!ensureWorkflowReady()) return false; if (state.dirty || !state.current) await saveDraft(); await postWorkflow("submit-review"); toast("Материал отправлен на проверку"); return true; }
+  async function publishCurrent() { if (!ensureWorkflowReady()) return false; await postWorkflow("publish"); toast("Материал опубликован"); return true; }
 
   async function openHistory() {
     const [revisions, audit] = await Promise.all([apiRequest(`/api/admin/contents/${state.current.id}/revisions`), apiRequest(`/api/admin/contents/${state.current.id}/audit-events`)]);
@@ -829,7 +1038,7 @@
   }
 
   function renderMigrationDashboardShell() {
-    panel.innerHTML = `<div class="acceptance-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><p>Автоматический аудит ничего не публикует и не снимает флаги. Решения применяются только при финализации партии.</p></div><div class="migration-dashboard-actions">${can("publisher") ? '<button class="button button--ghost" type="button" data-migration-run>Запустить аудит</button><button class="button button--primary" type="button" data-migration-pilot>Создать пилотную партию</button>' : ""}</div></div><div class="metric-grid" data-acceptance-metrics></div><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Проблемы</h2><p>Фильтры применяются к последнему актуальному аудиту рабочей версии.</p></div></div><div class="acceptance-filters"><select data-migration-severity><option value="">Все уровни</option><option value="blocker">Блокирующие</option><option value="warning">Предупреждения</option><option value="info">Справочные</option></select><input type="text" inputmode="numeric" placeholder="Год" data-migration-year><select data-migration-type><option value="">Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}">${escapeHtml(definition.label)}</option>`).join("")}</select><input type="search" placeholder="Код, заголовок или старый URL" data-migration-query><button class="button button--ghost button--compact" type="button" data-migration-filter>Применить</button></div><div class="acceptance-issues" data-acceptance-issues></div><div class="media-pagination"><span data-acceptance-issue-count></span><button class="button button--ghost button--compact" type="button" data-migration-issues-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-migration-issues-next>Дальше →</button></div></section><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Редакционные партии</h2><p>До 50 зафиксированных версий; обязательная выборка и warnings проверяются до финализации.</p></div></div><div class="acceptance-batches" data-acceptance-batches></div></section><section class="acceptance-section"><h2>Запуски аудита</h2><div class="acceptance-runs" data-acceptance-runs></div></section></div>`;
+    panel.innerHTML = `<div class="acceptance-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><p>Автоматический аудит ничего не публикует и не снимает флаги. Решения применяются только при финализации партии.</p></div><div class="migration-dashboard-actions">${can("publisher") ? '<button class="button button--ghost" type="button" data-migration-run>Запустить аудит</button><button class="button button--primary" type="button" data-migration-pilot disabled aria-describedby="migration-pilot-reason">Создать пилотную партию</button><small id="migration-pilot-reason" data-migration-pilot-reason>Проверяем наличие завершённого полного аудита…</small>' : ""}</div></div><div class="metric-grid" data-acceptance-metrics></div><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Проблемы</h2><p>Фильтры применяются к последнему актуальному аудиту рабочей версии.</p></div></div><div class="acceptance-filters"><select data-migration-severity><option value="">Все уровни</option><option value="blocker">Блокирующие</option><option value="warning">Предупреждения</option><option value="info">Справочные</option></select><input type="text" inputmode="numeric" placeholder="Год" data-migration-year><select data-migration-type><option value="">Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}">${escapeHtml(definition.label)}</option>`).join("")}</select><input type="search" placeholder="Код, заголовок или старый URL" data-migration-query><button class="button button--ghost button--compact" type="button" data-migration-filter>Применить</button></div><div class="acceptance-issues" data-acceptance-issues></div><div class="media-pagination"><span data-acceptance-issue-count></span><button class="button button--ghost button--compact" type="button" data-migration-issues-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-migration-issues-next>Дальше →</button></div></section><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Редакционные партии</h2><p>До 50 зафиксированных версий; обязательная выборка и warnings проверяются до финализации.</p></div></div><div class="acceptance-batches" data-acceptance-batches></div></section><section class="acceptance-section"><h2>Запуски аудита</h2><div class="acceptance-runs" data-acceptance-runs></div></section></div>`;
     panel.querySelector("[data-acceptance-metrics]").insertAdjacentHTML(
       "afterend",
       '<div class="acceptance-breakdown" data-acceptance-breakdown></div>',
@@ -851,12 +1060,40 @@
 
   async function refreshMigrationStatus() {
     if (!panel.querySelector("[data-acceptance-metrics]")) return;
-    const [status, issues, batches] = await Promise.all([
-      apiRequest("/api/admin/migration"),
-      apiRequest(`/api/admin/migration/issues?${migrationIssueQuery()}`),
-      apiRequest("/api/admin/migration/batches"),
-    ]);
+    state.migration.abort?.abort();
+    const controller = new AbortController();
+    const requestId = ++state.migration.requestId;
+    state.migration.abort = controller;
+    const issueQuery = migrationIssueQuery().toString();
+    const dashboard = panel.querySelector(".acceptance-panel");
+    const filterButton = panel.querySelector("[data-migration-filter]");
+    dashboard?.setAttribute("aria-busy", "true");
+    if (filterButton) filterButton.disabled = true;
+    let status, issues, batches;
+    try {
+      [status, issues, batches] = await Promise.all([
+        apiRequest("/api/admin/migration", { signal: controller.signal }),
+        apiRequest(`/api/admin/migration/issues?${issueQuery}`, { signal: controller.signal }),
+        apiRequest("/api/admin/migration/batches", { signal: controller.signal }),
+      ]);
+    } catch (error) {
+      if (error.name === "AbortError") return false;
+      if (requestId === state.migration.requestId) {
+        dashboard?.removeAttribute("aria-busy");
+        if (filterButton) filterButton.disabled = false;
+      }
+      throw error;
+    }
+    if (requestId !== state.migration.requestId || !panel.querySelector("[data-acceptance-metrics]")) return false;
     const acceptance = status.acceptance || { totals: status.totals, issues: {}, runs: [] };
+    const runs = acceptance.runs || [];
+    const fullRuns = runs.filter(run => !run.scope || Object.keys(run.scope).length === 0);
+    const auditActive = fullRuns.some(run => ["queued", "running"].includes(run.status));
+    const auditReady = fullRuns.some(run => run.status === "completed");
+    const pilot = panel.querySelector("[data-migration-pilot]");
+    const pilotReason = panel.querySelector("[data-migration-pilot-reason]");
+    if (pilot) pilot.disabled = !auditReady || auditActive;
+    if (pilotReason) pilotReason.textContent = auditActive ? "Полный аудит выполняется. Пилот станет доступен после завершения." : auditReady ? "Завершённый полный аудит найден." : "Сначала запустите и дождитесь завершения полного аудита.";
     const total = Number(acceptance.totals.contents || 0), remaining = Number(acceptance.totals.review_required || 0);
     panel.querySelector("[data-acceptance-metrics]").innerHTML = [
       ["Осталось принять", remaining], ["Блокирующих", acceptance.issues.blocker || 0],
@@ -877,6 +1114,9 @@
     panel.querySelector("[data-migration-issues-next]").disabled = state.migration.issuesOffset + issues.items.length >= issues.total;
     panel.querySelector("[data-acceptance-batches]").innerHTML = batches.items.map(batch => `<button class="acceptance-batch" type="button" data-migration-batch="${escapeHtml(batch.id)}"><span class="state-pill">${escapeHtml(migrationBatchStatusLabels[batch.status] || batch.status)}</span><strong>${escapeHtml(batch.name)}</strong><small>${batch.decided_count || 0}/${batch.item_count || 0} решений · выборка ${batch.reviewed_count || 0}/${batch.sampled_count || 0}</small></button>`).join("") || '<div class="history-empty">Партий пока нет. После полного аудита создайте пилотную партию.</div>';
     panel.querySelector("[data-acceptance-runs]").innerHTML = (acceptance.runs || []).map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.blocker || 0)} блокирующих · ${Number(run.counts?.warning || 0)} предупреждений${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Аудит ещё не запускался.</div>';
+    dashboard?.removeAttribute("aria-busy");
+    if (filterButton) filterButton.disabled = false;
+    return true;
   }
 
   function renderMigrationBatch(batch) {
@@ -912,6 +1152,9 @@
   }
 
   function showPanel(name) {
+    if (name !== "migration") state.migration.abort?.abort();
+    if (name !== "media") clearTimeout(state.media.reindexTimer);
+    state.activePanel = name;
     document.querySelector("[data-editor-pane]").hidden = true;
     document.querySelector("[data-preview-pane]").hidden = true;
     panel.hidden = false;
@@ -921,15 +1164,60 @@
     if (name === "submissions") renderSubmissionsPanel();
     if (name === "media") renderMediaPanel();
     if (name === "users") renderUsersPanel().catch(error => toast(error.message));
-    if (name === "settings") panel.innerHTML = `<div class="eyebrow">Настройки</div><h1>Контентная схема ${escapeHtml(state.schema.schema_version)}</h1><p>Поля, роли, редакционный workflow и настройки медиатеки формируются сервером.</p>`;
+    if (name === "settings") renderSettingsPanel();
     if (name === "migration") { renderMigrationDashboardShell(); refreshMigrationStatus().catch(error => toast(error.message)); }
   }
 
   function selectContentType(type) {
+    state.migration.abort?.abort(); clearTimeout(state.media.reindexTimer);
+    state.activePanel = null;
     state.currentType = type; state.current = null; state.dirty = false;
+    resetContentPicker();
     document.querySelector("[data-editor-pane]").hidden = false; document.querySelector("[data-preview-pane]").hidden = false; panel.hidden = true;
     renderEditor(type, null); loadContentList().catch(error => toast(error.message));
     document.body.classList.remove("cms-menu-open");
+  }
+
+  function diagnosticStatus(status) {
+    const label = status === "ok" ? "OK" : status === "warning" ? "Требует внимания" : "Ошибка";
+    return `<span class="diagnostic-status diagnostic-status--${escapeHtml(status)}">${label}</span>`;
+  }
+
+  function diagnosticRows(rows) { return `<dl>${rows.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>`; }
+
+  function renderSettingsPanel() {
+    panel.innerHTML = `<div class="workflow-panel__head"><div><div class="eyebrow">Настройки и диагностика</div><h1>Состояние CMS</h1><p>Безопасная read-only проверка приложения, базы, поиска, хранилища и миграции.</p></div><button class="button button--ghost" type="button" data-diagnostics-refresh disabled>Проверяем…</button></div><div class="diagnostics-grid" data-diagnostics-grid><div class="history-empty">Собираем диагностические показатели…</div></div>`;
+    loadDiagnostics();
+  }
+
+  async function loadDiagnostics() {
+    const grid = panel.querySelector("[data-diagnostics-grid]");
+    const refresh = panel.querySelector("[data-diagnostics-refresh]");
+    if (!grid || !refresh) return;
+    refresh.disabled = true; refresh.textContent = "Проверяем…";
+    try {
+      const result = await apiRequest("/api/admin/diagnostics");
+      const cards = [
+        ["Приложение", result.application.status, [["Версия", result.application.version], ["Окружение", result.application.environment], ["Контентная схема", result.application.content_schema_version]]],
+        ["База данных", result.database.status, [["Миграция", result.database.schema_version], ["Размер", humanSize(result.database.size_bytes)], ["Quick check", result.database.quick_check], ["Ошибки связей", result.database.foreign_key_errors]]],
+        ["Поисковый индекс", result.search.status, [["Документов", result.search.indexed_documents], ["Проблем", result.search.problem_count]]],
+        ["Медиа-хранилище", result.storage.status, [["Записей", result.storage.media_records], ["Файлов", result.storage.physical_files], ["Размер", humanSize(result.storage.size_bytes)], ["Отсутствуют", result.storage.missing_originals]]],
+        ["Миграция контента", result.migration.status, [["Материалов", result.migration.contents], ["Осталось принять", result.migration.review_required], ["Последний импорт", result.migration.latest_import_status || "нет"], ["Последний аудит", result.migration.latest_audit_status || "нет"]]],
+      ];
+      grid.innerHTML = cards.map(([title, status, rows]) => `<article class="diagnostic-card">${diagnosticStatus(status)}<h2>${escapeHtml(title)}</h2>${diagnosticRows(rows)}</article>`).join("");
+      grid.insertAdjacentHTML("beforeend", `<p class="field-help">Проверено ${escapeHtml(formatDate(result.generated_at))}</p>`);
+    } catch (error) {
+      grid.innerHTML = `<div class="diagnostics-error" role="alert"><strong>Не удалось получить диагностику</strong><p>${escapeHtml(error.message)}</p><p>Используйте кнопку «Обновить», чтобы повторить запрос.</p></div>`;
+    } finally {
+      const current = panel.querySelector("[data-diagnostics-refresh]");
+      if (current) { current.disabled = false; current.textContent = "Обновить"; }
+    }
+  }
+
+  async function logout() {
+    try { await apiRequest("/api/admin/logout", { method: "POST" }); } catch (_) { /* The session may already be revoked. */ }
+    state.user = null; state.csrf = ""; state.list = []; state.reauthenticating = false; state.current = null; state.dirty = false;
+    updateSessionUi(); renderEditor(); document.querySelector("[data-content-picker]").hidden = true; document.querySelector("[data-content-count]").textContent = "0 из 0"; document.querySelector("[data-save-status]").textContent = "Вход не выполнен"; document.querySelector("[data-login-dialog]").showModal(); toast("Сеанс завершён");
   }
 
   function closeDialog(selector) { const dialog = document.querySelector(selector); if (dialog.open) dialog.close(); }
@@ -976,9 +1264,15 @@
 
   document.addEventListener("click", async event => {
     const target = event.target.closest("button,a"); if (!target) return;
-    if (target.dataset.contentType) selectContentType(target.dataset.contentType);
-    if (target.dataset.panel) showPanel(target.dataset.panel);
-    if (target.matches("[data-open-profile]")) document.querySelector("[data-password-dialog]").showModal();
+    if (target.matches("[data-unsaved-stay]")) { await resolveUnsavedChanges("stay"); return; }
+    if (target.matches("[data-unsaved-discard]")) { await resolveUnsavedChanges("discard"); return; }
+    if (target.matches("[data-unsaved-save]")) { await resolveUnsavedChanges("save"); return; }
+    if (target.matches("[data-login-open]")) { const dialog = document.querySelector("[data-login-dialog]"); if (!dialog.open) dialog.showModal(); dialog.querySelector('[name="username"]').focus(); return; }
+    if (target.matches("[data-diagnostics-refresh]")) { await loadDiagnostics(); return; }
+    if (target.dataset.requiredField) { const wrapper = editorForm.querySelector(`[data-schema-field="${CSS.escape(target.dataset.requiredField)}"]`); (wrapper?.querySelector("input,textarea,select,[contenteditable],button") || wrapper)?.focus(); wrapper?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    if (target.dataset.contentType && !target.dataset.migrationOpenContent) await guardUnsavedChanges(() => selectContentType(target.dataset.contentType));
+    if (target.dataset.panel) await guardUnsavedChanges(() => showPanel(target.dataset.panel));
+    if (target.matches("[data-open-profile],[data-mobile-open-profile]")) await guardUnsavedChanges(() => document.querySelector("[data-password-dialog]").showModal());
     if (target.matches("[data-password-close]")) closeDialog("[data-password-dialog]");
     if (target.matches("[data-user-create-close]")) closeDialog("[data-user-create-dialog]");
     if (target.matches("[data-submission-close]")) closeDialog("[data-submission-dialog]");
@@ -988,16 +1282,15 @@
     if (target.dataset.submissionStatusAction) await changeSubmissionStatus(target.dataset.submissionStatusAction).catch(error => toast(error.message));
     if (target.matches("[data-submission-retry]")) await retrySubmissionNotification().catch(error => toast(error.message));
     if (target.matches("[data-user-create]")) document.querySelector("[data-user-create-dialog]").showModal();
-    if (target.matches("[data-logout]")) {
-      try { await apiRequest("/api/admin/logout", { method: "POST" }); } catch (_) { /* The session may already be revoked. */ }
-      state.user = null; state.csrf = ""; state.list = []; updateSessionUi(); renderEditor(); document.querySelector("[data-content-picker]").hidden = true; document.querySelector("[data-content-count]").textContent = "0 из 0"; document.querySelector("[data-save-status]").textContent = "Вход не выполнен"; document.querySelector("[data-login-dialog]").showModal(); toast("Сеанс завершён");
+    if (target.matches("[data-logout],[data-mobile-logout]")) {
+      await guardUnsavedChanges(logout);
     }
     if (target.dataset.bulkAction) { state.bulk.action = target.dataset.bulkAction; state.bulk.offset = 0; state.bulk.selected.clear(); renderWorkflowPanel(); }
     if (target.matches("[data-bulk-select-all]")) { state.bulk.items.forEach(item => state.bulk.selected.add(item.id)); await loadBulkQueue().catch(error => toast(error.message)); }
     if (target.matches("[data-bulk-apply]")) await applyBulkAction().catch(error => toast(error.message));
     if (target.matches("[data-bulk-prev]")) { state.bulk.offset = Math.max(0, state.bulk.offset - 100); state.bulk.selected.clear(); await loadBulkQueue().catch(error => toast(error.message)); }
     if (target.matches("[data-bulk-next]")) { state.bulk.offset += 100; state.bulk.selected.clear(); await loadBulkQueue().catch(error => toast(error.message)); }
-    if (target.dataset.bulkOpen) { selectContentType(target.dataset.bulkType); await openRecord(target.dataset.bulkOpen).catch(error => toast(error.message)); }
+    if (target.dataset.bulkOpen) await guardUnsavedChanges(async () => { selectContentType(target.dataset.bulkType); await openRecord(target.dataset.bulkOpen).catch(error => toast(error.message)); });
     if (target.matches("[data-user-save]")) {
       const row = target.closest("[data-user-id]");
       try {
@@ -1011,7 +1304,9 @@
         try { const result = await apiRequest(`/api/admin/users/${row.dataset.userId}/terminate-sessions`, { method: "POST", body: JSON.stringify({ version: Number(row.dataset.version) }) }); await renderUsersPanel(); toast(`Завершено сессий: ${result.closed_sessions}`); } catch (error) { toast(error.message); }
       }
     }
-    if (target.matches("[data-create-current]")) { state.current = null; renderEditor(state.currentType, null); }
+    if (target.matches("[data-create-current]")) await guardUnsavedChanges(async () => { resetContentPicker(); state.current = null; renderEditor(state.currentType, null); await loadContentList(); document.body.classList.remove("cms-menu-open"); });
+    if (target.matches("[data-content-prev]")) { state.contentList.offset = Math.max(0, state.contentList.offset - state.contentList.limit); await loadContentList().catch(error => toast(error.message)); }
+    if (target.matches("[data-content-next]")) { state.contentList.offset += state.contentList.limit; await loadContentList().catch(error => toast(error.message)); }
     if (target.matches("[data-cms-menu]")) document.body.classList.toggle("cms-menu-open");
     if (target.dataset.previewSize) applyPreviewSize(target.dataset.previewSize);
     if (target.matches("[data-save-draft]")) await saveDraft().catch(error => toast(error.message));
@@ -1046,9 +1341,9 @@
     if (target.matches("[data-panel-media-prev]")) { state.media.offset = Math.max(0, state.media.offset - 48); await loadMediaPanel().catch(error => toast(error.message)); }
     if (target.matches("[data-panel-media-next]")) { state.media.offset += 48; await loadMediaPanel().catch(error => toast(error.message)); }
     if (target.matches("[data-media-reindex]")) {
-      target.disabled = true; target.textContent = "Проверяем…";
-      try { const result = await apiRequest("/api/admin/media/reindex?dry_run=false", { method: "POST" }); toast(`Проверено файлов: ${result.files}`); await loadMediaPanel(); }
-      catch (error) { toast(error.message); } finally { target.disabled = false; target.textContent = "Проверить индекс"; }
+      target.disabled = true;
+      try { await startReindex(); }
+      catch (error) { toast(error.message); await loadReindexStatus().catch(() => {}); }
     }
     if (target.dataset.mediaSave) {
       try {
@@ -1062,7 +1357,7 @@
     }
     if (target.matches("[data-publish-confirm]")) {
       if ([...document.querySelectorAll("[data-publish-dialog] input")].some(input => !input.checked)) { toast("Подтвердите все пункты проверки"); return; }
-      await publishCurrent().then(() => closeDialog("[data-publish-dialog]")).catch(error => toast(error.message));
+      await publishCurrent().then(published => { if (published) closeDialog("[data-publish-dialog]"); }).catch(error => toast(error.message));
     }
     if (target.dataset.workflowAction) {
       const action = target.dataset.workflowAction;
@@ -1076,13 +1371,16 @@
     }
     if (target.dataset.restoreRevision) await restoreRevision(Number(target.dataset.restoreRevision)).catch(error => toast(error.message));
     if (target.matches("[data-migration-run]")) { await apiRequest("/api/admin/migration/audits", { method: "POST", body: JSON.stringify({ check_external: true }) }); toast("Аудит поставлен в очередь"); setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1200); }
-    if (target.matches("[data-migration-pilot]")) { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
+    if (target.matches("[data-migration-pilot]")) {
+      try { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
+      catch (error) { toast(error.status === 409 ? "Полный аудит устарел или ещё не завершён. Обновляем состояние." : error.message); await refreshMigrationStatus().catch(refreshError => toast(refreshError.message)); }
+    }
     if (target.matches("[data-migration-filter]")) { state.migration.issuesOffset = 0; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-prev]")) { state.migration.issuesOffset = Math.max(0, state.migration.issuesOffset - 50); await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-next]")) { state.migration.issuesOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.dataset.migrationBatch) await openMigrationBatch(target.dataset.migrationBatch).catch(error => toast(error.message));
     if (target.matches("[data-migration-back]")) { renderMigrationDashboardShell(); await refreshMigrationStatus().catch(error => toast(error.message)); }
-    if (target.dataset.migrationOpenContent) { selectContentType(target.dataset.contentType); await openRecord(target.dataset.migrationOpenContent).catch(error => toast(error.message)); }
+    if (target.dataset.migrationOpenContent) await guardUnsavedChanges(async () => { selectContentType(target.dataset.contentType); await openRecord(target.dataset.migrationOpenContent).catch(error => toast(error.message)); });
     if (target.matches("[data-batch-item-save]")) await saveMigrationBatchItem(target).catch(error => toast(error.message));
     if (target.matches("[data-batch-submit]")) await migrationBatchAction("submit").catch(error => toast(error.message));
     if (target.matches("[data-batch-finalize]")) await migrationBatchAction("finalize").catch(error => toast(error.message));
@@ -1142,7 +1440,7 @@
 
   editorForm.addEventListener("input", event => {
     const wrapper = event.target.closest("[data-schema-field]");
-    if (wrapper) markDirty(wrapper);
+    if (wrapper) { wrapper.classList.remove("has-validation-error"); wrapper.querySelectorAll("[aria-invalid]").forEach(control => control.removeAttribute("aria-invalid")); document.querySelector("[data-readiness-errors]").hidden = true; markDirty(wrapper); }
   });
   editorForm.addEventListener("change", event => {
     const wrapper = event.target.closest("[data-schema-field]");
@@ -1258,12 +1556,29 @@
     state.linkEditor.focus(); markDirty(state.linkEditor.closest("[data-schema-field]")); event.currentTarget.reset(); closeDialog("[data-link-dialog]");
   });
 
-  document.querySelector("[data-schedule-form]").addEventListener("submit", async event => { event.preventDefault(); const value = new FormData(event.currentTarget).get("scheduled_at"); try { await postWorkflow("schedule", { scheduled_at: new Date(value).toISOString() }); closeDialog("[data-schedule-dialog]"); toast("Публикация запланирована"); } catch (error) { toast(error.message); } });
-  document.querySelector("[data-content-select]").addEventListener("change", event => openRecord(event.target.value).catch(error => toast(error.message)));
+  document.querySelector("[data-schedule-form]").addEventListener("submit", async event => { event.preventDefault(); if (!ensureWorkflowReady()) { closeDialog("[data-schedule-dialog]"); return; } const value = new FormData(event.currentTarget).get("scheduled_at"); try { await postWorkflow("schedule", { scheduled_at: new Date(value).toISOString() }); closeDialog("[data-schedule-dialog]"); toast("Публикация запланирована"); } catch (error) { toast(error.message); } });
+  document.querySelector("[data-content-select]").addEventListener("change", async event => {
+    const id = event.target.value;
+    event.target.value = state.current?.id || "";
+    await guardUnsavedChanges(() => openRecord(id).catch(error => toast(error.message)));
+  });
   let searchTimer;
-  document.querySelector("[data-content-search]").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadContentList().catch(error => toast(error.message)), 220); });
-  document.querySelector("[data-review-only]").addEventListener("change", () => loadContentList().catch(error => toast(error.message)));
-  document.querySelector("[data-login-form]").addEventListener("submit", async event => { event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); try { const session = await apiRequest("/api/admin/login", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password") }) }); state.user = session.user; state.csrf = session.csrf_token; formElement.querySelector('[name="password"]').value = ""; closeDialog("[data-login-dialog]"); document.querySelector("[data-save-status]").textContent = "CMS подключена"; updateSessionUi(); renderEditor(); await loadContentList(); } catch (error) { console.error("CMS login initialization failed", error); document.querySelector("[data-login-error]").textContent = error.message; } });
+  document.querySelector("[data-content-search]").addEventListener("input", () => { state.contentList.offset = 0; clearTimeout(searchTimer); searchTimer = setTimeout(() => loadContentList().catch(error => toast(error.message)), 220); });
+  document.querySelector("[data-review-only]").addEventListener("change", () => { state.contentList.offset = 0; loadContentList().catch(error => toast(error.message)); });
+  document.querySelector("[data-login-form]").addEventListener("submit", async event => {
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement);
+    try {
+      const session = await apiRequest("/api/admin/login", { method: "POST", body: JSON.stringify({ username: form.get("username"), password: form.get("password") }) });
+      const preserveEditor = state.reauthenticating && state.dirty;
+      state.user = session.user; state.csrf = session.csrf_token; state.reauthenticating = false;
+      formElement.querySelector('[name="password"]').value = ""; document.querySelector("[data-login-error]").textContent = ""; closeDialog("[data-login-dialog]");
+      document.querySelector("[data-save-status]").textContent = preserveEditor ? "Сессия восстановлена · изменения не потеряны" : "CMS подключена";
+      updateSessionUi();
+      if (preserveEditor) { updateEditableState(); renderWorkflow(); await loadContentList(); schedulePreview(); }
+      else if (state.activePanel) showPanel(state.activePanel);
+      else { renderEditor(); await loadContentList(); }
+    } catch (error) { document.querySelector("[data-login-error]").textContent = error.message; }
+  });
   document.querySelector("[data-password-form]").addEventListener("submit", async event => {
     event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const error = document.querySelector("[data-password-error]"); error.textContent = "";
     if (form.get("new_password") !== form.get("confirm_password")) { error.textContent = "Новые пароли не совпадают"; return; }
@@ -1283,6 +1598,7 @@
     state.media.chooser = null;
     state.media.selected.clear();
   });
+  document.querySelector("[data-login-dialog]").addEventListener("close", () => { if (!state.user) document.querySelector("[data-login-open]")?.focus(); });
   const submissionDialog = document.querySelector("[data-submission-dialog]");
   submissionDialog.addEventListener("click", event => {
     if (event.target === submissionDialog) submissionDialog.close();
@@ -1317,6 +1633,8 @@
     } catch (error) { toast(error.message); }
   });
   window.addEventListener("resize", () => applyPreviewSize());
+  document.querySelector(".skip-link").addEventListener("click", event => { event.preventDefault(); const main = document.querySelector("#editor"); main.focus(); main.scrollIntoView({ block: "start" }); });
+  window.addEventListener("beforeunload", event => { if (state.dirty) { event.preventDefault(); event.returnValue = ""; } });
 
   async function initialize() {
     state.schema = await fetch("/cms-schema.json").then(response => response.json());
