@@ -27,3 +27,5 @@ baseline-*.tar.gz.sha256
 /media-derivatives/
 /uploads/
 /temple-backups/
+uv.lock
+/output/
