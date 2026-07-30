@@ -314,12 +314,15 @@ uv run python -m server.migration_preparation rollback --run-id <apply-id>
 
 Production rollout схемы 11 → 12 выполняет `scripts/production_apply_stage12.sh`. Скрипт требует нулевые `technical_blocker`, неизменность количества материалов, workflow-состояний и migration-флагов, SQLite quick/FK checks; те же preview/apply/verify сначала выполняются на восстановленной копии.
 
+**Актуальное ограничение:** rollout схемы 12 и переход к редакционному этапу заблокированы результатами повторной приёмки от 30 июля 2026 года. `CMS-19` оставляет `unicode_not_nfkc` у 197 записей `auto_ready`, а `CMS-20` позволяет `verify=ok` при post-audit `590 blocker / 1 016 warning`. До исправления этих P0-дефектов текущий verify нельзя использовать как production gate; требуется новый full post-apply audit и fail-closed semantic verify.
+
 Production deployment должен включать согласованный SQLite backup, копию `data/media`, проверку восстановления, миграции схемы, readiness и smoke-тест. Порт приложения предназначен для loopback; наружу сайт публикуется через HTTPS reverse proxy.
 
 ## 14. Текущая граница готовности
 
-Техническая платформа, автоматическая подготовка и ключевые workflow существуют и проверены. До production cutover требуется:
+Техническая платформа, автоматическая подготовка и ключевые workflow существуют, но повторная приёмка этапа 6 не завершена. До production cutover требуется:
 
+- исправить P0-дефекты `CMS-19` и `CMS-20` и закрыть Blocker gaps из `outputs/cms-stage6-functional-requirements.md`;
 - исправить дефекты из `outputs/cms-current-shortcomings.md`;
 - завершить редакционную приёмку оставшихся спорных материалов;
 - устранить blockers аудита;

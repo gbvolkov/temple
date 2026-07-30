@@ -15,6 +15,7 @@ from server.db import init_database
 from server.media_reconciliation import run_reconciliation
 from server.migration_acceptance import execute_audit_run, queue_audit
 from server.migration_preparation import (
+    PreparationError,
     execute_preparation_run,
     list_preparation_items,
     queue_preparation,
@@ -151,8 +152,8 @@ def test_gap_03_manifest_matches_filesystem(reconciled_source):
     assert reconciliation["unexplained_count"] == 0
 
 
-@pytest.mark.source_data
-def test_stage6_real_source_automatic_preparation(reconciled_source):
+@pytest.fixture(scope="module")
+def prepared_source(reconciled_source):
     settings: Settings = reconciled_source["_settings"]
     source_db: Path = reconciled_source["_source_database"]
     source_media: Path = reconciled_source["_source_media"]
@@ -189,26 +190,121 @@ def test_stage6_real_source_automatic_preparation(reconciled_source):
         preview_run_id=preview["id"],
     )
     applied = execute_preparation_run(settings, queued_apply["id"])
-    assert applied["status"] == "completed"
-    assert applied["counts"].get("technical_blocker", 0) == 0
-    assert verify_preparation(settings.database_path)["run_id"] == applied["id"]
     after = database_report(settings.database_path)
-    assert after["review_required"] == before["review_required"]
-    assert after["quick_check"] == ["ok"]
-    assert after["foreign_key_error_count"] == 0
 
     post_audit = queue_audit(
         settings.database_path,
         actor_id=None,
         scope={"check_external": False},
     )
-    assert execute_audit_run(
+    completed_post_audit = execute_audit_run(
         settings.database_path,
         settings.schema_path,
         settings.media_dir,
         settings.site_dir,
         post_audit["id"],
         check_external=False,
-    )["status"] == "completed"
+    )
+    assert completed_post_audit["status"] == "completed"
     assert stable_database_metrics(database_report(source_db)) == reconciled_source["_source_database_before"]
     assert media_summary(source_media) == reconciled_source["_source_media_before"]
+    return {
+        "settings": settings,
+        "before": before,
+        "completed_audit": completed_audit,
+        "preview": preview,
+        "planned": planned,
+        "applied": applied,
+        "after": after,
+        "post_audit": completed_post_audit,
+    }
+
+
+@pytest.mark.source_data
+def test_stage6_real_source_automatic_preparation(prepared_source):
+    before = prepared_source["before"]
+    completed_audit = prepared_source["completed_audit"]
+    preview = prepared_source["preview"]
+    planned = prepared_source["planned"]
+    applied = prepared_source["applied"]
+    after = prepared_source["after"]
+    post_audit = prepared_source["post_audit"]
+    assert completed_audit["status"] == "completed"
+    assert preview["status"] == "completed"
+    assert preview["counts"]["contents"] == before["review_required"]
+    assert preview["counts"].get("technical_blocker", 0) == 0
+    assert planned["total"] == before["review_required"]
+    assert applied["status"] == "completed"
+    assert applied["counts"].get("technical_blocker", 0) == 0
+    assert after["review_required"] == before["review_required"]
+    assert after["quick_check"] == ["ok"]
+    assert after["foreign_key_error_count"] == 0
+    assert post_audit["status"] == "completed"
+
+
+@pytest.mark.source_data
+@pytest.mark.defect("CMS-19")
+def test_cms_19_auto_ready_is_not_semantically_clean(prepared_source, defect_registry):
+    settings: Settings = prepared_source["settings"]
+    applied = prepared_source["applied"]
+    post_audit = prepared_source["post_audit"]
+    with sqlite3.connect(settings.database_path) as connection:
+        total_unicode = connection.execute(
+            """SELECT COUNT(*) FROM migration_review_issues
+               WHERE audit_run_id=? AND status='open' AND code='unicode_not_nfkc'""",
+            (post_audit["id"],),
+        ).fetchone()[0]
+        auto_ready_unicode = connection.execute(
+            """SELECT COUNT(DISTINCT pi.content_id)
+               FROM migration_preparation_items pi
+               JOIN migration_review_issues issue
+                 ON issue.content_id=pi.content_id
+                AND issue.audit_run_id=?
+                AND issue.status='open'
+                AND issue.code='unicode_not_nfkc'
+               WHERE pi.run_id=? AND pi.classification='auto_ready'""",
+            (post_audit["id"], applied["id"]),
+        ).fetchone()[0]
+    observe_open_defect(
+        defect_registry,
+        "CMS-19",
+        bad=auto_ready_unicode == 197 and total_unicode == 486,
+        good=auto_ready_unicode == 0,
+        detail=(
+            f"auto_ready_unicode_not_nfkc={auto_ready_unicode}; "
+            f"total_unicode_not_nfkc={total_unicode}"
+        ),
+    )
+
+
+@pytest.mark.source_data
+@pytest.mark.defect("CMS-20")
+def test_cms_20_verify_fails_closed_on_post_apply_violations(prepared_source, defect_registry):
+    settings: Settings = prepared_source["settings"]
+    post_audit = prepared_source["post_audit"]
+    try:
+        verification = verify_preparation(settings.database_path)
+    except PreparationError as error:
+        verification = {"ok": False, "error": str(error)}
+    with sqlite3.connect(settings.database_path) as connection:
+        counts = dict(
+            connection.execute(
+                """SELECT severity,COUNT(*) FROM migration_review_issues
+                   WHERE audit_run_id=? AND status='open'
+                   GROUP BY severity""",
+                (post_audit["id"],),
+            )
+        )
+    blockers = counts.get("blocker", 0)
+    warnings = counts.get("warning", 0)
+    verify_ok = verification.get("ok") is True
+    observe_open_defect(
+        defect_registry,
+        "CMS-20",
+        bad=verify_ok and blockers == 590 and warnings == 1_016,
+        good=not verify_ok,
+        detail=(
+            f"verify_ok={verify_ok}; blockers={blockers}; warnings={warnings}; "
+            f"verification={verification}"
+        ),
+    )

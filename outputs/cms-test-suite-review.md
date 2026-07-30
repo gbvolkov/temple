@@ -4,22 +4,24 @@
 
 ## Итог
 
-Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 334 уникальных assertion ID и пустой `known_gaps`.
+Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 334 уникальных assertion ID и пустой `known_gaps`. Повторная приёмка этапа 6 расширила нормативный контракт: дополнительные negative/recovery/semantic/rollout ветки перечислены как `MISSING` в `outputs/cms-stage6-functional-requirements.md`; пустой старый `known_gaps` не означает их закрытие.
 
-CMS-01–CMS-18 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить 42 положительных сценария без функциональных `XFAIL`, source-data профиль — четыре положительных сценария и один зарегистрированный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
+CMS-01–CMS-18 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить 42 положительных сценария без функциональных `XFAIL`. Source-data профиль выполняет четыре положительных сценария и три зарегистрированных strict expected `XFAIL`: `GAP-01`, `CMS-19`, `CMS-20`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
 
 ## Результаты приёмки
 
 | Контур | Результат | Артефакт |
 |---|---|---|
 | Серверные тесты | 90/90, без failures и warnings | локальный полный pytest-прогон |
-| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260730T114611-901608Z` |
-| Playwright full | два последовательных прогона 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `20260730T115540-445004Z`, `20260730T115803-102751Z` |
-| Source-data | 5/5: 4 positive + 1 XFAIL, `source_unchanged=true` | `output/playwright/cms-regression/20260730T114118-626496Z` |
+| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260730T134458-765507Z` |
+| Playwright full | два последовательных прогона 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `20260730T134511-428742Z`, `20260730T134734-459187Z` |
+| Source-data | 7/7: 4 positive + 3 strict expected XFAIL, `source_unchanged=true` | `output/playwright/cms-regression/20260730T134150-771044Z` |
 
 Прежний `StarletteDeprecationWarning` закрыт положительным subprocess-тестом с warnings-as-errors.
 
 ## Что теперь автоматизировано
+
+Перечень ниже описывает существующий регрессионный контур. Он не закрывает planned branches финальной матрицы требований этапа 6.
 
 - все 10 типов контента, 9 типов блоков, составные relation/schedule/image/image-list поля;
 - все операции блочного редактора: добавление, порядок, копирование, удаление, список, inline-форматирование и legacy conversion;
