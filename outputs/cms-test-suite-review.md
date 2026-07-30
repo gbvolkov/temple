@@ -62,3 +62,19 @@ uv run python scripts/run_cms_regression.py --profile source-data `
 Финальная приёмка этапа 6 от 30.07.2026: server 101/101; smoke 3/3; два full-прогона 42/42 с 334 assertion ID; source-data 7/7 (6 positive и ожидаемый содержательный `GAP-01`). Все профили завершены с `contract_ok=true` и `source_unchanged=true`. Артефакты: `20260730T155727-829689Z`, `20260730T155740-660667Z`, `20260730T160006-281876Z`, `20260730T160241-094030Z` в `output/playwright/cms-regression/`.
 
 Следующее изменение функциональности должно одновременно обновлять fixtures, assertion-матрицу, позитивные/негативные/ролевые/CJM-сценарии, реестр дефектов и документацию. После каждого этапа обязателен весь применимый контур, а не только новый тест.
+
+## Дополнение: clean migration workflow
+
+Добавлены 6 server/contract-тестов immutable source-bundle и чистого production
+bootstrap. Они проверяют успешный bundle/database contract, повреждение файла,
+незавершённый crawl, неверный archive checksum, порядок production gate,
+запрет применения поверх существующего runtime и сохраняющий данные rollback.
+
+Контрольный прогон после добавления workflow:
+
+- server: 107/107;
+- smoke: 3/3, artifact `20260730T200303-292959Z`;
+- full: 42/42, 334 assertion ID, artifact `20260730T200322-973961Z`;
+- source-data: 7/7, 6 positive + ожидаемый содержательный `GAP-01`,
+  artifact `20260730T200600-961958Z`;
+- во всех Playwright-профилях `contract_ok=true` и `source_unchanged=true`.

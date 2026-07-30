@@ -2,6 +2,14 @@
 
 Дата актуализации: 30 июля 2026 года
 
+Дополнение clean migration: immutable public source-bundle, чистый schema 13
+bootstrap и сохраняющий runtime rollback покрыты отдельными server/contract
+тестами. После изменения пройдены server 107/107, smoke 3/3, full 42/42 с
+334 assertion ID и source-data 7/7 с единственным ожидаемым содержательным
+`GAP-01`; `contract_ok=true`, `source_unchanged=true`. Артефакты:
+`20260730T200303-292959Z`, `20260730T200322-973961Z`,
+`20260730T200600-961958Z`.
+
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
 

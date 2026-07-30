@@ -15,6 +15,13 @@
 - инструменты полного импорта и миграционной приёмки;
 - поиск, SEO, sitemap, RSS и чистые публичные URL.
 
+Чистая production-установка выполняется через проверяемый immutable
+source-bundle: свежий Playwright-crawl публичного MODX, зеркалирование всех
+обнаруженных файлов, import plan и missing-media evidence формируются отдельно
+от production, подписываются SHA-256 и проходят повторную проверку перед
+staging-import. Runtime активируется только после schema 13, reconciliation,
+post-apply audit и semantic verify.
+
 ## 2. Архитектура
 
 | Слой | Реализация | Ответственность |
