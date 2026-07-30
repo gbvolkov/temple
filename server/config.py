@@ -24,6 +24,7 @@ class Settings:
     bootstrap_user: str
     bootstrap_password: str | None
     media_derivatives_dir: Path | None = None
+    missing_media_report_path: Path | None = None
     session_hours: int = 12
     public_base_url: str = "https://temple.gbvolkoff.name:8443"
     max_image_bytes: int = 15 * 1024 * 1024
@@ -43,6 +44,10 @@ class Settings:
     @property
     def derivatives_dir(self) -> Path:
         return self.media_derivatives_dir or self.media_dir.parent / "media-derivatives"
+
+    @property
+    def missing_report_path(self) -> Path:
+        return self.missing_media_report_path or self.root / "outputs" / "missing-legacy-media.csv"
 
     @staticmethod
     def normalize_public_base_url(value: str) -> str:
@@ -95,6 +100,9 @@ class Settings:
             legacy_sections_path=ROOT / "current-sections.json",
             legacy_crawl_path=Path(os.getenv("CMS_LEGACY_CRAWL", ROOT / "data" / "legacy-crawl-checkpoint.json")),
             media_manifest_path=Path(os.getenv("CMS_MEDIA_MANIFEST", ROOT / "data" / "legacy-media-manifest.json")),
+            missing_media_report_path=Path(
+                os.getenv("CMS_MISSING_MEDIA_REPORT", ROOT / "outputs" / "missing-legacy-media.csv")
+            ),
             environment=environment,
             bootstrap_user=os.getenv("CMS_BOOTSTRAP_USER", "admin"),
             bootstrap_password=password,

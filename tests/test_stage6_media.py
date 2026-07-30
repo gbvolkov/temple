@@ -40,6 +40,7 @@ def settings_for(tmp_path: Path) -> Settings:
         legacy_sections_path=ROOT / "current-sections.json",
         legacy_crawl_path=None,
         media_manifest_path=tmp_path / "legacy-media-manifest.json",
+        missing_media_report_path=tmp_path / "missing-legacy-media.csv",
         environment="test",
         bootstrap_user="admin",
         bootstrap_password="test-password",
@@ -115,11 +116,11 @@ def test_media_migration_is_idempotent_and_preserves_existing_rows(tmp_path: Pat
         assert "missing_media_issues" in {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 10
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 11
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 10
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 11
 
 
 def test_reindex_job_is_durable_exclusive_and_reports_progress(tmp_path: Path) -> None:
@@ -154,6 +155,9 @@ def test_reindex_job_is_durable_exclusive_and_reports_progress(tmp_path: Path) -
     assert completed["percent"] == 100
     assert completed["ready"] == 1
     assert completed["error_count"] == 0
+    assert completed["reconciliation"]["status"] == "ok"
+    assert completed["reconciliation"]["physical_files"] == 1
+    assert completed["reconciliation"]["unregistered_files"] == 0
 
 
 def test_reindex_job_failure_is_safe_and_retryable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -187,7 +191,10 @@ def test_reindex_api_requires_admin_and_returns_job_contract(tmp_path: Path) -> 
         assert response.status_code == 202
         job = response.json()
         assert job["status"] in {"queued", "running", "completed"}
-        assert {"id", "phase", "processed_files", "total_files", "percent", "errors"} <= set(job)
+        assert {
+            "id", "phase", "processed_files", "total_files", "percent", "errors",
+            "reconciliation",
+        } <= set(job)
         latest = client.get("/api/admin/media-reindex")
         assert latest.status_code == 200
         assert latest.json()["item"]["id"] == job["id"]

@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 from server.baseline import database_report, media_summary, readonly_connection
+from server.config import Settings
 from server.db import init_database
+from server.media_reconciliation import run_reconciliation
 
 from .conftest import ROOT, observe_open_defect
 
@@ -42,7 +44,7 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
         source.backup(destination)
     init_database(target)
     migrated = database_report(target)
-    assert migrated["schema_version"] == 10
+    assert migrated["schema_version"] == 11
     assert migrated["quick_check"] == ["ok"]
     assert migrated["foreign_key_error_count"] == 0
     after = stable_database_metrics(database_report(source_db))
@@ -58,6 +60,37 @@ def source_paths(pytestconfig):
     return source_db.resolve(), source_media.resolve()
 
 
+@pytest.fixture(scope="module")
+def reconciled_source(pytestconfig, tmp_path_factory):
+    source_db, source_media = source_paths(pytestconfig)
+    before_database = stable_database_metrics(database_report(source_db))
+    before_media = media_summary(source_media)
+    target_root = tmp_path_factory.mktemp("cms-source-reconciliation")
+    target = target_root / "source-copy.sqlite3"
+    with readonly_connection(source_db) as source, sqlite3.connect(target) as destination:
+        source.backup(destination)
+    init_database(target)
+    settings = Settings(
+        root=ROOT,
+        site_dir=ROOT / "site",
+        database_path=target,
+        media_dir=source_media,
+        media_derivatives_dir=target_root / "media-derivatives",
+        schema_path=ROOT / "site" / "cms-schema.json",
+        legacy_sections_path=ROOT / "current-sections.json",
+        legacy_crawl_path=None,
+        media_manifest_path=ROOT / "data" / "legacy-media-manifest.json",
+        missing_media_report_path=ROOT / "outputs" / "missing-legacy-media.csv",
+        environment="test",
+        bootstrap_user="admin",
+        bootstrap_password="source-copy-only",
+    )
+    result = run_reconciliation(settings, apply=True)
+    assert stable_database_metrics(database_report(source_db)) == before_database
+    assert media_summary(source_media) == before_media
+    return result
+
+
 @pytest.mark.source_data
 @pytest.mark.defect("GAP-01")
 def test_gap_01_real_migration_queue(pytestconfig, defect_registry):
@@ -70,32 +103,33 @@ def test_gap_01_real_migration_queue(pytestconfig, defect_registry):
 
 
 @pytest.mark.source_data
-@pytest.mark.defect("GAP-02")
-def test_gap_02_report_matches_cms_queue(pytestconfig, defect_registry):
-    source_db, _ = source_paths(pytestconfig)
+def test_gap_02_report_matches_cms_queue(reconciled_source):
     with (ROOT / "outputs" / "missing-legacy-media.csv").open(encoding="utf-8", newline="") as handle:
         report_count = sum(1 for _ in csv.DictReader(handle))
-    with readonly_connection(source_db) as connection:
-        table = connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='missing_media_issues'"
-        ).fetchone()
-        cms_count = connection.execute("SELECT COUNT(*) FROM missing_media_issues").fetchone()[0] if table else 0
-    good = report_count == cms_count
-    observe_open_defect(
-        defect_registry, "GAP-02", bad=report_count > 0 and cms_count == 0, good=good,
-        detail=f"report={report_count}; cms={cms_count}",
-    )
+    reconciliation = reconciled_source["reconciliation"]
+    assert report_count == reconciliation["manifest_errors"] == 201
+    assert reconciliation["missing_report_rows"] == reconciliation["missing_issues"] == 201
+    assert reconciliation["report_manifest_mismatch"] == 0
+    assert reconciliation["issue_report_mismatch"] == 0
 
 
 @pytest.mark.source_data
-@pytest.mark.defect("GAP-03")
-def test_gap_03_manifest_matches_filesystem(pytestconfig, defect_registry):
-    _, source_media = source_paths(pytestconfig)
-    manifest = json.loads((ROOT / "data" / "legacy-media-manifest.json").read_text(encoding="utf-8"))
-    mirrored = sum(1 for item in manifest["entries"].values() if item.get("status") == "mirrored")
-    physical = media_summary(source_media)["files"]
-    good = mirrored == physical
-    observe_open_defect(
-        defect_registry, "GAP-03", bad=mirrored != physical, good=good,
-        detail=f"mirrored={mirrored}; physical={physical}; delta={mirrored - physical}",
+def test_gap_03_manifest_matches_filesystem(reconciled_source):
+    reconciliation = reconciled_source["reconciliation"]
+    assert reconciliation["manifest_urls"] == 13_746
+    assert reconciliation["manifest_unique_files"] == 13_698
+    assert reconciliation["duplicate_aliases"] == reconciliation["duplicate_groups"] == 48
+    assert reconciliation["physical_files"] == 13_699
+    assert reconciliation["unmanaged_files"] == 1
+    assert reconciliation["manifest_urls"] == (
+        reconciliation["manifest_unique_files"] + reconciliation["duplicate_aliases"]
     )
+    assert reconciliation["physical_files"] == (
+        reconciliation["manifest_unique_files"] + reconciliation["unmanaged_files"]
+    )
+    assert reconciliation["missing_manifest_files"] == 0
+    assert reconciliation["unregistered_files"] == 0
+    assert reconciliation["content_references"] > 0
+    assert reconciliation["content_reference_files"] > 0
+    assert reconciliation["content_reference_issues"] == 0
+    assert reconciliation["unexplained_count"] == 0

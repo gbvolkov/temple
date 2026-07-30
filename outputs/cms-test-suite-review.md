@@ -1,23 +1,23 @@
 # Ревью автоматических тестов CMS
 
-Дата: 21 июля 2026 года.
+Дата актуализации: 29 июля 2026 года.
 
 ## Итог
 
-Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 312 уникальных assertion ID и пустой `known_gaps`.
+Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 320 уникальных assertion ID и пустой `known_gaps`.
 
-CMS-01–CMS-17 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить 41 положительный сценарий без функциональных `XFAIL`, source-data профиль — один положительный сценарий и три зарегистрированных `GAP-*`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
+CMS-01–CMS-17 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить 41 положительный сценарий без функциональных `XFAIL`, source-data профиль — три положительных сценария и один зарегистрированный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
 
 ## Результаты приёмки
 
 | Контур | Результат | Артефакт |
 |---|---|---|
-| Серверные тесты | 80/80, без failures и warnings | локальный `uv run pytest -q` |
-| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260721T082254-602194Z` |
-| Playwright full | два последовательных прогона 41/41: 41 positive, 0 XFAIL, 312 assertions, `contract_ok=true` | `20260721T082314-059980Z`, `20260721T082925-002787Z` |
-| Source-data | 4/4: 1 positive + 3 XFAIL, `source_unchanged=true` | `output/playwright/cms-regression/20260721T082854-437851Z` |
+| Серверные тесты | 83/83, без failures и warnings | локальный полный pytest-прогон |
+| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260729T203300-208659Z` |
+| Playwright full | два последовательных прогона 41/41: 41 positive, 0 XFAIL, 320 assertions, `contract_ok=true` | `20260729T202652-142628Z`, `20260729T202910-618919Z` |
+| Source-data | 4/4: 3 positive + 1 XFAIL, `source_unchanged=true` | `output/playwright/cms-regression/20260729T203125-319594Z` |
 
-Единственное предупреждение серверного контура — зарегистрированный `CMS-17` (`StarletteDeprecationWarning`). Оно контролируется отдельным characterization-тестом.
+Прежний `StarletteDeprecationWarning` закрыт положительным subprocess-тестом с warnings-as-errors.
 
 ## Что теперь автоматизировано
 
@@ -26,7 +26,7 @@ CMS-01–CMS-17 переведены в положительную регрес�
 - полный UI workflow материала, расписание, checklist публикации, public URL, архив, корзина, восстановление и история;
 - поиск, открытие, выбор страницы, cancel/confirm массовой публикации и архивирования;
 - обе публичные формы, их клиентская валидация, успешная отправка и полный административный workflow заявок;
-- media chooser и lifecycle медиатеки: upload, фильтры, detail, alt, постоянный URL, replacement, delete protection, missing-media replacement, pagination и reindex;
+- media chooser и lifecycle медиатеки: upload, фильтры, detail, alt, постоянный URL, replacement, delete protection, missing-media replacement, pagination, reindex и итоговая сверка URL/файлов/ссылок;
 - создание пользователей всех рабочих ролей, duplicate/validation, смена роли, disable/enable, смена пароля, повторный вход и отзыв сессий;
 - полная capability-матрица viewer/editor/publisher/admin;
 - migration dashboard, метрики, фильтры, пагинация, переход в редактор, постановка и завершение аудита;
@@ -43,6 +43,7 @@ CMS-01–CMS-17 переведены в положительную регрес�
 6. Реестр дефектов валидирует обязательные поля и существование test node ID при collection.
 7. Runner сам вычисляет ожидаемые числа тестов/XFAIL и coverage assertions, сохраняет JUnit/JSON и очищает изолированный workdir через `finally`.
 8. Source-data профиль открывает исходную БД read-only, тестирует миграции на backup-копии и сравнивает стабильный отчёт БД плюс fingerprint относительных путей, размеров и `mtime_ns` медиатеки до/после.
+9. Сверка медиа отдельно проверяет dry-run без изменения байтов БД, идемпотентный apply, повреждённый manifest, URL-дубликаты, файлы вне manifest, missing issues, производные и ссылки текущих/исторических версий.
 
 ## Команды
 

@@ -758,6 +758,22 @@ def apply_media_reindex_jobs(connection: sqlite3.Connection) -> str:
     return "durable media reindex job queue created"
 
 
+def validate_media_reconciliation_schema(connection: sqlite3.Connection) -> None:
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(media_reindex_jobs)")}
+    if "reconciliation_json" not in columns:
+        raise MigrationError("После миграции сверки медиа отсутствует reconciliation_json")
+
+
+def apply_media_reconciliation(connection: sqlite3.Connection) -> str:
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(media_reindex_jobs)")}
+    if "reconciliation_json" not in columns:
+        connection.execute(
+            "ALTER TABLE media_reindex_jobs ADD COLUMN reconciliation_json TEXT NOT NULL DEFAULT '{}'"
+        )
+    validate_media_reconciliation_schema(connection)
+    return "media reconciliation summaries enabled"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -867,6 +883,15 @@ MIGRATIONS = (
             inspect.getsource(validate_media_reindex_jobs_schema),
         )),
     ),
+    Migration(
+        11,
+        "media_reconciliation",
+        apply_media_reconciliation,
+        "\n".join((
+            "ALTER TABLE media_reindex_jobs ADD COLUMN reconciliation_json TEXT NOT NULL DEFAULT '{}'",
+            inspect.getsource(validate_media_reconciliation_schema),
+        )),
+    ),
 )
 
 
@@ -950,6 +975,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_acceptance_schema(connection)
             if any(item.get("version") == 10 and item["state"] == "applied" for item in status):
                 validate_media_reindex_jobs_schema(connection)
+            if any(item.get("version") == 11 and item["state"] == "applied" for item in status):
+                validate_media_reconciliation_schema(connection)
         finally:
             connection.close()
     return status

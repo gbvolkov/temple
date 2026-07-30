@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -16,6 +17,18 @@ VALID_NEWS = {
     "cover": "assets/school-maslenitsa.jpg",
     "cover_alt": "Праздник Воскресной школы",
 }
+
+
+def bulk_queue_response(response, query: str, action: str) -> bool:
+    parsed = urlsplit(response.url)
+    if parsed.path != "/api/admin/content-index":
+        return False
+    params = parse_qs(parsed.query)
+    if params.get("q") != [query]:
+        return False
+    if action == "publish":
+        return params.get("status") == ["in_review"]
+    return params.get("statuses") == ["draft,in_review,scheduled,published"]
 
 
 @pytest.mark.e2e
@@ -324,6 +337,7 @@ def test_ui_material_workflow(page, live_cms, coverage_steps):
 @pytest.mark.e2e
 @pytest.mark.full
 def test_bulk_workflow(page, live_cms, coverage_steps):
+    query = "E2E bulk lifecycle"
     headers = api_login(page, live_cms)
     item = api_create_content(
         page,
@@ -342,19 +356,19 @@ def test_bulk_workflow(page, live_cms, coverage_steps):
     login(page)
     page.locator('[data-panel="workflow"]').click()
     search = page.locator("[data-bulk-search]")
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
-        search.fill("E2E bulk lifecycle")
-    row = page.locator("[data-bulk-open]").filter(has_text="E2E bulk lifecycle")
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "publish")):
+        search.fill(query)
+    row = page.locator("[data-bulk-open]").filter(has_text=query)
     row.wait_for()
     coverage_steps.mark("bulk.search")
     row.click()
     page.locator("[data-editor-title]").filter(has_text="E2E bulk lifecycle").wait_for()
     coverage_steps.mark("bulk.open")
 
-    page.locator('[data-panel="workflow"]').click()
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
-        page.locator("[data-bulk-search]").fill("E2E bulk lifecycle")
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "publish")):
+        page.locator('[data-panel="workflow"]').click()
+    assert page.locator("[data-bulk-search]").input_value() == query
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "publish")):
         page.locator("[data-bulk-select-all]").click()
     page.wait_for_function("() => !document.querySelector('[data-bulk-apply]').disabled")
     coverage_steps.check("bulk.select-page", page.locator("[data-bulk-check]:checked").count() == 1)
@@ -362,21 +376,21 @@ def test_bulk_workflow(page, live_cms, coverage_steps):
     page.locator("[data-bulk-apply]").click()
     coverage_steps.check("bulk.publish-cancel", page.locator("[data-bulk-check]:checked").count() == 1)
     # Re-render the panel so the cancelled async handler is fully settled before the confirm branch.
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "publish")):
         page.locator('[data-panel="workflow"]').click()
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
-        page.locator("[data-bulk-select-all]").click()
-    page.wait_for_function("() => !document.querySelector('[data-bulk-apply]').disabled")
+    page.wait_for_function(
+        """() => document.querySelectorAll('[data-bulk-check]:checked').length === 1
+          && !document.querySelector('[data-bulk-apply]').disabled"""
+    )
     page.once("dialog", lambda dialog: dialog.accept())
     with page.expect_response(lambda response: "/api/admin/content-bulk" in response.url and response.request.method == "POST"):
         page.locator("[data-bulk-apply]").click()
     page.locator('[role="status"]').filter(has_text="1").wait_for()
     coverage_steps.mark("bulk.publish-confirm")
 
-    page.locator('[data-bulk-action="archive"]').click()
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
-        page.locator("[data-bulk-search]").fill("E2E bulk lifecycle")
-    with page.expect_response(lambda response: "/api/admin/content-index?" in response.url):
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "archive")):
+        page.locator('[data-bulk-action="archive"]').click()
+    with page.expect_response(lambda response: bulk_queue_response(response, query, "archive")):
         page.locator("[data-bulk-select-all]").click()
     page.once("dialog", lambda dialog: dialog.accept())
     with page.expect_response(lambda response: "/api/admin/content-bulk" in response.url and response.request.method == "POST"):

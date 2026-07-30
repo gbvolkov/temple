@@ -361,9 +361,67 @@ def test_media_panel_lifecycle(page, live_cms, media_files, coverage_steps):
         page.locator("[data-panel-media-prev]").click()
     coverage_steps.check("media.panel.pagination-prev", page.locator("[data-panel-media-count]").inner_text().startswith("1"))
 
+    reconciled_file = live_cms.settings.media_dir / "legacy" / "e2e" / "shared.txt"
+    reconciled_file.parent.mkdir(parents=True, exist_ok=True)
+    reconciled_file.write_text("shared legacy file", encoding="utf-8")
+    live_cms.settings.media_manifest_path.write_text(
+        json.dumps(
+            {
+                "entries": {
+                    "https://legacy.example/first.txt": {
+                        "status": "mirrored",
+                        "stored_path": "e2e/shared.txt",
+                    },
+                    "https://legacy.example/alias.txt": {
+                        "status": "mirrored",
+                        "stored_path": "e2e/shared.txt",
+                    },
+                },
+                "errors": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     reindex = page.locator("[data-media-reindex]")
     with page.expect_response(lambda response: "/api/admin/media/reindex" in response.url):
         reindex.click()
     page.locator("[data-media-reindex-status]").filter(has_text="Завершено").wait_for(timeout=20_000)
     page.wait_for_function("() => !document.querySelector('[data-media-reindex]').disabled")
     coverage_steps.check("media.panel.reindex", not reindex.is_disabled())
+    reconciliation = page.locator("[data-media-reconciliation]")
+    coverage_steps.check("media.panel.reconciliation-visible", reconciliation.is_visible())
+    coverage_steps.check(
+        "media.panel.reconciliation-manifest",
+        reconciliation.locator("[data-reconciliation-manifest-urls]").inner_text() == "2"
+        and reconciliation.locator("[data-reconciliation-unique]").inner_text() == "1",
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-duplicates",
+        reconciliation.locator("[data-reconciliation-duplicates]").inner_text() == "1"
+        and "не считаются потерей" in reconciliation.inner_text(),
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-physical",
+        int(reconciliation.locator("[data-reconciliation-physical]").inner_text()) > 0,
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-no-loss",
+        reconciliation.locator("[data-reconciliation-missing]").inner_text() == "0",
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-issues",
+        reconciliation.locator("[data-reconciliation-issues]").inner_text() == "1",
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-content-references",
+        int(
+            reconciliation.locator(
+                "[data-reconciliation-content-references]"
+            ).inner_text()
+        )
+        > 0,
+    )
+    coverage_steps.check(
+        "media.panel.reconciliation-content-clean",
+        reconciliation.locator("[data-reconciliation-content-issues]").inner_text() == "0",
+    )

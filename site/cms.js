@@ -773,6 +773,27 @@
 
   const reindexPhaseLabels = { queued: "В очереди", scanning: "Проверяем файлы", applying: "Обновляем индекс", usages: "Сверяем использование", completed: "Завершено", failed: "Ошибка" };
 
+  function reconciliationMarkup(summary) {
+    if (!summary) return "";
+    const statusLabel = summary.status === "ok" ? "Расхождения объяснены" : "Требуется внимание";
+    return `<section class="media-reconciliation media-reconciliation--${escapeHtml(summary.status || "warning")}" data-media-reconciliation>
+      <div class="media-reconciliation__head"><strong>Сверка данных</strong><span>${escapeHtml(statusLabel)}</span></div>
+      <dl>
+        <div><dt>URL в manifest</dt><dd data-reconciliation-manifest-urls>${Number(summary.manifest_urls || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Уникальные файлы manifest</dt><dd data-reconciliation-unique>${Number(summary.manifest_unique_files || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>URL-дубликаты</dt><dd data-reconciliation-duplicates>${Number(summary.duplicate_aliases || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Физические файлы</dt><dd data-reconciliation-physical>${Number(summary.physical_files || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Вне manifest</dt><dd data-reconciliation-unmanaged>${Number(summary.unmanaged_files || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Не найдены на диске</dt><dd data-reconciliation-missing>${Number(summary.missing_manifest_files || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Утраченные legacy-оригиналы</dt><dd data-reconciliation-issues>${Number(summary.missing_issues || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Ссылки из материалов</dt><dd data-reconciliation-content-references>${Number(summary.content_references || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Проблемные ссылки</dt><dd data-reconciliation-content-issues>${Number(summary.content_reference_issues || 0).toLocaleString("ru-RU")}</dd></div>
+        <div><dt>Необъяснённые проблемы</dt><dd data-reconciliation-unexplained>${Number(summary.unexplained_count || 0).toLocaleString("ru-RU")}</dd></div>
+      </dl>
+      <small>Один checksum-файл может соответствовать нескольким старым URL. Такие псевдонимы учитываются отдельно и не считаются потерей файла.</small>
+    </section>`;
+  }
+
   function renderReindexStatus(job) {
     const host = panel.querySelector("[data-media-reindex-status]");
     const button = panel.querySelector("[data-media-reindex]");
@@ -784,7 +805,7 @@
     host.className = "reindex-progress";
     host.setAttribute("role", "status");
     host.setAttribute("aria-live", "polite");
-    host.innerHTML = `<strong>${escapeHtml(reindexPhaseLabels[job.phase] || job.phase)} · ${percent}%</strong><div class="reindex-progress__bar" aria-hidden="true"><span style="width:${percent}%"></span></div><span data-reindex-count>${Number(job.processed_files || 0).toLocaleString("ru-RU")} из ${Number(job.total_files || 0).toLocaleString("ru-RU")}</span><small>Готово: ${Number(job.ready || 0).toLocaleString("ru-RU")} · ошибок: ${Number(job.error_count || 0).toLocaleString("ru-RU")}${job.status === "completed" ? ` · связей: ${Number(job.usages || 0).toLocaleString("ru-RU")}` : ""}${job.error ? ` · ${escapeHtml(job.error)}` : ""}</small>`;
+    host.innerHTML = `<strong>${escapeHtml(reindexPhaseLabels[job.phase] || job.phase)} · ${percent}%</strong><div class="reindex-progress__bar" aria-hidden="true"><span style="width:${percent}%"></span></div><span data-reindex-count>${Number(job.processed_files || 0).toLocaleString("ru-RU")} из ${Number(job.total_files || 0).toLocaleString("ru-RU")}</span><small>Готово: ${Number(job.ready || 0).toLocaleString("ru-RU")} · ошибок: ${Number(job.error_count || 0).toLocaleString("ru-RU")}${job.status === "completed" ? ` · связей: ${Number(job.usages || 0).toLocaleString("ru-RU")}` : ""}${job.error ? ` · ${escapeHtml(job.error)}` : ""}</small>${reconciliationMarkup(job.reconciliation)}`;
     button.disabled = active;
     button.textContent = active ? `${Number(job.processed_files || 0).toLocaleString("ru-RU")} из ${Number(job.total_files || 0).toLocaleString("ru-RU")}` : job.status === "failed" ? "Повторить проверку" : "Проверить индекс";
   }

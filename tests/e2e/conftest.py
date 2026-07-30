@@ -92,6 +92,7 @@ def settings_for(root: Path, port: int) -> Settings:
         legacy_sections_path=ROOT / "current-sections.json",
         legacy_crawl_path=None,
         media_manifest_path=root / "legacy-media-manifest.json",
+        missing_media_report_path=root / "missing-legacy-media.csv",
         environment="test",
         bootstrap_user="admin",
         bootstrap_password="test-password",
@@ -106,6 +107,10 @@ def _seed(settings: Settings) -> None:
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     settings.derivatives_dir.mkdir(parents=True, exist_ok=True)
     settings.media_manifest_path.write_text("{}\n", encoding="utf-8")
+    settings.missing_report_path.write_text(
+        "url,error,directory,references,fallback_mirrored,fallback_url,materials\n",
+        encoding="utf-8",
+    )
     with TestClient(create_app(settings)) as client:
         login = client.post("/api/admin/login", json={"username": "admin", "password": "test-password"})
         assert login.status_code == 200, login.text
@@ -302,6 +307,7 @@ def live_cms(tmp_path: Path, seed_template: Path) -> LiveCms:
     shutil.copytree(seed_template / "media", settings.media_dir)
     shutil.copytree(seed_template / "media-derivatives", settings.derivatives_dir)
     shutil.copy2(seed_template / "legacy-media-manifest.json", settings.media_manifest_path)
+    shutil.copy2(seed_template / "missing-legacy-media.csv", settings.missing_report_path)
     app = create_app(settings)
 
     @app.middleware("http")

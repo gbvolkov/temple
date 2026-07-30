@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CMS_DATABASE=/data/cms.sqlite3 \
     CMS_MEDIA_DIR=/data/media \
     CMS_MEDIA_DERIVATIVES_DIR=/data/media-derivatives \
+    CMS_MISSING_MEDIA_REPORT=/app/outputs/missing-legacy-media.csv \
     CMS_LEGACY_CRAWL=/data/legacy-crawl-checkpoint.json \
     CMS_MEDIA_MANIFEST=/data/legacy-media-manifest.json
 

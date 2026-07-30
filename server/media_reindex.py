@@ -12,6 +12,7 @@ from typing import Any
 from .config import Settings
 from .db import connect, transaction, utc_now
 from .media_library import index_library
+from .media_reconciliation import reconcile_media
 
 
 LOGGER = logging.getLogger(__name__)
@@ -33,11 +34,20 @@ def _loads(value: str | None) -> list[dict[str, Any]]:
         return []
 
 
+def _load_object(value: str | None) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(value or "{}")
+        return parsed if isinstance(parsed, dict) and parsed else None
+    except json.JSONDecodeError:
+        return None
+
+
 def serialize_job(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     item = dict(row)
     item.pop("singleton", None)
     item["dry_run"] = bool(item["dry_run"])
     item["errors"] = _loads(item.pop("errors_json", "[]"))
+    item["reconciliation"] = _load_object(item.pop("reconciliation_json", "{}"))
     total = int(item["total_files"] or 0)
     processed = int(item["processed_files"] or 0)
     item["percent"] = round(processed * 100 / total) if total else (100 if item["status"] == "completed" else 0)
@@ -154,23 +164,32 @@ def execute_next_job(settings: Settings) -> dict[str, Any] | None:
         result = index_library(
             settings.database_path,
             settings.media_dir,
-            missing_report=settings.root / "outputs" / "missing-legacy-media.csv",
+            missing_report=settings.missing_report_path,
             dry_run=job["dry_run"],
             progress=progress,
         )
         errors = list(result.get("errors") or [])
+        reconciliation = reconcile_media(
+            settings.database_path,
+            settings.media_dir,
+            settings.media_manifest_path,
+            missing_report=settings.missing_report_path,
+            derivatives_dir=settings.derivatives_dir,
+        )
         now = utc_now()
         with transaction(settings.database_path) as connection:
             connection.execute(
                 """UPDATE media_reindex_jobs SET status='completed',phase='completed',
                    total_files=?,processed_files=?,ready=?,invalid=?,created=?,updated=?,usages=?,
-                   missing_issues=?,error_count=?,errors_json=?,updated_at=?,finished_at=? WHERE id=?""",
+                   missing_issues=?,error_count=?,errors_json=?,reconciliation_json=?,
+                   updated_at=?,finished_at=? WHERE id=?""",
                 (
                     int(result.get("files") or 0), int(result.get("files") or 0),
                     int(result.get("ready") or 0), int(result.get("invalid") or 0),
                     int(result.get("created") or 0), int(result.get("updated") or 0),
                     int(result.get("usages") or 0), int(result.get("missing_issues") or 0),
-                    len(errors), json.dumps(errors[:100], ensure_ascii=False), now, now, job_id,
+                    len(errors), json.dumps(errors[:100], ensure_ascii=False),
+                    json.dumps(reconciliation, ensure_ascii=False), now, now, job_id,
                 ),
             )
     except Exception as error:

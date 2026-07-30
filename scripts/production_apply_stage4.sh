@@ -38,6 +38,7 @@ TEST_ROOT="$BACKUP_ROOT/stage${DEPLOYMENT_STAGE}-test-$BACKUP_ID"
 TEST_DATA="$TEST_ROOT/$BACKUP_ID"
 TEST_CONTAINER="temple-stage${DEPLOYMENT_STAGE}-test-${BACKUP_ID//[^a-zA-Z0-9]/-}"
 POST_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-post-report.json"
+RECONCILIATION_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-media-reconciliation.json"
 
 remove_test_root() {
   case "$TEST_ROOT" in
@@ -402,6 +403,16 @@ if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
   sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance verify >/dev/null
   python3 scripts/stage10_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
 fi
+if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
+  sudo docker exec "$TEST_CONTAINER" python -m server.media_reconciliation \
+    --database /data/cms.sqlite3 \
+    --media /data/media \
+    --manifest /data/legacy-media-manifest.json \
+    --missing-report /app/outputs/missing-legacy-media.csv \
+    --derivatives /data/media-derivatives \
+    --apply >"$TEST_ROOT/reconciliation.json"
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8"))["reconciliation"]; assert data["status"]=="ok" and data["manifest_urls"]==13746 and data["manifest_unique_files"]==13698 and data["duplicate_aliases"]==48 and data["duplicate_groups"]==48 and data["physical_files"]==data["manifest_unique_files"]+data["unmanaged_files"] and data["missing_manifest_files"]==0 and data["unregistered_files"]==0 and data["report_manifest_mismatch"]==0 and data["issue_report_mismatch"]==0 and data["content_reference_issues"]==0 and data["missing_issues"]==201' "$TEST_ROOT/reconciliation.json"
+fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
@@ -543,6 +554,17 @@ if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
   STAGE10_PILOT_ID="$(database_value data/cms.sqlite3 "SELECT id FROM migration_review_batches WHERE status='draft' AND filters_json LIKE '%\"pilot\":\"stage10-core\"%' LIMIT 1;")"
   validate_database data/cms.sqlite3 "production after stage 10 audit"
 fi
+if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
+  sudo docker compose exec -T "$SERVICE" python -m server.media_reconciliation \
+    --database /data/cms.sqlite3 \
+    --media /data/media \
+    --manifest /data/legacy-media-manifest.json \
+    --missing-report /app/outputs/missing-legacy-media.csv \
+    --derivatives /data/media-derivatives \
+    --apply >"$RECONCILIATION_REPORT"
+  chmod 600 "$RECONCILIATION_REPORT"
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8"))["reconciliation"]; assert data["status"]=="ok" and data["manifest_urls"]==13746 and data["manifest_unique_files"]==13698 and data["duplicate_aliases"]==48 and data["duplicate_groups"]==48 and data["physical_files"]==data["manifest_unique_files"]+data["unmanaged_files"] and data["missing_manifest_files"]==0 and data["unregistered_files"]==0 and data["report_manifest_mismatch"]==0 and data["issue_report_mismatch"]==0 and data["content_reference_issues"]==0 and data["missing_issues"]==201' "$RECONCILIATION_REPORT"
+fi
 if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "production media index" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status='ready';")" "$PRODUCTION_MEDIA_FILES"
@@ -675,6 +697,9 @@ echo "IMAGE_ID=$NEW_IMAGE_ID"
 echo "SERVER_ARCHIVE_SHA256=$SERVER_SHA256"
 echo "PAVEL_CLEAN_URL=$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN"
 echo "POST_REPORT=$POST_REPORT"
+if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
+  echo "RECONCILIATION_REPORT=$RECONCILIATION_REPORT"
+fi
 if [[ "$DEPLOYMENT_STAGE" == "8" ]]; then
   echo "CONTROL_SUBMISSION=$STAGE8_CONTROL_REFERENCE"
   echo "SMTP_MODE=$STAGE8_EMAIL_MODE"
