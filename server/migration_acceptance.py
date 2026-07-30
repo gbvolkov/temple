@@ -602,11 +602,20 @@ def audit_content(
             details={"count": len(pending_missing), "issue_ids": [row["id"] for row in pending_missing]},
         ))
 
-    media_references = [
-        value for _, value, _ in _walk(visible, "content")
-        if value.startswith("/media/")
-    ]
-    repeated_media = sorted(value for value, count in Counter(media_references).items() if count > 1)
+    # Reusing a gallery's first photo as its cover is intentional.  A duplicate
+    # is actionable only when it repeats inside the same collection.
+    repeated_media: list[str] = []
+    for field_name, value in visible.items():
+        if not isinstance(value, list):
+            continue
+        collection = [
+            child for _, child, _ in _walk(value, f"content.{field_name}")
+            if child.startswith("/media/")
+        ]
+        repeated_media.extend(
+            media_url for media_url, count in Counter(collection).items() if count > 1
+        )
+    repeated_media = sorted(set(repeated_media))
     if repeated_media:
         issues.append(_issue(
             "duplicate_media_reference", "warning",
@@ -1031,6 +1040,21 @@ def _event(
     )
 
 
+def _latest_applied_preparation_id(connection: sqlite3.Connection) -> str | None:
+    exists = connection.execute(
+        """SELECT 1 FROM sqlite_master
+           WHERE type='table' AND name='migration_preparation_runs'"""
+    ).fetchone()
+    if not exists:
+        return None
+    row = connection.execute(
+        """SELECT id FROM migration_preparation_runs
+           WHERE mode='apply' AND status='completed'
+           ORDER BY finished_at DESC,id DESC LIMIT 1"""
+    ).fetchone()
+    return row["id"] if row else None
+
+
 def create_batch(
     database_path: Path,
     *,
@@ -1063,6 +1087,21 @@ def create_batch(
             raise AcceptanceError("Материалы не найдены: " + ", ".join(missing), 404)
         if any(not by_id[content_id]["migration_review_required"] for content_id in content_ids):
             raise AcceptanceError("В партию можно добавлять только материалы, требующие миграционной приёмки", 409)
+        preparation_run_id = _latest_applied_preparation_id(connection)
+        if preparation_run_id:
+            editorial_ids = {
+                row["content_id"] for row in connection.execute(
+                    f"""SELECT content_id FROM migration_preparation_items
+                        WHERE run_id=? AND classification='editorial_review'
+                          AND content_id IN ({','.join('?' for _ in content_ids)})""",
+                    [preparation_run_id, *content_ids],
+                )
+            }
+            if editorial_ids != set(content_ids):
+                raise AcceptanceError(
+                    "В редакционную партию можно включать только неоднозначный остаток автоматической подготовки",
+                    409,
+                )
         active_items = connection.execute(
             f"""SELECT bi.content_id,b.name FROM migration_review_batch_items bi
                 JOIN migration_review_batches b ON b.id=bi.batch_id
@@ -1139,14 +1178,25 @@ def create_pilot_batch(database_path: Path, *, actor_id: str) -> dict[str, Any]:
         ).fetchone()
         if existing:
             return get_batch(database_path, existing["id"])
+        preparation_run_id = _latest_applied_preparation_id(connection)
+        preparation_filter = (
+            """AND EXISTS (
+                 SELECT 1 FROM migration_preparation_items pi
+                 WHERE pi.run_id=? AND pi.content_id=contents.id
+                   AND pi.classification='editorial_review'
+               )"""
+            if preparation_run_id else ""
+        )
+        params = [preparation_run_id] if preparation_run_id else []
         rows = connection.execute(
-            """SELECT id FROM contents WHERE migration_review_required=1 AND (
+            f"""SELECT id FROM contents WHERE migration_review_required=1 {preparation_filter} AND (
                  content_type IN ('site_contact','clergy','parish_section')
                  OR (content_type='page' AND COALESCE(legacy_url,'') LIKE '/o-hrame/%')
                ) ORDER BY
                  CASE content_type WHEN 'site_contact' THEN 0 WHEN 'page' THEN 1
                    WHEN 'clergy' THEN 2 WHEN 'parish_section' THEN 3 ELSE 4 END,
-                 title,id LIMIT 50"""
+                 title,id LIMIT 50""",
+            params,
         ).fetchall()
     if not rows:
         raise AcceptanceError("Для пилотной партии нет материалов, требующих приёмки", 409)

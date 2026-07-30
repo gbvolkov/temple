@@ -39,6 +39,8 @@ TEST_DATA="$TEST_ROOT/$BACKUP_ID"
 TEST_CONTAINER="temple-stage${DEPLOYMENT_STAGE}-test-${BACKUP_ID//[^a-zA-Z0-9]/-}"
 POST_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-post-report.json"
 RECONCILIATION_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-media-reconciliation.json"
+PREPARATION_PREVIEW_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-preparation-preview.json"
+PREPARATION_APPLY_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-preparation-apply.json"
 
 remove_test_root() {
   case "$TEST_ROOT" in
@@ -210,6 +212,11 @@ validate_database() {
       require_equal "$label stage 10 table $table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$table';")" "1"
     done
     require_equal "$label finalized pending decisions" "$(database_value "$database" "SELECT COUNT(*) FROM migration_review_batch_items bi JOIN migration_review_batches b ON b.id=bi.batch_id WHERE b.status='finalized' AND bi.disposition='pending';")" "0"
+  fi
+  if (( expected_schema >= 12 )); then
+    for table in migration_preparation_runs migration_preparation_items; do
+      require_equal "$label stage 12 table $table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$table';")" "1"
+    done
   fi
 }
 
@@ -413,6 +420,26 @@ if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
     --apply >"$TEST_ROOT/reconciliation.json"
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8"))["reconciliation"]; assert data["status"]=="ok" and data["manifest_urls"]==13746 and data["manifest_unique_files"]==13698 and data["duplicate_aliases"]==48 and data["duplicate_groups"]==48 and data["physical_files"]==data["manifest_unique_files"]+data["unmanaged_files"] and data["missing_manifest_files"]==0 and data["unregistered_files"]==0 and data["report_manifest_mismatch"]==0 and data["issue_report_mismatch"]==0 and data["content_reference_issues"]==0 and data["missing_issues"]==201' "$TEST_ROOT/reconciliation.json"
 fi
+if [[ "$DEPLOYMENT_STAGE" == "12" ]]; then
+  TEST_PREP_REVIEW="$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')"
+  TEST_PREP_CONTENTS="$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents;')"
+  TEST_PREP_WORKFLOW="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
+  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation preview \
+    --database /data/cms.sqlite3 >"$TEST_ROOT/preparation-preview.json"
+  TEST_PREVIEW_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8"))["id"])' "$TEST_ROOT/preparation-preview.json")"
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); counts=data["counts"]; assert data["status"]=="completed" and counts.get("technical_blocker",0)==0 and counts.get("contents",0)==int(sys.argv[2])' "$TEST_ROOT/preparation-preview.json" "$TEST_PREP_REVIEW"
+  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation apply \
+    --database /data/cms.sqlite3 \
+    --preview-run-id "$TEST_PREVIEW_ID" >"$TEST_ROOT/preparation-apply.json"
+  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation verify \
+    --database /data/cms.sqlite3 >/dev/null
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); assert data["status"]=="completed" and data["counts"].get("technical_blocker",0)==0' "$TEST_ROOT/preparation-apply.json"
+  require_equal "restored stage 12 review flags" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$TEST_PREP_REVIEW"
+  require_equal "restored stage 12 contents" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents;')" "$TEST_PREP_CONTENTS"
+  require_equal "restored stage 12 workflow states" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")" "$TEST_PREP_WORKFLOW"
+  test "$(database_value "$TEST_DATA/data/cms.sqlite3" 'PRAGMA quick_check;')" = "ok"
+  test -z "$(database_value "$TEST_DATA/data/cms.sqlite3" 'PRAGMA foreign_key_check;')"
+fi
 
 for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
@@ -564,6 +591,28 @@ if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
     --apply >"$RECONCILIATION_REPORT"
   chmod 600 "$RECONCILIATION_REPORT"
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8"))["reconciliation"]; assert data["status"]=="ok" and data["manifest_urls"]==13746 and data["manifest_unique_files"]==13698 and data["duplicate_aliases"]==48 and data["duplicate_groups"]==48 and data["physical_files"]==data["manifest_unique_files"]+data["unmanaged_files"] and data["missing_manifest_files"]==0 and data["unregistered_files"]==0 and data["report_manifest_mismatch"]==0 and data["issue_report_mismatch"]==0 and data["content_reference_issues"]==0 and data["missing_issues"]==201' "$RECONCILIATION_REPORT"
+fi
+if [[ "$DEPLOYMENT_STAGE" == "12" ]]; then
+  STAGE12_REVIEW_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')"
+  STAGE12_CONTENTS_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')"
+  STAGE12_WORKFLOW_BEFORE="$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation preview \
+    --database /data/cms.sqlite3 >"$PREPARATION_PREVIEW_REPORT"
+  chmod 600 "$PREPARATION_PREVIEW_REPORT"
+  STAGE12_PREVIEW_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8"))["id"])' "$PREPARATION_PREVIEW_REPORT")"
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); counts=data["counts"]; assert data["status"]=="completed" and counts.get("technical_blocker",0)==0 and counts.get("contents",0)==int(sys.argv[2])' "$PREPARATION_PREVIEW_REPORT" "$STAGE12_REVIEW_BEFORE"
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation apply \
+    --database /data/cms.sqlite3 \
+    --preview-run-id "$STAGE12_PREVIEW_ID" >"$PREPARATION_APPLY_REPORT"
+  chmod 600 "$PREPARATION_APPLY_REPORT"
+  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation verify \
+    --database /data/cms.sqlite3 >/dev/null
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); assert data["status"]=="completed" and data["counts"].get("technical_blocker",0)==0' "$PREPARATION_APPLY_REPORT"
+  require_equal "stage 12 review flags" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$STAGE12_REVIEW_BEFORE"
+  require_equal "stage 12 contents" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')" "$STAGE12_CONTENTS_BEFORE"
+  require_equal "stage 12 workflow states" "$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")" "$STAGE12_WORKFLOW_BEFORE"
+  test "$(database_value data/cms.sqlite3 'PRAGMA quick_check;')" = "ok"
+  test -z "$(database_value data/cms.sqlite3 'PRAGMA foreign_key_check;')"
 fi
 if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"

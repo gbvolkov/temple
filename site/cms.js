@@ -9,7 +9,7 @@
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", migration_accept: "Принят после миграции", migration_archive: "Архивирован при приёмке", migration_trash: "Перемещён в корзину при приёмке", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationItems: new Map(), preparationTimer: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -1062,7 +1062,34 @@
     panel.innerHTML = `<div class="acceptance-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><p>Автоматический аудит ничего не публикует и не снимает флаги. Решения применяются только при финализации партии.</p></div><div class="migration-dashboard-actions">${can("publisher") ? '<button class="button button--ghost" type="button" data-migration-run>Запустить аудит</button><button class="button button--primary" type="button" data-migration-pilot disabled aria-describedby="migration-pilot-reason">Создать пилотную партию</button><small id="migration-pilot-reason" data-migration-pilot-reason>Проверяем наличие завершённого полного аудита…</small>' : ""}</div></div><div class="metric-grid" data-acceptance-metrics></div><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Проблемы</h2><p>Фильтры применяются к последнему актуальному аудиту рабочей версии.</p></div></div><div class="acceptance-filters"><select data-migration-severity><option value="">Все уровни</option><option value="blocker">Блокирующие</option><option value="warning">Предупреждения</option><option value="info">Справочные</option></select><input type="text" inputmode="numeric" placeholder="Год" data-migration-year><select data-migration-type><option value="">Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}">${escapeHtml(definition.label)}</option>`).join("")}</select><input type="search" placeholder="Код, заголовок или старый URL" data-migration-query><button class="button button--ghost button--compact" type="button" data-migration-filter>Применить</button></div><div class="acceptance-issues" data-acceptance-issues></div><div class="media-pagination"><span data-acceptance-issue-count></span><button class="button button--ghost button--compact" type="button" data-migration-issues-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-migration-issues-next>Дальше →</button></div></section><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Редакционные партии</h2><p>До 50 зафиксированных версий; обязательная выборка и warnings проверяются до финализации.</p></div></div><div class="acceptance-batches" data-acceptance-batches></div></section><section class="acceptance-section"><h2>Запуски аудита</h2><div class="acceptance-runs" data-acceptance-runs></div></section></div>`;
     panel.querySelector("[data-acceptance-metrics]").insertAdjacentHTML(
       "afterend",
-      '<div class="acceptance-breakdown" data-acceptance-breakdown></div>',
+      `<div class="acceptance-breakdown" data-acceptance-breakdown></div>
+       <section class="acceptance-section preparation-section">
+         <div class="acceptance-section__head">
+           <div><h2>Автоматическая подготовка</h2><p>Сначала сформируйте безопасный preview. Применение создаёт ревизии, но не публикует материалы и не снимает флаг редакционной проверки.</p></div>
+           <div class="migration-dashboard-actions">
+             ${can("publisher") ? '<button class="button button--ghost" type="button" data-preparation-preview>Сформировать preview</button>' : ""}
+             ${can("admin") ? '<button class="button button--primary" type="button" data-preparation-apply disabled>Применить preview</button><button class="button button--danger button--compact" type="button" data-preparation-rollback hidden>Откатить применение</button>' : ""}
+           </div>
+         </div>
+         <div class="metric-grid" data-preparation-metrics></div>
+         <div class="preparation-status" data-preparation-status>Проверяем состояние автоматической подготовки…</div>
+         <div class="acceptance-filters">
+           <select data-preparation-classification>
+             <option value="">Все материалы</option>
+             <option value="auto_ready">Готово автоматически</option>
+             <option value="editorial_review">Нужно решение редактора</option>
+             <option value="technical_blocker">Технический блокер</option>
+           </select>
+           <button class="button button--ghost button--compact" type="button" data-preparation-filter>Применить фильтр</button>
+         </div>
+         <div class="preparation-items" data-preparation-items></div>
+         <div class="media-pagination">
+           <span data-preparation-count></span>
+           <button class="button button--ghost button--compact" type="button" data-preparation-prev>← Назад</button>
+           <button class="button button--ghost button--compact" type="button" data-preparation-next>Дальше →</button>
+         </div>
+         <details class="preparation-runs"><summary>История автоматической подготовки</summary><div class="acceptance-runs" data-preparation-runs></div></details>
+       </section>`,
     );
   }
 
@@ -1077,6 +1104,43 @@
     if (type) params.set("content_type", type);
     if (q) params.set("q", q);
     return params;
+  }
+
+  const preparationClassLabels = {
+    auto_ready: "Готово автоматически",
+    editorial_review: "Нужно решение редактора",
+    technical_blocker: "Технический блокер",
+  };
+
+  function renderPreparationDossier(item) {
+    const transformations = item.transformations || [];
+    const reasons = item.reasons || [];
+    panel.innerHTML = `<div class="acceptance-panel preparation-dossier">
+      <button class="button button--ghost button--compact" type="button" data-migration-back>← К dashboard</button>
+      <div class="workflow-panel__head"><div><div class="eyebrow">Досье автоматической подготовки</div><h1>${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
+      <section class="acceptance-section"><h2>Рекомендация</h2><p>${escapeHtml(item.recommendation || "Дополнительных действий не требуется.")}</p>${reasons.length ? `<ul>${reasons.map(reason => `<li>${escapeHtml(typeof reason === "string" ? reason : reason.message || reason.code || JSON.stringify(reason))}</li>`).join("")}</ul>` : ""}</section>
+      <section class="acceptance-section"><h2>Применяемые правила</h2><div class="acceptance-item-issues">${transformations.map(rule => `<span class="acceptance-chip">${escapeHtml(rule.rule || "нормализация")}</span>`).join("") || '<span class="state-pill">Данные уже соответствуют правилам</span>'}</div></section>
+      <section class="preparation-diff"><article><h2>До</h2><pre>${escapeHtml(JSON.stringify(item.before, null, 2))}</pre></article><article><h2>После</h2><pre>${escapeHtml(JSON.stringify(item.proposed, null, 2))}</pre></article></section>
+      ${item.options?.length ? `<section class="acceptance-section"><h2>Варианты для редакционного этапа</h2><ul>${item.options.map(option => `<li>${escapeHtml(typeof option === "string" ? option : option.label || option.value || JSON.stringify(option))}</li>`).join("")}</ul></section>` : ""}
+    </div>`;
+  }
+
+  async function preparationAction(mode) {
+    const payload = { mode };
+    if (mode === "apply") {
+      const preview = state.migration.preparationRun;
+      if (!preview || preview.mode !== "preview" || preview.status !== "completed") {
+        toast("Сначала дождитесь завершения preview");
+        return;
+      }
+      if (!confirm("Применить автоматические исправления из preview? Материалы останутся непубличными и потребуют редакционной приёмки.")) return;
+      payload.preview_run_id = preview.id;
+    }
+    const run = await apiRequest("/api/admin/migration/preparations", { method: "POST", body: JSON.stringify(payload) });
+    state.migration.preparationRun = run;
+    state.migration.preparationOffset = 0;
+    toast(mode === "preview" ? "Preview поставлен в очередь" : "Применение поставлено в очередь");
+    await refreshMigrationStatus();
   }
 
   async function refreshMigrationStatus() {
@@ -1115,6 +1179,48 @@
     const pilotReason = panel.querySelector("[data-migration-pilot-reason]");
     if (pilot) pilot.disabled = !auditReady || auditActive;
     if (pilotReason) pilotReason.textContent = auditActive ? "Полный аудит выполняется. Пилот станет доступен после завершения." : auditReady ? "Завершённый полный аудит найден." : "Сначала запустите и дождитесь завершения полного аудита.";
+    const preparation = status.preparation || { runs: [], counts: {} };
+    const preparationRuns = preparation.runs || [];
+    const displayPreparation = preparationRuns[0] || null;
+    state.migration.preparationRun = displayPreparation;
+    let preparationItems = { items: [], total: 0, limit: 50, offset: state.migration.preparationOffset };
+    if (displayPreparation?.status === "completed") {
+      const params = new URLSearchParams({ limit: "50", offset: String(state.migration.preparationOffset) });
+      if (state.migration.preparationClassification) params.set("classification", state.migration.preparationClassification);
+      preparationItems = await apiRequest(`/api/admin/migration/preparations/${displayPreparation.id}/items?${params}`, { signal: controller.signal });
+      if (requestId !== state.migration.requestId || !panel.querySelector("[data-preparation-items]")) return false;
+    }
+    state.migration.preparationItems = new Map(preparationItems.items.map(item => [item.content_id, item]));
+    const preparationActive = preparationRuns.some(run => ["queued", "running"].includes(run.status));
+    const applyButton = panel.querySelector("[data-preparation-apply]");
+    if (applyButton) applyButton.disabled = preparationActive || displayPreparation?.mode !== "preview" || displayPreparation?.status !== "completed";
+    const rollbackButton = panel.querySelector("[data-preparation-rollback]");
+    if (rollbackButton) {
+      rollbackButton.hidden = displayPreparation?.mode !== "apply" || displayPreparation?.status !== "completed";
+      rollbackButton.dataset.preparationRollback = displayPreparation?.id || "";
+    }
+    const previewButton = panel.querySelector("[data-preparation-preview]");
+    if (previewButton) previewButton.disabled = preparationActive || !auditReady;
+    const preparationCounts = displayPreparation?.counts || preparation.counts || {};
+    panel.querySelector("[data-preparation-metrics]").innerHTML = [
+      ["Материалов", preparationCounts.contents || 0],
+      ["Готово автоматически", preparationCounts.auto_ready || 0],
+      ["Нужно решение редактора", preparationCounts.editorial_review || 0],
+      ["Технических блокеров", preparationCounts.technical_blocker || 0],
+    ].map(([label, value]) => `<article class="metric-card"><b>${Number(value).toLocaleString("ru-RU")}</b><span>${label}</span></article>`).join("");
+    const preparationStatus = panel.querySelector("[data-preparation-status]");
+    if (preparationStatus) {
+      preparationStatus.innerHTML = displayPreparation
+        ? `<span class="state-pill">${escapeHtml(displayPreparation.mode)} · ${escapeHtml(displayPreparation.status)}</span><span>Правила ${escapeHtml(displayPreparation.rules_version)} · ${escapeHtml(formatDate(displayPreparation.created_at))}${displayPreparation.error ? ` · ${escapeHtml(displayPreparation.error)}` : ""}</span>`
+        : '<span>Запусков пока нет. После полного аудита сформируйте preview.</span>';
+    }
+    panel.querySelector("[data-preparation-items]").innerHTML = preparationItems.items.map(item => `<article class="preparation-item"><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.recommendation || "Автоматическая нормализация не требуется.")}</p><small>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · v${item.content_version}${item.state ? ` · ${escapeHtml(item.state)}` : ""}</small></div><button class="button button--ghost button--compact" type="button" data-preparation-item="${escapeHtml(item.content_id)}">Открыть досье</button></article>`).join("") || `<div class="history-empty">${displayPreparation?.status === "completed" ? "По выбранному фильтру материалов нет." : "Досье появятся после завершения запуска."}</div>`;
+    panel.querySelector("[data-preparation-count]").textContent = `${Number(preparationItems.total || 0).toLocaleString("ru-RU")} материалов`;
+    panel.querySelector("[data-preparation-prev]").disabled = state.migration.preparationOffset === 0;
+    panel.querySelector("[data-preparation-next]").disabled = state.migration.preparationOffset + preparationItems.items.length >= preparationItems.total;
+    panel.querySelector("[data-preparation-runs]").innerHTML = preparationRuns.map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.mode)} · ${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.changed || 0)} изменений${run.preview_run_id ? " · по preview" : ""}${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Запусков пока нет.</div>';
+    clearTimeout(state.migration.preparationTimer);
+    if (preparationActive) state.migration.preparationTimer = setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1500);
     const total = Number(acceptance.totals.contents || 0), remaining = Number(acceptance.totals.review_required || 0);
     panel.querySelector("[data-acceptance-metrics]").innerHTML = [
       ["Осталось принять", remaining], ["Блокирующих", acceptance.issues.blocker || 0],
@@ -1173,7 +1279,7 @@
   }
 
   function showPanel(name) {
-    if (name !== "migration") state.migration.abort?.abort();
+    if (name !== "migration") { state.migration.abort?.abort(); clearTimeout(state.migration.preparationTimer); }
     if (name !== "media") clearTimeout(state.media.reindexTimer);
     state.activePanel = name;
     document.querySelector("[data-editor-pane]").hidden = true;
@@ -1190,7 +1296,7 @@
   }
 
   function selectContentType(type) {
-    state.migration.abort?.abort(); clearTimeout(state.media.reindexTimer);
+    state.migration.abort?.abort(); clearTimeout(state.migration.preparationTimer); clearTimeout(state.media.reindexTimer);
     state.activePanel = null;
     state.currentType = type; state.current = null; state.dirty = false;
     resetContentPicker();
@@ -1392,6 +1498,18 @@
     }
     if (target.dataset.restoreRevision) await restoreRevision(Number(target.dataset.restoreRevision)).catch(error => toast(error.message));
     if (target.matches("[data-migration-run]")) { await apiRequest("/api/admin/migration/audits", { method: "POST", body: JSON.stringify({ check_external: true }) }); toast("Аудит поставлен в очередь"); setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1200); }
+    if (target.matches("[data-preparation-preview]")) await preparationAction("preview").catch(error => toast(error.message));
+    if (target.matches("[data-preparation-apply]")) await preparationAction("apply").catch(error => toast(error.message));
+    if (target.matches("[data-preparation-rollback]") && confirm("Откатить автоматические изменения компенсирующими ревизиями? Откат остановится, если материал уже изменён редактором.")) {
+      await apiRequest(`/api/admin/migration/preparations/${target.dataset.preparationRollback}/rollback`, { method: "POST" }).then(() => { toast("Автоматическая подготовка откачена"); state.migration.preparationOffset = 0; return refreshMigrationStatus(); }).catch(error => toast(error.message));
+    }
+    if (target.matches("[data-preparation-filter]")) { state.migration.preparationClassification = panel.querySelector("[data-preparation-classification]")?.value || ""; state.migration.preparationOffset = 0; await refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (target.matches("[data-preparation-prev]")) { state.migration.preparationOffset = Math.max(0, state.migration.preparationOffset - 50); await refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (target.matches("[data-preparation-next]")) { state.migration.preparationOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (target.dataset.preparationItem) {
+      const item = state.migration.preparationItems.get(target.dataset.preparationItem);
+      if (item) { clearTimeout(state.migration.preparationTimer); renderPreparationDossier(item); }
+    }
     if (target.matches("[data-migration-pilot]")) {
       try { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
       catch (error) { toast(error.status === 409 ? "Полный аудит устарел или ещё не завершён. Обновляем состояние." : error.message); await refreshMigrationStatus().catch(refreshError => toast(refreshError.message)); }

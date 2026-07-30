@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -11,6 +13,13 @@ from server.baseline import database_report, media_summary, readonly_connection
 from server.config import Settings
 from server.db import init_database
 from server.media_reconciliation import run_reconciliation
+from server.migration_acceptance import execute_audit_run, queue_audit
+from server.migration_preparation import (
+    execute_preparation_run,
+    list_preparation_items,
+    queue_preparation,
+    verify_preparation,
+)
 
 from .conftest import ROOT, observe_open_defect
 
@@ -44,7 +53,7 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
         source.backup(destination)
     init_database(target)
     migrated = database_report(target)
-    assert migrated["schema_version"] == 11
+    assert migrated["schema_version"] == 12
     assert migrated["quick_check"] == ["ok"]
     assert migrated["foreign_key_error_count"] == 0
     after = stable_database_metrics(database_report(source_db))
@@ -67,14 +76,16 @@ def reconciled_source(pytestconfig, tmp_path_factory):
     before_media = media_summary(source_media)
     target_root = tmp_path_factory.mktemp("cms-source-reconciliation")
     target = target_root / "source-copy.sqlite3"
+    target_media = target_root / "media"
     with readonly_connection(source_db) as source, sqlite3.connect(target) as destination:
         source.backup(destination)
+    shutil.copytree(source_media, target_media, copy_function=os.link)
     init_database(target)
     settings = Settings(
         root=ROOT,
         site_dir=ROOT / "site",
         database_path=target,
-        media_dir=source_media,
+        media_dir=target_media,
         media_derivatives_dir=target_root / "media-derivatives",
         schema_path=ROOT / "site" / "cms-schema.json",
         legacy_sections_path=ROOT / "current-sections.json",
@@ -88,6 +99,11 @@ def reconciled_source(pytestconfig, tmp_path_factory):
     result = run_reconciliation(settings, apply=True)
     assert stable_database_metrics(database_report(source_db)) == before_database
     assert media_summary(source_media) == before_media
+    result["_settings"] = settings
+    result["_source_database_before"] = before_database
+    result["_source_media_before"] = before_media
+    result["_source_database"] = source_db
+    result["_source_media"] = source_media
     return result
 
 
@@ -133,3 +149,66 @@ def test_gap_03_manifest_matches_filesystem(reconciled_source):
     assert reconciliation["content_reference_files"] > 0
     assert reconciliation["content_reference_issues"] == 0
     assert reconciliation["unexplained_count"] == 0
+
+
+@pytest.mark.source_data
+def test_stage6_real_source_automatic_preparation(reconciled_source):
+    settings: Settings = reconciled_source["_settings"]
+    source_db: Path = reconciled_source["_source_database"]
+    source_media: Path = reconciled_source["_source_media"]
+    before = database_report(settings.database_path)
+    audit = queue_audit(
+        settings.database_path,
+        actor_id=None,
+        scope={"check_external": False},
+    )
+    completed_audit = execute_audit_run(
+        settings.database_path,
+        settings.schema_path,
+        settings.media_dir,
+        settings.site_dir,
+        audit["id"],
+        check_external=False,
+    )
+    assert completed_audit["status"] == "completed"
+
+    queued_preview = queue_preparation(settings.database_path, actor_id=None)
+    preview = execute_preparation_run(settings, queued_preview["id"])
+    assert preview["status"] == "completed"
+    assert preview["counts"]["contents"] == before["review_required"]
+    assert preview["counts"].get("technical_blocker", 0) == 0
+    planned = list_preparation_items(
+        settings.database_path, preview["id"], limit=200, offset=0
+    )
+    assert planned["total"] == before["review_required"]
+
+    queued_apply = queue_preparation(
+        settings.database_path,
+        actor_id=None,
+        mode="apply",
+        preview_run_id=preview["id"],
+    )
+    applied = execute_preparation_run(settings, queued_apply["id"])
+    assert applied["status"] == "completed"
+    assert applied["counts"].get("technical_blocker", 0) == 0
+    assert verify_preparation(settings.database_path)["run_id"] == applied["id"]
+    after = database_report(settings.database_path)
+    assert after["review_required"] == before["review_required"]
+    assert after["quick_check"] == ["ok"]
+    assert after["foreign_key_error_count"] == 0
+
+    post_audit = queue_audit(
+        settings.database_path,
+        actor_id=None,
+        scope={"check_external": False},
+    )
+    assert execute_audit_run(
+        settings.database_path,
+        settings.schema_path,
+        settings.media_dir,
+        settings.site_dir,
+        post_audit["id"],
+        check_external=False,
+    )["status"] == "completed"
+    assert stable_database_metrics(database_report(source_db)) == reconciled_source["_source_database_before"]
+    assert media_summary(source_media) == reconciled_source["_source_media_before"]

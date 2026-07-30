@@ -41,6 +41,13 @@ from .migration_acceptance import (
     apply_acceptance_schema,
     validate_acceptance_schema,
 )
+from .migration_preparation import (
+    PREPARATION_REQUIRED_COLUMNS,
+    PREPARATION_REQUIRED_INDEXES,
+    PREPARATION_SCHEMA_SQL,
+    apply_preparation_schema,
+    validate_preparation_schema,
+)
 
 
 MIGRATION_TABLE_SQL = """
@@ -892,6 +899,17 @@ MIGRATIONS = (
             inspect.getsource(validate_media_reconciliation_schema),
         )),
     ),
+    Migration(
+        12,
+        "migration_automatic_preparation",
+        apply_preparation_schema,
+        "\n".join((
+            PREPARATION_SCHEMA_SQL,
+            repr(sorted((name, sorted(columns)) for name, columns in PREPARATION_REQUIRED_COLUMNS.items())),
+            repr(sorted(PREPARATION_REQUIRED_INDEXES)),
+            inspect.getsource(validate_preparation_schema),
+        )),
+    ),
 )
 
 
@@ -977,6 +995,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_media_reindex_jobs_schema(connection)
             if any(item.get("version") == 11 and item["state"] == "applied" for item in status):
                 validate_media_reconciliation_schema(connection)
+            if any(item.get("version") == 12 and item["state"] == "applied" for item in status):
+                validate_preparation_schema(connection)
         finally:
             connection.close()
     return status

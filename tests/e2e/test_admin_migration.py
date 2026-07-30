@@ -5,6 +5,8 @@ import sqlite3
 
 import pytest
 
+from server.migration_acceptance import execute_audit_run, queue_audit
+
 from .conftest import login
 
 
@@ -238,18 +240,22 @@ def test_full_role_capabilities(browser, live_cms, coverage_steps):
         "viewer": {
             "create": False, "submissions": False, "users": False,
             "bulk": False, "upload": False, "audit": False, "reindex": False,
+            "prepare": False, "apply_prepare": False,
         },
         "editor": {
             "create": True, "submissions": False, "users": False,
             "bulk": False, "upload": True, "audit": False, "reindex": False,
+            "prepare": False, "apply_prepare": False,
         },
         "publisher": {
             "create": True, "submissions": True, "users": False,
             "bulk": True, "upload": True, "audit": True, "reindex": False,
+            "prepare": True, "apply_prepare": False,
         },
         "admin": {
             "create": True, "submissions": True, "users": True,
             "bulk": True, "upload": True, "audit": True, "reindex": True,
+            "prepare": True, "apply_prepare": True,
         },
     }
     for role, permissions in expected.items():
@@ -276,6 +282,8 @@ def test_full_role_capabilities(browser, live_cms, coverage_steps):
                 role_page.locator("[data-migration-run]").count() == 1
                 and role_page.locator("[data-migration-pilot]").count() == 1
             )
+            actual["prepare"] = role_page.locator("[data-preparation-preview]").count() == 1
+            actual["apply_prepare"] = role_page.locator("[data-preparation-apply]").count() == 1
             coverage_steps.check(
                 f"roles.{role}-capabilities",
                 actual == permissions,
@@ -421,6 +429,198 @@ def test_migration_dashboard_and_audit(page, live_cms, coverage_steps):
     completed_runs = page.locator(".acceptance-run").filter(has_text="completed")
     completed_runs.first.wait_for()
     coverage_steps.check("migration.audit-visible", completed_runs.count() >= 2)
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute(
+            """UPDATE contents SET migration_review_required=1
+               WHERE content_type='news' AND title LIKE 'E2E pagination %'"""
+        )
+        sample_id, sample_version = connection.execute(
+            """SELECT id,version FROM contents
+               WHERE content_type='page' AND migration_review_required=1
+               ORDER BY title LIMIT 1"""
+        ).fetchone()
+        gallery_id = connection.execute(
+            "SELECT id FROM contents WHERE content_type='gallery' ORDER BY title LIMIT 1"
+        ).fetchone()[0]
+        gallery_data = {
+            "event_date": "2026-07-30",
+            "category": "Жизнь прихода",
+            "summary": "Альбом без ложного дубля.",
+            "cover": "assets/school-maslenitsa.jpg",
+            "photos": [{
+                "image": "assets/school-maslenitsa.jpg",
+                "alt": "Приходской праздник",
+                "order": 1,
+            }],
+        }
+        connection.execute(
+            "UPDATE contents SET data_json=?,migration_review_required=1 WHERE id=?",
+            (json.dumps(gallery_data, ensure_ascii=False), gallery_id),
+        )
+    audit = queue_audit(
+        live_cms.settings.database_path,
+        actor_id=None,
+        scope={"check_external": False},
+    )
+    execute_audit_run(
+        live_cms.settings.database_path,
+        live_cms.settings.schema_path,
+        live_cms.settings.media_dir,
+        live_cms.settings.site_dir,
+        audit["id"],
+        check_external=False,
+    )
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        false_duplicates = connection.execute(
+            """SELECT COUNT(*) FROM migration_review_issues
+               WHERE content_id=? AND code='duplicate_media_reference' AND status='open'""",
+            (gallery_id,),
+        ).fetchone()[0]
+    coverage_steps.check(
+        "stage6.preparation.cover-photo-not-duplicate",
+        false_duplicates == 0,
+    )
+
+    login(page)
+    _open_panel(page, "migration", "Перенесённые материалы")
+    preview_button = page.locator("[data-preparation-preview]")
+    page.wait_for_function("() => !document.querySelector('[data-preparation-preview]').disabled")
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/admin/migration/preparations")
+        and response.request.method == "POST"
+    ) as queued:
+        preview_button.click()
+    preview_run = queued.value.json()
+    coverage_steps.check(
+        "stage6.preparation.preview-queued",
+        queued.value.status == 202 and preview_run["mode"] == "preview" and preview_run["status"] == "queued",
+    )
+    completed_preview = page.evaluate(
+        """async runId => {
+          const deadline = Date.now() + 45000;
+          while (Date.now() < deadline) {
+            const response = await fetch(`/api/admin/migration/preparations/${runId}`);
+            const run = await response.json();
+            if (["completed", "failed"].includes(run.status)) return run;
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+          throw new Error("Preparation preview did not finish within 45 seconds");
+        }""",
+        preview_run["id"],
+    )
+    coverage_steps.check(
+        "stage6.preparation.preview-completed",
+        completed_preview["status"] == "completed" and completed_preview["counts"]["contents"] >= 59,
+        str(completed_preview),
+    )
+    page.wait_for_function(
+        "() => document.querySelector('[data-preparation-status]')?.textContent.includes('preview · completed')"
+    )
+    coverage_steps.check(
+        "stage6.preparation.metrics",
+        page.locator("[data-preparation-metrics] .metric-card").count() == 4
+        and int(page.locator("[data-preparation-count]").inner_text().split()[0]) >= 50,
+    )
+
+    dossier_button = page.locator("[data-preparation-item]").first
+    dossier_button.click()
+    page.locator(".preparation-dossier").wait_for()
+    coverage_steps.check(
+        "stage6.preparation.dossier",
+        page.locator(".preparation-diff article").count() == 2
+        and page.get_by_role("heading", name="Рекомендация", exact=True).is_visible(),
+    )
+    page.locator("[data-migration-back]").click()
+    page.get_by_role("heading", name="Перенесённые материалы", exact=True).wait_for()
+    coverage_steps.mark("stage6.preparation.dashboard-back")
+
+    page.locator("[data-preparation-classification]").select_option("editorial_review")
+    with page.expect_response(
+        lambda response: "/items?" in response.url and "classification=editorial_review" in response.url
+    ) as filtered:
+        page.locator("[data-preparation-filter]").click()
+    coverage_steps.check(
+        "stage6.preparation.filter",
+        all(item["classification"] == "editorial_review" for item in filtered.value.json()["items"]),
+    )
+    page.wait_for_function("() => !document.querySelector('[data-preparation-next]').disabled")
+    with page.expect_response(lambda response: "/items?" in response.url and "offset=50" in response.url):
+        page.locator("[data-preparation-next]").click()
+    coverage_steps.check(
+        "stage6.preparation.pagination-next",
+        not page.locator("[data-preparation-prev]").is_disabled(),
+    )
+    with page.expect_response(lambda response: "/items?" in response.url and "offset=0" in response.url):
+        page.locator("[data-preparation-prev]").click()
+    coverage_steps.check(
+        "stage6.preparation.pagination-prev",
+        page.locator("[data-preparation-prev]").is_disabled(),
+    )
+
+    apply_button = page.locator("[data-preparation-apply]")
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    apply_button.click()
+    coverage_steps.check("stage6.preparation.apply-dismiss", apply_button.is_enabled())
+    page.once("dialog", lambda dialog: dialog.accept())
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/admin/migration/preparations")
+        and response.request.method == "POST"
+    ) as apply_queued:
+        apply_button.click()
+    apply_run = apply_queued.value.json()
+    completed_apply = page.evaluate(
+        """async runId => {
+          const deadline = Date.now() + 45000;
+          while (Date.now() < deadline) {
+            const response = await fetch(`/api/admin/migration/preparations/${runId}`);
+            const run = await response.json();
+            if (["completed", "failed"].includes(run.status)) return run;
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+          throw new Error("Preparation apply did not finish within 45 seconds");
+        }""",
+        apply_run["id"],
+    )
+    coverage_steps.check(
+        "stage6.preparation.apply-completed",
+        completed_apply["status"] == "completed" and completed_apply["counts"].get("technical_blocker", 0) == 0,
+        str(completed_apply),
+    )
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        after_version, review_required = connection.execute(
+            "SELECT version,migration_review_required FROM contents WHERE id=?",
+            (sample_id,),
+        ).fetchone()
+    coverage_steps.check(
+        "stage6.preparation.flags-preserved",
+        after_version > sample_version and review_required == 1,
+    )
+    page.wait_for_function(
+        "() => !document.querySelector('[data-preparation-rollback]')?.hidden"
+    )
+    rollback = page.locator("[data-preparation-rollback]")
+    page.once("dialog", lambda dialog: dialog.accept())
+    with page.expect_response(
+        lambda response: response.url.endswith(f"/api/admin/migration/preparations/{apply_run['id']}/rollback")
+    ) as rolled_back:
+        rollback.click()
+    coverage_steps.check(
+        "stage6.preparation.rollback",
+        rolled_back.value.status == 200 and rolled_back.value.json()["status"] == "rolled_back",
+    )
+    page.get_by_role("heading", name="Перенесённые материалы", exact=True).wait_for()
+    page.set_viewport_size({"width": 390, "height": 844})
+    coverage_steps.check(
+        "stage6.preparation.mobile",
+        page.locator(".preparation-section").is_visible()
+        and page.locator("[data-preparation-preview]").is_visible()
+        and page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"),
+    )
 
 
 def _create_pilot(page):

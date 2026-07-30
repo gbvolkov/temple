@@ -63,6 +63,15 @@ from .migration_acceptance import (
     submit_batch,
     update_batch_item,
 )
+from .migration_preparation import (
+    PreparationError,
+    get_preparation_run,
+    list_preparation_items,
+    preparation_scheduler,
+    preparation_summary,
+    queue_preparation,
+    rollback_preparation,
+)
 from .security import hash_password, token_hash, verify_password
 from .search import (
     SEARCHABLE_TYPES,
@@ -250,6 +259,11 @@ class MigrationBatchFinalizePayload(MigrationBatchVersionPayload):
     warning_acknowledgements: dict[str, str] = Field(default_factory=dict)
 
 
+class MigrationPreparationPayload(BaseModel):
+    mode: Literal["preview", "apply"] = "preview"
+    preview_run_id: str | None = Field(default=None, max_length=80)
+
+
 def load_schema(settings: Settings) -> dict:
     return json.loads(settings.schema_path.read_text(encoding="utf-8"))
 
@@ -344,6 +358,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         submission_task = asyncio.create_task(submission_scheduler(settings))
         acceptance_task = asyncio.create_task(acceptance_scheduler(settings))
+        preparation_task = asyncio.create_task(preparation_scheduler(settings))
         media_reindex_task = asyncio.create_task(media_reindex_scheduler(settings))
         try:
             yield
@@ -351,8 +366,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             scheduler_task.cancel()
             submission_task.cancel()
             acceptance_task.cancel()
+            preparation_task.cancel()
             media_reindex_task.cancel()
-            for task in (scheduler_task, submission_task, acceptance_task, media_reindex_task):
+            for task in (
+                scheduler_task, submission_task, acceptance_task,
+                preparation_task, media_reindex_task,
+            ):
                 with suppress(asyncio.CancelledError):
                     await task
 
@@ -450,6 +469,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return dependency
 
     def acceptance_http_error(error: AcceptanceError) -> HTTPException:
+        return HTTPException(error.status_code, str(error))
+
+    def preparation_http_error(error: PreparationError) -> HTTPException:
         return HTTPException(error.status_code, str(error))
 
     def media_reindex_http_error(error: MediaReindexError) -> HTTPException:
@@ -1868,6 +1890,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             totals["reviewed"] = int(totals["contents"] or 0) - int(totals["review_required"] or 0)
         source = settings.legacy_crawl_path if settings.legacy_crawl_path and settings.legacy_crawl_path.exists() else settings.legacy_sections_path
         acceptance = acceptance_summary(settings.database_path)
+        preparation = preparation_summary(settings.database_path)
         return {
             "runs": runs,
             "totals": totals,
@@ -1875,6 +1898,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "review_by_type": review_by_type,
             "source": source.name,
             "acceptance": acceptance,
+            "preparation": preparation,
         }
 
     @app.post("/api/admin/migration/audits", status_code=202)
@@ -1953,6 +1977,62 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         except AcceptanceError as error:
             raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/preparations", status_code=202)
+    def create_migration_preparation(
+        payload: MigrationPreparationPayload,
+        user: dict = Depends(require("publisher", mutation=True)),
+    ):
+        if payload.mode == "apply" and user["role"] != "admin":
+            raise HTTPException(403, "Применить автоматическую подготовку может только администратор")
+        try:
+            return queue_preparation(
+                settings.database_path,
+                actor_id=user["id"],
+                mode=payload.mode,
+                preview_run_id=payload.preview_run_id,
+            )
+        except PreparationError as error:
+            raise preparation_http_error(error) from error
+
+    @app.get("/api/admin/migration/preparations/{run_id}")
+    def migration_preparation(run_id: str, _: dict = Depends(require("viewer"))):
+        try:
+            return get_preparation_run(settings.database_path, run_id)
+        except PreparationError as error:
+            raise preparation_http_error(error) from error
+
+    @app.get("/api/admin/migration/preparations/{run_id}/items")
+    def migration_preparation_items(
+        run_id: str,
+        classification: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        _: dict = Depends(require("viewer")),
+    ):
+        try:
+            get_preparation_run(settings.database_path, run_id)
+            return list_preparation_items(
+                settings.database_path,
+                run_id,
+                classification=classification,
+                limit=limit,
+                offset=offset,
+            )
+        except PreparationError as error:
+            raise preparation_http_error(error) from error
+
+    @app.post("/api/admin/migration/preparations/{run_id}/rollback")
+    def rollback_migration_preparation(
+        run_id: str,
+        user: dict = Depends(require("admin", mutation=True)),
+    ):
+        try:
+            return rollback_preparation(
+                settings.database_path, run_id, actor_id=user["id"]
+            )
+        except PreparationError as error:
+            raise preparation_http_error(error) from error
 
     @app.get("/api/admin/migration/batches")
     def migration_batches(status: str | None = None, _: dict = Depends(require("viewer"))):
