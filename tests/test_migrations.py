@@ -27,9 +27,32 @@ def legacy_database(path):
 def test_fresh_database_and_repeat_are_idempotent(tmp_path):
     database = tmp_path / "fresh.sqlite3"
     first = migrate(database)
-    assert [item["state"] for item in first] == ["applied"] * 12
+    assert [item["state"] for item in first] == ["applied"] * 13
     second = migrate(database)
-    assert [item["state"] for item in second] == ["unchanged"] * 12
+    assert [item["state"] for item in second] == ["unchanged"] * 13
+    with sqlite3.connect(database) as connection:
+        for table, columns in {
+            "migration_audit_runs": {
+                "identity_hash", "retry_of_run_id", "recovered",
+                "recovery_reason", "error_json",
+            },
+            "migration_preparation_runs": {
+                "identity_hash", "retry_of_run_id", "recovered",
+                "recovery_reason", "error_json",
+            },
+            "migration_link_cache": {
+                "normalized_url", "final_url", "result",
+                "checker_version", "evidence_digest",
+            },
+            "migration_generated_media_events": {
+                "preparation_run_id", "media_id", "source_media_id",
+                "event_type", "identity_hash", "details_json",
+            },
+        }.items():
+            actual = {
+                row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+            }
+            assert columns <= actual
     with sqlite3.connect(database) as connection:
         columns = {row[1] for row in connection.execute("PRAGMA table_info(media_reindex_jobs)")}
         assert {"status", "phase", "processed_files", "total_files", "errors_json"} <= columns
@@ -50,7 +73,7 @@ def test_existing_legacy_schema_is_stamped_without_losing_data(tmp_path):
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 12
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 13
 
 
 def test_dry_run_does_not_create_or_change_database(tmp_path):
@@ -58,7 +81,7 @@ def test_dry_run_does_not_create_or_change_database(tmp_path):
     legacy_database(database)
     before = database.read_bytes()
     pending = migrate(database, dry_run=True)
-    assert [item["version"] for item in pending] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    assert [item["version"] for item in pending] == list(range(1, 14))
     assert database.read_bytes() == before
     with sqlite3.connect(database) as connection:
         assert connection.execute(

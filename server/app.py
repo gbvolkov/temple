@@ -469,10 +469,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return dependency
 
     def acceptance_http_error(error: AcceptanceError) -> HTTPException:
-        return HTTPException(error.status_code, str(error))
+        return HTTPException(
+            error.status_code,
+            {
+                "contract_version": "1.1",
+                "code": error.code,
+                "message": str(error),
+                "details": error.details,
+            },
+        )
 
     def preparation_http_error(error: PreparationError) -> HTTPException:
-        return HTTPException(error.status_code, str(error))
+        return HTTPException(
+            error.status_code,
+            {
+                "contract_version": "1.1",
+                "code": error.code,
+                "message": str(error),
+                "details": error.details,
+            },
+        )
 
     def media_reindex_http_error(error: MediaReindexError) -> HTTPException:
         detail: str | dict[str, Any] = str(error)
@@ -1915,7 +1931,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "check_external": payload.check_external,
             }.items() if value is not None
         }
-        return queue_audit(settings.database_path, actor_id=user["id"], scope=scope)
+        try:
+            return queue_audit(settings.database_path, actor_id=user["id"], scope=scope)
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
 
     @app.get("/api/admin/migration/audits/{run_id}")
     def migration_audit(run_id: str, _: dict = Depends(require("viewer"))):

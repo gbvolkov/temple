@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from .config import Settings
 from .db import connect, row_to_content, transaction, utc_now
@@ -25,7 +25,10 @@ from .search import sync_content_search
 from .workflow import admin_content, record_audit
 
 
-RULES_VERSION = "1.0.0"
+RULES_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.1"
+EXTERNAL_CHECKER_VERSION = "1.1.0"
+EXTERNAL_CACHE_TTL = timedelta(hours=24)
 SEVERITIES = ("blocker", "warning", "info")
 DISPOSITIONS = ("pending", "accept", "archive", "trash")
 INDIVIDUAL_WARNING_CODES = {
@@ -197,9 +200,17 @@ ACCEPTANCE_REQUIRED_INDEXES = {
 
 
 class AcceptanceError(ValueError):
-    def __init__(self, message: str, status_code: int = 422):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 422,
+        code: str = "ACCEPTANCE_ERROR",
+        details: dict[str, Any] | None = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
+        self.details = details or {}
 
 
 def validate_acceptance_schema(connection: sqlite3.Connection) -> None:
@@ -247,6 +258,10 @@ def apply_acceptance_schema(connection: sqlite3.Connection) -> str:
 
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _hash_identity(value: Any) -> str:
+    return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
 
 
 def _loads(value: str | None, default: Any) -> Any:
@@ -423,29 +438,154 @@ def _external_result(url: str) -> tuple[bool, int | None, str | None]:
     return False, None, last_error or "Link check failed"
 
 
-def _cached_external_result(
+def _canonical_external_url(url: str) -> str:
+    parsed = urlsplit(url)
+    scheme = parsed.scheme.lower()
+    host = (parsed.hostname or "").rstrip(".").encode("idna").decode("ascii").lower()
+    port = parsed.port
+    if port and not ((scheme == "https" and port == 443) or (scheme == "http" and port == 80)):
+        host = f"{host}:{port}"
+    path_parts: list[str] = []
+    for part in (parsed.path or "/").split("/"):
+        decoded = unquote(part)
+        if decoded in {"", "."}:
+            if not path_parts:
+                path_parts.append("")
+            continue
+        if decoded == "..":
+            if len(path_parts) > 1:
+                path_parts.pop()
+            continue
+        path_parts.append(quote(decoded, safe="!$&'()*+,;=:@-._~"))
+    path = "/".join(path_parts) or "/"
+    if not path.startswith("/"):
+        path = "/" + path
+    return urlunsplit((scheme, host, path, parsed.query, ""))
+
+
+def _external_result_name(
+    ok: bool,
+    status_code: int | None,
+    error: str | None,
+) -> str:
+    if ok:
+        return "available"
+    if status_code == 429:
+        return "rate_limited"
+    if status_code is not None and 400 <= status_code < 500:
+        return "content_unavailable"
+    if status_code is not None and status_code >= 500:
+        return "server_error"
+    lowered = (error or "").casefold()
+    if "timed out" in lowered or "timeout" in lowered:
+        return "timeout"
+    if "ssl" in lowered or "tls" in lowered or "certificate" in lowered:
+        return "tls_error"
+    if "name or service" in lowered or "resolve" in lowered or "dns" in lowered:
+        return "dns_error"
+    if "redirect" in lowered:
+        return "redirect_loop"
+    return "server_error"
+
+
+def _external_evidence(
     connection: sqlite3.Connection,
     url: str,
     checker: Callable[[str], tuple[bool, int | None, str | None]],
-) -> tuple[bool, int | None, str | None]:
-    url_hash = hashlib.sha256(url.encode()).hexdigest()
+    *,
+    allow_online: bool,
+) -> dict[str, Any]:
+    normalized_url = _canonical_external_url(url)
+    url_hash = hashlib.sha256(normalized_url.encode("utf-8")).hexdigest()
     row = connection.execute(
         "SELECT * FROM migration_link_cache WHERE url_hash=?", (url_hash,)
     ).fetchone()
     if row:
         checked = datetime.fromisoformat(row["checked_at"])
-        if checked >= datetime.now(UTC) - timedelta(hours=24):
-            return bool(row["ok"]), row["status_code"], row["error"]
-    ok, status_code, error = checker(url)
+        if (
+            checked >= datetime.now(UTC) - EXTERNAL_CACHE_TTL
+            and row["checker_version"] == EXTERNAL_CHECKER_VERSION
+        ):
+            return {
+                "url_identity": url_hash,
+                "normalized_url": row["normalized_url"] or normalized_url,
+                "final_url": row["final_url"],
+                "result": row["result"],
+                "status_code": row["status_code"],
+                "error": row["error"],
+                "checked_at": row["checked_at"],
+                "checker_version": row["checker_version"],
+                "evidence_digest": row["evidence_digest"],
+                "cached": True,
+            }
+    if not allow_online:
+        return {
+            "url_identity": url_hash,
+            "normalized_url": normalized_url,
+            "result": "missing_or_stale",
+            "status_code": None,
+            "error": "Fresh external-link evidence is unavailable",
+            "checked_at": None,
+            "checker_version": EXTERNAL_CHECKER_VERSION,
+            "evidence_digest": None,
+            "cached": False,
+        }
+    ok, status_code, error = checker(normalized_url)
+    result = _external_result_name(ok, status_code, error)
+    checked_at = utc_now()
+    evidence_digest = hashlib.sha256(
+        _json({
+            "normalized_url": normalized_url,
+            "result": result,
+            "status_code": status_code,
+            "error": error,
+            "checked_at": checked_at,
+            "checker_version": EXTERNAL_CHECKER_VERSION,
+        }).encode("utf-8")
+    ).hexdigest()
     connection.execute(
-        """INSERT INTO migration_link_cache(url_hash,url,ok,status_code,error,checked_at)
-           VALUES(?,?,?,?,?,?) ON CONFLICT(url_hash) DO UPDATE SET url=excluded.url,
-           ok=excluded.ok,status_code=excluded.status_code,error=excluded.error,
-           checked_at=excluded.checked_at""",
-        (url_hash, url, int(ok), status_code, error, utc_now()),
+        """INSERT INTO migration_link_cache(
+             url_hash,url,ok,status_code,error,checked_at,normalized_url,final_url,
+             result,checker_version,evidence_digest
+           ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(url_hash) DO UPDATE SET url=excluded.url,ok=excluded.ok,
+             status_code=excluded.status_code,error=excluded.error,
+             checked_at=excluded.checked_at,normalized_url=excluded.normalized_url,
+             final_url=excluded.final_url,result=excluded.result,
+             checker_version=excluded.checker_version,
+             evidence_digest=excluded.evidence_digest""",
+        (
+            url_hash, url, int(ok), status_code, error, checked_at, normalized_url,
+            normalized_url if ok else None, result, EXTERNAL_CHECKER_VERSION,
+            evidence_digest,
+        ),
     )
     connection.commit()
-    return ok, status_code, error
+    return {
+        "url_identity": url_hash,
+        "normalized_url": normalized_url,
+        "final_url": normalized_url if ok else None,
+        "result": result,
+        "status_code": status_code,
+        "error": error,
+        "checked_at": checked_at,
+        "checker_version": EXTERNAL_CHECKER_VERSION,
+        "evidence_digest": evidence_digest,
+        "cached": False,
+    }
+
+
+def _cached_external_result(
+    connection: sqlite3.Connection,
+    url: str,
+    checker: Callable[[str], tuple[bool, int | None, str | None]],
+) -> tuple[bool, int | None, str | None]:
+    evidence = _external_evidence(connection, url, checker, allow_online=True)
+    return (
+        evidence["result"] == "available",
+        evidence["status_code"],
+        evidence["error"],
+    )
 
 
 def audit_content(
@@ -520,7 +660,11 @@ def audit_content(
                 field_path=path,
             ))
         lowered = text.casefold()
-        navigation_hits = sum(marker in lowered for marker in MENU_MARKERS)
+        stripped = re.sub(r"\s+", " ", lowered).strip(" :-—")
+        navigation_hits = sum(
+            stripped == marker or stripped.startswith(marker + ":")
+            for marker in MENU_MARKERS
+        )
         section_hits = sum(
             label in lowered
             for label in ("о храме", "жизнь прихода", "воскресная школа", "контакты")
@@ -665,14 +809,28 @@ def audit_content(
                     "Внутренняя ссылка участвует в циклической цепочке материалов",
                     field_path=path, details={"url": value},
                 ))
-        elif parsed.scheme == "https" and parsed.netloc and check_external:
-            ok, status_code, error = _cached_external_result(connection, value, external_checker)
-            if not ok:
+        elif parsed.scheme == "https" and parsed.netloc:
+            evidence = _external_evidence(
+                connection, value, external_checker, allow_online=check_external
+            )
+            if evidence["result"] == "content_unavailable":
                 issues.append(_issue(
                     "external_link_unavailable", "warning",
-                    "Внешняя ссылка не ответила после повторной проверки",
+                    "Внешняя ссылка подтверждённо недоступна",
                     field_path=path,
-                    details={"url": value, "status_code": status_code, "error": error},
+                    details={"url": value, **evidence},
+                ))
+            elif evidence["result"] == "missing_or_stale":
+                issues.append(_issue(
+                    "external_check_missing_or_stale", "blocker",
+                    "Нет свежего подтверждения доступности внешней ссылки",
+                    field_path=path, details={"url": value, **evidence},
+                ))
+            elif evidence["result"] != "available":
+                issues.append(_issue(
+                    "external_check_inconclusive", "blocker",
+                    "Проверка внешней ссылки завершилась технически неопределённо",
+                    field_path=path, details={"url": value, **evidence},
                 ))
         elif parsed.scheme not in {"mailto", "tel"}:
             issues.append(_issue(
@@ -687,16 +845,71 @@ def audit_content(
 
 
 def queue_audit(database_path: Path, *, actor_id: str | None, scope: dict[str, Any] | None = None) -> dict[str, Any]:
+    normalized_scope = {
+        key: value
+        for key, value in sorted((scope or {}).items())
+        if value is not None
+    }
+    normalized_scope.setdefault("check_external", True)
     run_id = str(uuid.uuid4())
     now = utc_now()
     with transaction(database_path) as connection:
+        preparation_table = connection.execute(
+            """SELECT 1 FROM sqlite_master
+               WHERE type='table' AND name='migration_preparation_runs'"""
+        ).fetchone()
+        latest_apply = (
+            connection.execute(
+                """SELECT id FROM migration_preparation_runs
+                   WHERE mode='apply' AND status='completed'
+                   ORDER BY finished_at DESC,id DESC LIMIT 1"""
+            ).fetchone()
+            if preparation_table else None
+        )
+        if latest_apply:
+            normalized_scope.setdefault(
+                "after_preparation_run_id", latest_apply["id"]
+            )
+        identity_hash = _hash_identity({
+            "kind": "audit",
+            "rules_version": RULES_VERSION,
+            "scope": normalized_scope,
+            "external_policy": EXTERNAL_CHECKER_VERSION,
+        })
+        active = connection.execute(
+            """SELECT * FROM migration_audit_runs
+               WHERE status IN ('queued','running') ORDER BY created_at,id"""
+        ).fetchone()
+        if active:
+            if active["identity_hash"] == identity_hash:
+                result = _serialize_run(active)
+                result["deduplicated"] = True
+                return result
+            raise AcceptanceError(
+                "Уже выполняется аудит с другим набором параметров",
+                409,
+                "ACTIVE_AUDIT_SCOPE_CONFLICT",
+                {"active_run_id": active["id"]},
+            )
+        retry = connection.execute(
+            """SELECT id FROM migration_audit_runs
+               WHERE identity_hash=? AND status='failed'
+               ORDER BY finished_at DESC,id DESC LIMIT 1""",
+            (identity_hash,),
+        ).fetchone()
         connection.execute(
             """INSERT INTO migration_audit_runs(
-                 id,rules_version,scope_json,status,counts_json,error,started_by,created_at
-               ) VALUES(?,?,?,'queued','{}',NULL,?,?)""",
-            (run_id, RULES_VERSION, _json(scope or {}), actor_id, now),
+                 id,rules_version,scope_json,status,counts_json,error,started_by,created_at,
+                 identity_hash,retry_of_run_id,recovered,error_json
+               ) VALUES(?,?,?,'queued','{}',NULL,?,?,?,?,0,NULL)""",
+            (
+                run_id, RULES_VERSION, _json(normalized_scope), actor_id, now,
+                identity_hash, retry["id"] if retry else None,
+            ),
         )
-    return get_audit_run(database_path, run_id)
+    result = get_audit_run(database_path, run_id)
+    result["deduplicated"] = False
+    return result
 
 
 def _scope_rows(connection: sqlite3.Connection, scope: dict[str, Any]) -> list[sqlite3.Row]:
@@ -868,10 +1081,15 @@ def execute_audit_run(
     except Exception as error:
         if started_here:
             with transaction(database_path) as connection:
+                error_payload = {
+                    "code": error.code if isinstance(error, AcceptanceError) else "AUDIT_FAILED",
+                    "message": _safe_error(error),
+                    "details": error.details if isinstance(error, AcceptanceError) else {},
+                }
                 connection.execute(
-                    """UPDATE migration_audit_runs SET status='failed',error=?,finished_at=?
+                    """UPDATE migration_audit_runs SET status='failed',error=?,error_json=?,finished_at=?
                        WHERE id=? AND status!='completed'""",
-                    (_safe_error(error), utc_now(), run_id),
+                    (_safe_error(error), _json(error_payload), utc_now(), run_id),
                 )
         raise
 
@@ -898,7 +1116,9 @@ def recover_interrupted_audits(database_path: Path) -> int:
     with transaction(database_path) as connection:
         changed = connection.execute(
             """UPDATE migration_audit_runs SET status='queued',started_at=NULL,
-               error='Выполнение было прервано перезапуском приложения'
+               recovered=1,recovery_reason='APPLICATION_RESTART',
+               error='Выполнение было прервано перезапуском приложения',
+               error_json='{"code":"APPLICATION_RESTART","message":"Запуск восстановлен после перезапуска","details":{}}'
                WHERE status='running'"""
         )
         return changed.rowcount
@@ -924,6 +1144,10 @@ def _serialize_run(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     item = dict(row)
     item["scope"] = _loads(item.pop("scope_json"), {})
     item["counts"] = _loads(item.pop("counts_json"), {})
+    item["error_detail"] = _loads(item.pop("error_json", None), None)
+    item["recovered"] = bool(item.get("recovered"))
+    item["contract_version"] = CONTRACT_VERSION
+    item.setdefault("deduplicated", False)
     return item
 
 
@@ -931,7 +1155,7 @@ def get_audit_run(database_path: Path, run_id: str) -> dict[str, Any]:
     with connect(database_path) as connection:
         row = connection.execute("SELECT * FROM migration_audit_runs WHERE id=?", (run_id,)).fetchone()
     if not row:
-        raise AcceptanceError("Запуск аудита не найден", 404)
+        raise AcceptanceError("Запуск аудита не найден", 404, "AUDIT_RUN_NOT_FOUND")
     return _serialize_run(row)
 
 
@@ -1172,6 +1396,16 @@ def create_batch(
 def create_pilot_batch(database_path: Path, *, actor_id: str) -> dict[str, Any]:
     pilot_marker = '"pilot":"stage10-core"'
     with connect(database_path) as connection:
+        from .migration_preparation import _semantic_verification
+
+        gate = _semantic_verification(connection)
+        if not gate["ok"]:
+            raise AcceptanceError(
+                "Пилотная партия недоступна до прохождения семантического шлюза",
+                409,
+                "EDITORIAL_GATE_BLOCKED",
+                gate,
+            )
         existing = connection.execute(
             "SELECT id FROM migration_review_batches WHERE filters_json LIKE ? ORDER BY created_at LIMIT 1",
             (f"%{pilot_marker}%",),
@@ -1226,6 +1460,7 @@ def _serialize_batch_item(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     item["warning_acknowledgements"] = _loads(item.pop("warning_ack_json"), {})
     item["issues"] = _loads(item.pop("issues_json", "[]"), [])
     item["data"] = _loads(item.pop("data_json", "{}"), {})
+    item["source_data"] = _loads(item.pop("source_data_json", "{}"), {})
     return item
 
 
@@ -1243,6 +1478,14 @@ def get_batch(database_path: Path, batch_id: str) -> dict[str, Any]:
         items = connection.execute(
             """SELECT bi.*,c.title,c.content_type,c.status AS content_status,c.slug,c.legacy_url,
                       c.data_json,
+                      COALESCE((
+                        SELECT json_extract(pi.before_json,'$.data')
+                        FROM migration_preparation_items pi
+                        JOIN migration_preparation_runs pr ON pr.id=pi.run_id
+                        WHERE pi.content_id=bi.content_id AND pr.mode='apply'
+                          AND pr.status IN ('completed','rolled_back')
+                        ORDER BY pr.finished_at DESC,pr.id DESC LIMIT 1
+                      ),c.data_json) AS source_data_json,
                       c.version AS current_content_version,c.migration_review_required,
                       ai.blocker_count,ai.warning_count,ai.info_count,
                       COALESCE((SELECT json_group_array(json_object(
@@ -1649,24 +1892,42 @@ def main() -> None:
     parser.add_argument("--year", type=int)
     parser.add_argument("--actor-id")
     parser.add_argument("--skip-external", action="store_true")
-    args = parser.parse_args()
-    settings = Settings.from_env()
-    if args.database:
-        settings = Settings(**{**settings.__dict__, "database_path": args.database})
-    if args.command == "scan":
-        scope = {key: value for key, value in {
-            "content_id": args.content_id, "content_type": args.content_type, "year": args.year,
-        }.items() if value is not None}
-        result = _run_sync(settings, scope, args.actor_id, not args.skip_external)
-    elif args.command in {"status", "report"}:
-        result = acceptance_summary(settings.database_path)
-    elif args.command == "verify":
-        result = verify_acceptance(settings.database_path)
-    else:
-        if not args.actor_id:
-            raise SystemExit("--actor-id is required for create-pilot")
-        result = create_pilot_batch(settings.database_path, actor_id=args.actor_id)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    try:
+        args = parser.parse_args()
+        settings = Settings.from_env()
+        if args.database:
+            settings = Settings(**{**settings.__dict__, "database_path": args.database})
+        if args.command == "scan":
+            scope = {key: value for key, value in {
+                "content_id": args.content_id, "content_type": args.content_type, "year": args.year,
+                "check_external": not args.skip_external,
+            }.items() if value is not None}
+            result = _run_sync(settings, scope, args.actor_id, not args.skip_external)
+        elif args.command in {"status", "report"}:
+            result = acceptance_summary(settings.database_path)
+        elif args.command == "verify":
+            result = verify_acceptance(settings.database_path)
+        else:
+            if not args.actor_id:
+                raise AcceptanceError(
+                    "--actor-id is required for create-pilot",
+                    422,
+                    "ACTOR_ID_REQUIRED",
+                )
+            result = create_pilot_batch(settings.database_path, actor_id=args.actor_id)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except AcceptanceError as error:
+        payload = {
+            "ok": False,
+            "contract_version": CONTRACT_VERSION,
+            "error": {
+                "code": error.code,
+                "message": re.sub(r"\s+", " ", str(error)).strip()[:500],
+                "details": error.details,
+            },
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        raise SystemExit(2) from None
 
 
 if __name__ == "__main__":

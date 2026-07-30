@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 
 from server.migration_acceptance import execute_audit_run, queue_audit
+from server.migration_preparation import execute_preparation_run, queue_preparation
 
 from .conftest import login
 
@@ -527,17 +528,42 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
         and int(page.locator("[data-preparation-count]").inner_text().split()[0]) >= 50,
     )
 
+    page.locator("[data-preparation-classification]").select_option("editorial_review")
+    page.locator("[data-preparation-filter]").click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('[data-preparation-item]').length > 0"
+    )
     dossier_button = page.locator("[data-preparation-item]").first
     dossier_button.click()
     page.locator(".preparation-dossier").wait_for()
+    dossier_checks = {
+        "diff": page.locator(".preparation-diff article").count() == 2,
+        "recommendation": page.get_by_role("heading", name="Рекомендация", exact=True).is_visible(),
+        "reasons": page.locator(".dossier-reasons article").count() > 0,
+        "reason_code": page.locator(".dossier-reasons article").first.locator("b").inner_text().strip() != "",
+        "reason_field": "Поле:" in page.locator(".dossier-reasons article").first.inner_text(),
+        "rules": (
+            page.locator(".dossier-rules article").count() > 0
+            or "Данные уже соответствуют правилам" in page.locator(".dossier-rules").inner_text()
+        ),
+        "options": page.locator(".preparation-dossier li p").count() > 0,
+        "focus": page.locator("#preparation-dossier-title").evaluate(
+            "node => document.activeElement === node"
+        ),
+    }
     coverage_steps.check(
         "stage6.preparation.dossier",
-        page.locator(".preparation-diff article").count() == 2
-        and page.get_by_role("heading", name="Рекомендация", exact=True).is_visible(),
+        all(dossier_checks.values()),
+        str(dossier_checks),
     )
     page.locator("[data-migration-back]").click()
     page.get_by_role("heading", name="Перенесённые материалы", exact=True).wait_for()
-    coverage_steps.mark("stage6.preparation.dashboard-back")
+    coverage_steps.check(
+        "stage6.preparation.dashboard-back",
+        page.locator("[data-preparation-item]").first.evaluate(
+            "node => document.activeElement === node"
+        ),
+    )
 
     page.locator("[data-preparation-classification]").select_option("editorial_review")
     with page.expect_response(
@@ -623,7 +649,102 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
     )
 
 
-def _create_pilot(page):
+def _prepare_editorial_gate(live_cms):
+    settings = live_cms.settings
+    audit = queue_audit(
+        settings.database_path, actor_id=None, scope={"check_external": False}
+    )
+    execute_audit_run(
+        settings.database_path, settings.schema_path, settings.media_dir,
+        settings.site_dir, audit["id"], check_external=False,
+    )
+    preview = queue_preparation(settings.database_path, actor_id=None)
+    preview = execute_preparation_run(settings, preview["id"])
+    apply_run = queue_preparation(
+        settings.database_path,
+        actor_id=None,
+        mode="apply",
+        preview_run_id=preview["id"],
+    )
+    execute_preparation_run(settings, apply_run["id"])
+    post_audit = queue_audit(
+        settings.database_path, actor_id=None, scope={"check_external": False}
+    )
+    execute_audit_run(
+        settings.database_path, settings.schema_path, settings.media_dir,
+        settings.site_dir, post_audit["id"], check_external=False,
+    )
+
+
+def _seed_stage7_test_issues(live_cms):
+    """Add current-version editorial fixtures without weakening the full gate."""
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        apply_id = connection.execute(
+            """SELECT id FROM migration_preparation_runs
+               WHERE mode='apply' AND status='completed'
+               ORDER BY finished_at DESC,id DESC LIMIT 1"""
+        ).fetchone()[0]
+        rows = connection.execute(
+            """SELECT id,version,content_type FROM contents
+               WHERE content_type IN ('site_contact','page','clergy','parish_section')
+                 AND (
+                   content_type IN ('site_contact','clergy','parish_section')
+                   OR COALESCE(legacy_url,'') LIKE '/o-hrame/%'
+                 )
+               ORDER BY content_type,title,id LIMIT 4"""
+        ).fetchall()
+        connection.execute(
+            """INSERT INTO migration_audit_runs(
+                 id,rules_version,scope_json,status,counts_json,created_at,started_at,finished_at,
+                 identity_hash,recovered
+               ) VALUES(
+                 'e2e-stage7-audit','1.1.0','{"content_id":"e2e-stage7"}',
+                 'completed','{}','2099-01-01T00:00:00+00:00',
+                 '2099-01-01T00:00:00+00:00','2099-01-01T00:00:00+00:00',
+                 'e2e-stage7-audit',0
+               )"""
+        )
+        for index, (content_id, version, _) in enumerate(rows):
+            blocker_count = int(index == 0)
+            warning_count = int(index in {1, 2})
+            connection.execute(
+                """UPDATE migration_preparation_items
+                   SET classification='editorial_review'
+                   WHERE run_id=? AND content_id=?""",
+                (apply_id, content_id),
+            )
+            connection.execute(
+                """INSERT INTO migration_audit_items(
+                     run_id,content_id,content_version,blocker_count,warning_count,
+                     info_count,scanned_at
+                   ) VALUES('e2e-stage7-audit',?,?,?,?,0,'2099-01-01T00:00:00+00:00')""",
+                (content_id, version, blocker_count, warning_count),
+            )
+            if index not in {0, 1, 2}:
+                continue
+            code = (
+                "e2e_pilot_blocker" if index == 0
+                else "duplicate_content" if index == 1
+                else "e2e_common_warning"
+            )
+            severity = "blocker" if index == 0 else "warning"
+            connection.execute(
+                """INSERT INTO migration_review_issues(
+                     id,audit_run_id,content_id,content_version,code,severity,
+                     field_path,fingerprint,status,message,details_json,detected_at
+                   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    f"e2e-stage7-issue-{index}", "e2e-stage7-audit", content_id,
+                    version, code, severity, "title", f"e2e-stage7-{index}",
+                    "open", f"Тестовая проблема этапа 7: {code}", "{}",
+                    "2099-01-01T00:00:00+00:00",
+                ),
+            )
+
+
+def _create_pilot(page, live_cms):
+    _prepare_editorial_gate(live_cms)
+    _seed_stage7_test_issues(live_cms)
     _open_panel(page, "migration", "Перенесённые материалы")
     with page.expect_response(
         lambda response: response.url.endswith("/api/admin/migration/batches/pilot")
@@ -639,11 +760,12 @@ def _create_pilot(page):
 @pytest.mark.full
 def test_migration_batch_finalize(page, live_cms, coverage_steps):
     login(page)
-    batch = _create_pilot(page)
+    batch = _create_pilot(page, live_cms)
     batch_id = batch["id"]
     coverage_steps.check(
         "migration.batch-pilot-create",
-        batch["status"] == "draft" and len(batch["items"]) == 4,
+        batch["status"] == "draft" and 0 < len(batch["items"]) <= 50,
+        str(batch),
     )
 
     source_card = page.locator("[data-batch-content]:has(details)")
@@ -669,6 +791,13 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
         page.locator(f'[data-migration-batch="{batch_id}"]').click()
     page.get_by_role("heading", name="Пилот: ключевые разделы", exact=True).wait_for()
     coverage_steps.mark("migration.batch-reopen")
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        initial_statuses = dict(connection.execute(
+            """SELECT c.id,c.status
+               FROM contents c JOIN migration_review_batch_items bi ON bi.content_id=c.id
+               WHERE bi.batch_id=?""",
+            (batch_id,),
+        ).fetchall())
 
     page.once("dialog", lambda dialog: dialog.dismiss())
     page.locator("[data-batch-cancel]").click()
@@ -765,9 +894,9 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
 
     with sqlite3.connect(live_cms.settings.database_path) as connection:
         rows = connection.execute(
-            """SELECT c.status,c.migration_review_required,
+            """SELECT c.id,c.status,c.migration_review_required,bi.disposition,
                       EXISTS(SELECT 1 FROM migration_review_issues i
-                             WHERE i.content_id=c.id AND i.code='e2e_pilot_blocker') AS had_blocker
+                                 WHERE i.content_id=c.id AND i.code='e2e_pilot_blocker') AS had_blocker
                FROM contents c JOIN migration_review_batch_items bi ON bi.content_id=c.id
                WHERE bi.batch_id=?""",
             (batch_id,),
@@ -775,16 +904,20 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
     coverage_steps.check(
         "migration.batch-atomic-result",
         len(rows) == 4
-        and all(row[1] == 0 for row in rows)
-        and all(row[0] == ("archived" if row[2] else "draft") for row in rows),
+        and all(row[2] == 0 for row in rows)
+        and all(
+            row[1] == "archived" if row[3] == "archive" else row[1] == initial_statuses[row[0]]
+            for row in rows
+        ),
+        str(rows),
     )
 
 
 @pytest.mark.e2e
 @pytest.mark.full
-def test_migration_batch_cancel(page, coverage_steps):
+def test_migration_batch_cancel(page, live_cms, coverage_steps):
     login(page)
-    batch = _create_pilot(page)
+    batch = _create_pilot(page, live_cms)
     batch_id = batch["id"]
     page.once("dialog", lambda dialog: dialog.dismiss())
     page.locator("[data-batch-cancel]").click()

@@ -25,12 +25,18 @@ from .media_library import (
     resolve_media_path,
     stored_name_from_url,
 )
-from .migration_acceptance import AcceptanceError, execute_audit_run, queue_audit
+from .migration_acceptance import (
+    RULES_VERSION,
+    AcceptanceError,
+    execute_audit_run,
+    queue_audit,
+)
 from .search import sync_content_search
 from .workflow import admin_content, record_audit
 
 
-PREPARATION_RULES_VERSION = "1.0.0"
+PREPARATION_RULES_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.1"
 PREPARATION_NAMESPACE = uuid.UUID("57f5b2b9-c1c2-4f5e-9f7e-2a33e35d2782")
 RUN_STATUSES = ("queued", "running", "completed", "failed", "rolled_back")
 RUN_MODES = ("preview", "apply")
@@ -57,6 +63,8 @@ TECHNICAL_CODES = {
     "media_missing_or_invalid",
     "static_media_missing",
     "unsafe_link",
+    "external_check_inconclusive",
+    "external_check_missing_or_stale",
 }
 
 
@@ -124,9 +132,17 @@ PREPARATION_REQUIRED_INDEXES = {
 
 
 class PreparationError(ValueError):
-    def __init__(self, message: str, status_code: int = 422):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 422,
+        code: str = "PREPARATION_ERROR",
+        details: dict[str, Any] | None = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
+        self.details = details or {}
 
 
 def _json(value: Any) -> str:
@@ -468,14 +484,38 @@ def propose_content(
     for name in sorted(SERVICE_METADATA_FIELDS & set(data)):
         data.pop(name, None)
     if SERVICE_METADATA_FIELDS & set(before["data"]):
-        transformations.append({"rule": "provenance_to_journal", "label": "Служебные crawl-поля перенесены в журнал"})
+        transformations.append({
+            "rule": "provenance_to_journal",
+            "label": "Служебные crawl-поля перенесены в журнал",
+            "field": "data",
+            "evidence": {"removed_fields": sorted(SERVICE_METADATA_FIELDS & set(before["data"]))},
+        })
+
+    # Generated summaries, inferred dates, alt text and media paths must pass
+    # the same final canonicalization as imported values.  This second pass is
+    # deliberately after every rule so an auto-ready proposal cannot retain a
+    # warning introduced by a generated value.
+    final_proposed = _normalize_tree(proposed)
+    if final_proposed != proposed:
+        transformations.append({
+            "rule": "final_unicode_nfkc",
+            "label": "Сгенерированные значения нормализованы после всех преобразований",
+            "field": "content",
+            "evidence": {"normalization": "NFKC", "control_characters_removed": True},
+        })
+    proposed = final_proposed
+    data = proposed["data"]
 
     resolved_codes = {
         "duplicate_media_reference", "migration_provenance", "unicode_not_nfkc",
     }
     if any(item["rule"] == "legacy_text_to_blocks" for item in transformations):
         resolved_codes.update({"legacy_text", "legacy_navigation_text"})
+    if any(item["code"] == "text_extraction_ambiguous" for item in editorial):
+        resolved_codes.add("legacy_text")
     if any(item["rule"] == "date_from_evidence" for item in transformations):
+        resolved_codes.add("fallback_date_2000")
+    if any(item["code"] == "date_requires_editor" for item in editorial):
         resolved_codes.add("fallback_date_2000")
 
     required_missing = []
@@ -491,8 +531,9 @@ def propose_content(
             "field_path": field_name,
             "message": f"Обязательное поле «{field_name}» нельзя достоверно восстановить автоматически.",
         })
-    if not required_missing:
-        resolved_codes.add("required_field_missing")
+    # The audit-level structural code is either resolved by a present value or
+    # translated to a field-specific editorial reason above.
+    resolved_codes.add("required_field_missing")
 
     for issue in issues:
         if issue["code"] in resolved_codes:
@@ -504,8 +545,14 @@ def propose_content(
         }
         if issue["code"] in TECHNICAL_CODES:
             technical.append(reason)
-        elif issue["code"] in EDITORIAL_CODES or issue["severity"] in {"blocker", "warning"}:
+        elif issue["code"] in EDITORIAL_CODES:
             editorial.append(reason)
+        else:
+            technical.append({
+                **reason,
+                "code": "unmapped_audit_issue",
+                "evidence": {"source_code": issue["code"], "severity": issue["severity"]},
+            })
 
     editorial = list({(item["code"], item.get("field_path", ""), item["message"]): item for item in editorial}.values())
     technical = list({(item["code"], item.get("field_path", ""), item["message"]): item for item in technical}.values())
@@ -546,19 +593,33 @@ def queue_preparation(
     preview_run_id: str | None = None,
 ) -> dict[str, Any]:
     if mode not in RUN_MODES:
-        raise PreparationError("Неизвестный режим автоматической подготовки")
+        raise PreparationError(
+            "Неизвестный режим автоматической подготовки", 422, "INVALID_PREPARATION_MODE"
+        )
     if mode == "apply" and not preview_run_id:
-        raise PreparationError("Для применения укажите завершённый preview", 409)
+        raise PreparationError(
+            "Для применения укажите завершённый preview", 409, "PREVIEW_REQUIRED"
+        )
     run_id = str(uuid.uuid4())
     with transaction(database_path) as connection:
+        audit_run_id: str | None = None
         if preview_run_id:
             preview = connection.execute(
-                "SELECT mode,status FROM migration_preparation_runs WHERE id=?", (preview_run_id,)
+                "SELECT * FROM migration_preparation_runs WHERE id=?", (preview_run_id,)
             ).fetchone()
             if not preview:
-                raise PreparationError("Preview автоматической подготовки не найден", 404)
+                raise PreparationError(
+                    "Preview автоматической подготовки не найден", 404, "PREVIEW_NOT_FOUND"
+                )
             if preview["mode"] != "preview" or preview["status"] != "completed":
-                raise PreparationError("Применить можно только завершённый preview", 409)
+                raise PreparationError(
+                    "Применить можно только завершённый preview", 409, "PREVIEW_NOT_COMPLETED"
+                )
+            if int(_loads(preview["counts_json"], {}).get("technical_blocker", 0)):
+                raise PreparationError(
+                    "Preview содержит технические блокеры", 409, "PREVIEW_NOT_SAFE",
+                    {"preview_run_id": preview_run_id},
+                )
             existing = connection.execute(
                 """SELECT * FROM migration_preparation_runs
                    WHERE mode='apply' AND preview_run_id=? AND status IN ('queued','running','completed')
@@ -566,22 +627,75 @@ def queue_preparation(
                 (preview_run_id,),
             ).fetchone()
             if existing:
-                return _serialize_run(existing)
+                result = _serialize_run(existing)
+                result["deduplicated"] = True
+                return result
+            audit_run_id = preview["audit_run_id"]
+            identity_hash = _hash({
+                "kind": "apply",
+                "rules_version": PREPARATION_RULES_VERSION,
+                "preview_run_id": preview_run_id,
+            })
+        else:
+            audit = _latest_full_audit(connection, require_fresh=True)
+            audit_run_id = audit["id"]
+            content_identity = [
+                (row["id"], row["version"])
+                for row in connection.execute(
+                    """SELECT id,version FROM contents
+                       WHERE migration_review_required=1 ORDER BY id"""
+                )
+            ]
+            identity_hash = _hash({
+                "kind": "preview",
+                "rules_version": PREPARATION_RULES_VERSION,
+                "audit_run_id": audit_run_id,
+                "contents": content_identity,
+            })
+        active = connection.execute(
+            """SELECT * FROM migration_preparation_runs
+               WHERE status IN ('queued','running') ORDER BY created_at,id"""
+        ).fetchone()
+        if active:
+            if active["identity_hash"] == identity_hash:
+                result = _serialize_run(active)
+                result["deduplicated"] = True
+                return result
+            raise PreparationError(
+                "Уже выполняется другая операция автоматической подготовки",
+                409,
+                "ACTIVE_RUN_CONFLICT",
+                {"active_run_id": active["id"]},
+            )
+        retry = connection.execute(
+            """SELECT id FROM migration_preparation_runs
+               WHERE identity_hash=? AND status='failed'
+               ORDER BY finished_at DESC,id DESC LIMIT 1""",
+            (identity_hash,),
+        ).fetchone()
         connection.execute(
             """INSERT INTO migration_preparation_runs(
-                 id,rules_version,mode,status,preview_run_id,counts_json,started_by,created_at
-               ) VALUES(?,?,?,'queued',?,'{}',?,?)""",
+                 id,rules_version,mode,status,preview_run_id,audit_run_id,counts_json,
+                 started_by,created_at,identity_hash,retry_of_run_id,recovered,error_json
+               ) VALUES(?,?,?,'queued',?,?,'{}',?,?,?,?,0,NULL)""",
             (
-                run_id, PREPARATION_RULES_VERSION, mode, preview_run_id,
-                actor_id, utc_now(),
+                run_id, PREPARATION_RULES_VERSION, mode, preview_run_id, audit_run_id,
+                actor_id, utc_now(), identity_hash, retry["id"] if retry else None,
             ),
         )
-    return get_preparation_run(database_path, run_id)
+    result = get_preparation_run(database_path, run_id)
+    result["deduplicated"] = False
+    return result
 
 
 def _serialize_run(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     item = dict(row)
     item["counts"] = _loads(item.pop("counts_json"), {})
+    item["error_detail"] = _loads(item.pop("error_json", None), None)
+    item["recovered"] = bool(item.get("recovered"))
+    item["contract_version"] = CONTRACT_VERSION
+    item.setdefault("deduplicated", False)
+    item.setdefault("replayed", False)
     return item
 
 
@@ -595,6 +709,7 @@ def _serialize_item(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
         ("options_json", "options", []),
     ):
         item[target] = _loads(item.pop(source), default)
+    item["contract_version"] = CONTRACT_VERSION
     return item
 
 
@@ -653,15 +768,66 @@ def list_preparation_items(
     }
 
 
-def _latest_completed_audit(connection: sqlite3.Connection) -> str | None:
+def _latest_full_audit(
+    connection: sqlite3.Connection,
+    *,
+    require_fresh: bool,
+) -> sqlite3.Row:
     for row in connection.execute(
-        """SELECT id,scope_json FROM migration_audit_runs
-           WHERE status='completed' ORDER BY finished_at DESC,id DESC"""
+        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,id DESC"""
     ):
         scope = _loads(row["scope_json"], {})
         if not any(scope.get(key) for key in ("content_id", "content_type", "year")):
-            return row["id"]
-    return None
+            if not require_fresh:
+                return row
+            if row["status"] in {"queued", "running"}:
+                raise PreparationError(
+                    "Полный аудит ещё выполняется", 409, "AUDIT_IN_PROGRESS",
+                    {"active_run_id": row["id"]},
+                )
+            if row["status"] == "failed":
+                raise PreparationError(
+                    "Последний полный аудит завершился ошибкой",
+                    409,
+                    "LATEST_FULL_AUDIT_FAILED",
+                    {"audit_run_id": row["id"]},
+                )
+            if row["rules_version"] != RULES_VERSION:
+                raise PreparationError(
+                    "Полный аудит выполнен устаревшей версией правил",
+                    409,
+                    "AUDIT_STALE",
+                    {"audit_run_id": row["id"]},
+                )
+            missing = connection.execute(
+                """SELECT COUNT(*) FROM contents c
+                   WHERE c.migration_review_required=1 AND NOT EXISTS (
+                     SELECT 1 FROM migration_audit_items ai
+                     WHERE ai.run_id=? AND ai.content_id=c.id
+                       AND ai.content_version=c.version
+                   )""",
+                (row["id"],),
+            ).fetchone()[0]
+            extras = connection.execute(
+                """SELECT COUNT(*) FROM migration_audit_items ai
+                   LEFT JOIN contents c ON c.id=ai.content_id
+                   WHERE ai.run_id=? AND (
+                     c.id IS NULL OR c.migration_review_required!=1
+                     OR c.version!=ai.content_version
+                   )""",
+                (row["id"],),
+            ).fetchone()[0]
+            if missing or extras:
+                raise PreparationError(
+                    "Результат полного аудита устарел относительно материалов",
+                    409,
+                    "AUDIT_STALE",
+                    {"audit_run_id": row["id"], "missing": missing, "mismatched": extras},
+                )
+            return row
+    raise PreparationError(
+        "Сначала выполните полный миграционный аудит", 409, "AUDIT_REQUIRED"
+    )
 
 
 def _store_preview_items(
@@ -672,11 +838,7 @@ def _store_preview_items(
 ) -> dict[str, Any]:
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     with connect(database_path) as connection:
-        audit_run_id = _latest_completed_audit(connection)
-        if not audit_run_id:
-            raise PreparationError(
-                "Сначала выполните полный миграционный аудит", 409
-            )
+        audit_run_id = _latest_full_audit(connection, require_fresh=True)["id"]
         rows = connection.execute(
             "SELECT * FROM contents WHERE migration_review_required=1 ORDER BY content_type,title,id"
         ).fetchall()
@@ -783,7 +945,20 @@ def _apply_preview(settings: Settings, run_id: str, preview_run_id: str) -> dict
             "SELECT * FROM migration_preparation_items WHERE run_id=? ORDER BY content_id",
             (preview_run_id,),
         ).fetchall()
+        technical = sum(
+            item["classification"] == "technical_blocker"
+            or int(item["technical_blocker_count"] or 0) > 0
+            for item in items
+        )
+        if technical:
+            raise PreparationError(
+                "Preview содержит технические блокеры",
+                409,
+                "PREVIEW_NOT_SAFE",
+                {"preview_run_id": preview_run_id, "technical_blockers": technical},
+            )
         stale = []
+        stale_hash = []
         for item in items:
             current = connection.execute(
                 "SELECT * FROM contents WHERE id=?", (item["content_id"],)
@@ -797,10 +972,20 @@ def _apply_preview(settings: Settings, run_id: str, preview_run_id: str) -> dict
                 "title": content["title"], "data": content["data"],
             }
             if _hash(snapshot) != item["before_hash"]:
-                stale.append(item["content_id"])
+                stale_hash.append(item["content_id"])
+        if stale_hash:
+            raise PreparationError(
+                f"Preview устарел: изменено содержимое {len(stale_hash)} материалов",
+                409,
+                "STALE_HASH",
+                {"content_ids": stale_hash[:20], "count": len(stale_hash)},
+            )
         if stale:
             raise PreparationError(
-                f"Preview устарел: изменено материалов {len(stale)}", 409
+                f"Preview устарел: изменено материалов {len(stale)}",
+                409,
+                "STALE_VERSION",
+                {"content_ids": stale[:20], "count": len(stale)},
             )
 
     created_files: list[Path] = []
@@ -820,6 +1005,29 @@ def _apply_preview(settings: Settings, run_id: str, preview_run_id: str) -> dict
                         path, created = _render_leaflet_cover(settings, connection, transformation)
                         if created:
                             created_files.append(path)
+                        provenance_identity = _hash({
+                            "rule": transformation["rule"],
+                            "source_media_id": transformation["pdf_media_id"],
+                            "media_id": transformation["media_id"],
+                        })
+                        event_type = "generated" if created else "reused"
+                        event_id = str(uuid.uuid5(
+                            PREPARATION_NAMESPACE,
+                            f"{run_id}:{transformation['media_id']}:{event_type}:{provenance_identity}",
+                        ))
+                        connection.execute(
+                            """INSERT OR IGNORE INTO migration_generated_media_events(
+                                 id,preparation_run_id,media_id,source_media_id,event_type,
+                                 identity_hash,details_json,created_at
+                               ) VALUES(?,?,?,?,?,?,?,?)""",
+                            (
+                                event_id, run_id, transformation["media_id"],
+                                transformation["pdf_media_id"], event_type,
+                                provenance_identity,
+                                _json({"stored_name": transformation["stored_name"]}),
+                                now,
+                            ),
+                        )
                 changed = item["before_hash"] != item["proposed_hash"]
                 result_version = item["content_version"]
                 state = "unchanged"
@@ -922,10 +1130,18 @@ def execute_preparation_run(settings: Settings, run_id: str) -> dict[str, Any]:
     except Exception as error:
         if started_here:
             with transaction(settings.database_path) as connection:
+                error_payload = {
+                    "code": error.code if isinstance(error, PreparationError) else "PREPARATION_FAILED",
+                    "message": re.sub(r"\s+", " ", str(error)).strip()[:500],
+                    "details": error.details if isinstance(error, PreparationError) else {},
+                }
                 connection.execute(
-                    """UPDATE migration_preparation_runs SET status='failed',error=?,
+                    """UPDATE migration_preparation_runs SET status='failed',error=?,error_json=?,
                        finished_at=? WHERE id=? AND status!='completed'""",
-                    (re.sub(r"\s+", " ", str(error)).strip()[:500], utc_now(), run_id),
+                    (
+                        error_payload["message"], _json(error_payload),
+                        utc_now(), run_id,
+                    ),
                 )
         raise
 
@@ -943,7 +1159,9 @@ def recover_interrupted_preparations(database_path: Path) -> int:
     with transaction(database_path) as connection:
         changed = connection.execute(
             """UPDATE migration_preparation_runs SET status='queued',started_at=NULL,
-               error='Выполнение было прервано перезапуском приложения'
+               recovered=1,recovery_reason='APPLICATION_RESTART',
+               error='Выполнение было прервано перезапуском приложения',
+               error_json='{"code":"APPLICATION_RESTART","message":"Запуск восстановлен после перезапуска","details":{}}'
                WHERE status='running'"""
         )
         return changed.rowcount
@@ -968,9 +1186,34 @@ def preparation_summary(database_path: Path) -> dict[str, Any]:
         (run for run in runs if run["mode"] == "apply" and run["status"] == "completed"),
         None,
     )
+    actionable_preview = None
+    rollback_target = latest_applied
+    with connect(database_path) as connection:
+        for run in runs:
+            if run["mode"] != "preview" or run["status"] != "completed":
+                continue
+            consumed = connection.execute(
+                """SELECT 1 FROM migration_preparation_runs
+                   WHERE mode='apply' AND preview_run_id=?
+                     AND status IN ('queued','running','completed','rolled_back')""",
+                (run["id"],),
+            ).fetchone()
+            if not consumed and not int(run["counts"].get("technical_blocker", 0)):
+                actionable_preview = run
+                break
+        gate = _semantic_verification(connection)
     return {
+        "contract_version": CONTRACT_VERSION,
+        "display_run": runs[0] if runs else None,
+        "actionable_preview": actionable_preview,
+        "rollback_target": rollback_target,
         "latest_applied": latest_applied,
         "runs": runs,
+        "editorial_gate": {
+            "ready": bool(gate["ok"]),
+            "code": gate["code"],
+            "message": gate["message"],
+        },
         "counts": latest_applied["counts"] if latest_applied else {
             "contents": 0, "auto_ready": 0, "editorial_review": 0,
             "technical_blocker": 0, "changed": 0,
@@ -990,9 +1233,31 @@ def rollback_preparation(
             "SELECT * FROM migration_preparation_runs WHERE id=?", (run_id,)
         ).fetchone()
         if not run:
-            raise PreparationError("Запуск автоматической подготовки не найден", 404)
+            raise PreparationError(
+                "Запуск автоматической подготовки не найден", 404, "RUN_NOT_FOUND"
+            )
+        if run["mode"] == "apply" and run["status"] == "rolled_back":
+            result = _serialize_run(run)
+            result["replayed"] = True
+            return result
         if run["mode"] != "apply" or run["status"] != "completed":
-            raise PreparationError("Откатить можно только завершённое применение", 409)
+            raise PreparationError(
+                "Откатить можно только завершённое применение",
+                409,
+                "ROLLBACK_TARGET_INVALID_STATE",
+            )
+        latest = connection.execute(
+            """SELECT id FROM migration_preparation_runs
+               WHERE mode='apply' AND status='completed'
+               ORDER BY finished_at DESC,id DESC LIMIT 1"""
+        ).fetchone()
+        if not latest or latest["id"] != run_id:
+            raise PreparationError(
+                "Откатить можно только последнее завершённое применение",
+                409,
+                "ROLLBACK_TARGET_NOT_LATEST",
+                {"latest_run_id": latest["id"] if latest else None},
+            )
         items = connection.execute(
             """SELECT * FROM migration_preparation_items
                WHERE run_id=? AND state='applied' ORDER BY content_id""",
@@ -1006,6 +1271,8 @@ def rollback_preparation(
                 raise PreparationError(
                     "Откат остановлен: один из материалов изменён после автоматической подготовки",
                     409,
+                    "ROLLBACK_CONFLICT",
+                    {"content_id": item["content_id"]},
                 )
         for item in items:
             current = connection.execute(
@@ -1039,6 +1306,32 @@ def rollback_preparation(
             )
             refresh_content_usages(connection, item["content_id"])
             sync_content_search(connection, item["content_id"])
+        for item in items:
+            transformations = _loads(item["transformations_json"], [])
+            for transformation in transformations:
+                if transformation.get("rule") != "leaflet_pdf_cover":
+                    continue
+                provenance_identity = _hash({
+                    "rule": transformation["rule"],
+                    "source_media_id": transformation["pdf_media_id"],
+                    "media_id": transformation["media_id"],
+                })
+                event_id = str(uuid.uuid5(
+                    PREPARATION_NAMESPACE,
+                    f"{run_id}:{transformation['media_id']}:retained_on_rollback:{provenance_identity}",
+                ))
+                connection.execute(
+                    """INSERT OR IGNORE INTO migration_generated_media_events(
+                         id,preparation_run_id,media_id,source_media_id,event_type,
+                         identity_hash,details_json,created_at
+                       ) VALUES(?,?,?,?,?,?,?,?)""",
+                    (
+                        event_id, run_id, transformation["media_id"],
+                        transformation["pdf_media_id"], "retained_on_rollback",
+                        provenance_identity,
+                        _json({"policy": "retained-cache"}), now,
+                    ),
+                )
         connection.execute(
             "UPDATE migration_preparation_items SET state='rolled_back' WHERE run_id=? AND state='applied'",
             (run_id,),
@@ -1048,54 +1341,159 @@ def rollback_preparation(
                rolled_back_at=? WHERE id=?""",
             (now, run_id),
         )
-    return get_preparation_run(database_path, run_id)
+    result = get_preparation_run(database_path, run_id)
+    result["replayed"] = False
+    return result
+
+
+def _semantic_verification(connection: sqlite3.Connection) -> dict[str, Any]:
+    latest = connection.execute(
+        """SELECT * FROM migration_preparation_runs
+           WHERE mode='apply' AND status='completed'
+           ORDER BY finished_at DESC,id DESC LIMIT 1"""
+    ).fetchone()
+    if not latest:
+        return {"ok": False, "code": "APPLY_REQUIRED", "message": "Нет завершённого применения"}
+    post_audit: sqlite3.Row | None = None
+    for candidate in connection.execute(
+        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,id DESC"""
+    ):
+        scope = _loads(candidate["scope_json"], {})
+        if (
+            scope.get("after_preparation_run_id") == latest["id"]
+            and not any(scope.get(key) for key in ("content_id", "content_type", "year"))
+        ):
+            post_audit = candidate
+            break
+    if not post_audit:
+        return {
+            "ok": False, "code": "POST_APPLY_AUDIT_REQUIRED",
+            "message": "После применения требуется полный аудит",
+            "run_id": latest["id"],
+        }
+    if post_audit["status"] != "completed":
+        code = (
+            "AUDIT_IN_PROGRESS"
+            if post_audit["status"] in {"queued", "running"}
+            else "LATEST_FULL_AUDIT_FAILED"
+        )
+        return {
+            "ok": False, "code": code,
+            "message": "Последний полный post-apply аудит не завершён успешно",
+            "run_id": latest["id"], "audit_run_id": post_audit["id"],
+        }
+    missing = connection.execute(
+        """SELECT COUNT(*) FROM contents c
+           WHERE c.migration_review_required=1 AND (
+             NOT EXISTS (
+               SELECT 1 FROM migration_preparation_items pi
+               WHERE pi.run_id=? AND pi.content_id=c.id
+             ) OR NOT EXISTS (
+               SELECT 1 FROM migration_audit_items ai
+               WHERE ai.run_id=? AND ai.content_id=c.id AND ai.content_version=c.version
+             )
+           )""",
+        (latest["id"], post_audit["id"]),
+    ).fetchone()[0]
+    technical_items = connection.execute(
+        """SELECT COUNT(*) FROM migration_preparation_items
+           WHERE run_id=? AND classification='technical_blocker'""",
+        (latest["id"],),
+    ).fetchone()[0]
+    semantic_failures: list[dict[str, Any]] = []
+    editorial_map = {
+        "duplicate_content": "duplicate_content",
+        "duplicate_title": "duplicate_title",
+        "external_link_unavailable": "external_link_unavailable",
+        "missing_legacy_media": "missing_legacy_media",
+        "unpublished_internal_link": "unpublished_internal_link",
+        "fallback_date_2000": "date_requires_editor",
+        "required_field_missing": "required_field_requires_editor",
+        "legacy_text": "text_extraction_ambiguous",
+    }
+    for row in connection.execute(
+        """SELECT i.content_id,i.code,i.severity,i.field_path,pi.classification,
+                  pi.reasons_json
+           FROM migration_review_issues i
+           LEFT JOIN migration_preparation_items pi
+             ON pi.run_id=? AND pi.content_id=i.content_id
+           WHERE i.audit_run_id=? AND i.status IN ('open','acknowledged')
+             AND i.severity IN ('blocker','warning')
+           ORDER BY i.content_id,i.code,i.field_path""",
+        (latest["id"], post_audit["id"]),
+    ):
+        reasons = {
+            reason.get("code")
+            for reason in _loads(row["reasons_json"], [])
+            if isinstance(reason, dict)
+        }
+        expected = editorial_map.get(row["code"])
+        if (
+            row["classification"] != "editorial_review"
+            or not expected
+            or expected not in reasons
+        ):
+            semantic_failures.append({
+                "content_id": row["content_id"],
+                "code": row["code"],
+                "field_path": row["field_path"],
+            })
+    unicode_failures = 0
+    for row in connection.execute(
+        "SELECT title,data_json FROM contents WHERE migration_review_required=1"
+    ):
+        value = {"title": row["title"], "data": _loads(row["data_json"], {})}
+        if _normalize_tree(value) != value:
+            unicode_failures += 1
+    ok = not (
+        missing or technical_items or semantic_failures or unicode_failures
+    )
+    return {
+        "ok": ok,
+        "code": "OK" if ok else "SEMANTIC_VERIFY_FAILED",
+        "message": (
+            "Семантический шлюз пройден"
+            if ok else "После применения остались немаппированные или технические нарушения"
+        ),
+        "run_id": latest["id"],
+        "audit_run_id": post_audit["id"],
+        "missing_or_stale": int(missing),
+        "technical_items": int(technical_items),
+        "semantic_failure_count": len(semantic_failures),
+        "semantic_failures": semantic_failures[:50],
+        "unicode_failure_count": unicode_failures,
+    }
 
 
 def verify_preparation(database_path: Path) -> dict[str, Any]:
     with connect(database_path) as connection:
         validate_preparation_schema(connection)
         foreign_keys = connection.execute("PRAGMA foreign_key_check").fetchall()
-        latest = connection.execute(
-            """SELECT id FROM migration_preparation_runs
-               WHERE mode='apply' AND status='completed'
-               ORDER BY finished_at DESC,id DESC LIMIT 1"""
-        ).fetchone()
-        if not latest:
-            raise PreparationError("Нет завершённого применения автоматической подготовки", 409)
-        unclassified = connection.execute(
-            """SELECT COUNT(*) FROM contents c
-               WHERE c.migration_review_required=1 AND NOT EXISTS (
-                 SELECT 1 FROM migration_preparation_items pi
-                 WHERE pi.run_id=? AND pi.content_id=c.id
-               )""",
-            (latest["id"],),
-        ).fetchone()[0]
-        technical = connection.execute(
-            """SELECT COUNT(*) FROM migration_preparation_items
-               WHERE run_id=? AND classification='technical_blocker'""",
-            (latest["id"],),
-        ).fetchone()[0]
-    if foreign_keys or unclassified or technical:
+        result = _semantic_verification(connection)
+    if foreign_keys or not result["ok"]:
         raise PreparationError(
             f"Проверка подготовки не пройдена: fk={len(foreign_keys)}, "
-            f"unclassified={unclassified}, technical={technical}",
+            f"code={result['code']}",
             409,
+            result["code"],
+            {"foreign_keys": len(foreign_keys), **result},
         )
     return {
         "ok": True,
-        "schema": 12,
+        "contract_version": CONTRACT_VERSION,
+        "schema": 13,
         "rules_version": PREPARATION_RULES_VERSION,
-        "run_id": latest["id"],
+        **result,
     }
 
 
 def _run_audit(settings: Settings) -> dict[str, Any]:
     run = queue_audit(
-        settings.database_path, actor_id=None, scope={"check_external": False}
+        settings.database_path, actor_id=None, scope={"check_external": True}
     )
     return execute_audit_run(
         settings.database_path, settings.schema_path, settings.media_dir,
-        settings.site_dir, run["id"], check_external=False,
+        settings.site_dir, run["id"], check_external=True,
     )
 
 
@@ -1112,31 +1510,46 @@ def main() -> None:
     parser.add_argument("--run-id")
     parser.add_argument("--actor-id")
     parser.add_argument("--skip-audit", action="store_true")
-    args = parser.parse_args()
-    settings = Settings.from_env()
-    if args.database:
-        settings = Settings(**{**settings.__dict__, "database_path": args.database})
-    if args.command == "status":
-        result = preparation_summary(settings.database_path)
-    elif args.command == "verify":
-        result = verify_preparation(settings.database_path)
-    elif args.command == "rollback":
-        if not args.run_id:
-            raise SystemExit("--run-id is required for rollback")
-        result = rollback_preparation(
-            settings.database_path, args.run_id, actor_id=args.actor_id
-        )
-    else:
-        if args.command == "preview" and not args.skip_audit:
-            _run_audit(settings)
-        run = queue_preparation(
-            settings.database_path,
-            actor_id=args.actor_id,
-            mode=args.command,
-            preview_run_id=args.preview_run_id,
-        )
-        result = execute_preparation_run(settings, run["id"])
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    try:
+        args = parser.parse_args()
+        settings = Settings.from_env()
+        if args.database:
+            settings = Settings(**{**settings.__dict__, "database_path": args.database})
+        if args.command == "status":
+            result = preparation_summary(settings.database_path)
+        elif args.command == "verify":
+            result = verify_preparation(settings.database_path)
+        elif args.command == "rollback":
+            if not args.run_id:
+                raise PreparationError(
+                    "--run-id is required for rollback", 422, "RUN_ID_REQUIRED"
+                )
+            result = rollback_preparation(
+                settings.database_path, args.run_id, actor_id=args.actor_id
+            )
+        else:
+            if args.command == "preview" and not args.skip_audit:
+                _run_audit(settings)
+            run = queue_preparation(
+                settings.database_path,
+                actor_id=args.actor_id,
+                mode=args.command,
+                preview_run_id=args.preview_run_id,
+            )
+            result = execute_preparation_run(settings, run["id"])
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except (PreparationError, AcceptanceError) as error:
+        payload = {
+            "ok": False,
+            "contract_version": CONTRACT_VERSION,
+            "error": {
+                "code": error.code,
+                "message": re.sub(r"\s+", " ", str(error)).strip()[:500],
+                "details": error.details,
+            },
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        raise SystemExit(2) from None
 
 
 if __name__ == "__main__":

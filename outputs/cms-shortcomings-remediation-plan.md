@@ -138,19 +138,20 @@
 
 ## Этап 6. Автоматическая подготовка мигрированных материалов
 
-**Статус: реализация выполнена, повторная функциональная приёмка открыта; этап 7 заблокирован.** 30 июля 2026 года повторная проверка подготовленных данных выявила два технических release blocker: `CMS-19` (`197` материалов `auto_ready` сохраняют `unicode_not_nfkc`) и `CMS-20` (`verify=ok` при post-audit `590 blocker` и `1 016 warning`). Оба дефекта зарегистрированы отдельными source-data characterization-тестами. Исправлять их и закрывать остальные Blocker gaps необходимо автоматически, без участия человека.
+**Статус: реализация и автоматическая приёмка завершены 30 июля 2026 года; требуется production rollout schema 13 перед началом этапа 7.** `CMS-19` и `CMS-20` исправлены и переведены из strict XFAIL в положительные source-data regressions. На изолированной копии текущего runtime-источника final NFKC устранил все `unicode_not_nfkc`, post-apply audit связан с конкретным apply run, а fail-closed semantic verify успешно принимает только полностью сопоставленные редакционные вопросы.
 
-Ранее реализованы схема БД 12, фоновые preview/apply, version/hash gate без частичного применения, системные ревизии, компенсирующий rollback, классификация `auto_ready | editorial_review | technical_blocker`, досье «до/после», ролевые API/CLI/UI и rollout `scripts/production_apply_stage12.sh`; `CMS-18` остаётся закрытым положительной регрессией. Актуальная приёмка: server 90/90, smoke 3/3, два последовательных full-прогона 42/42 без `XFAIL` и с 334 assertion ID, source-data 7/7 с тремя ожидаемыми `XFAIL` (`GAP-01`, `CMS-19`, `CMS-20`) и подтверждённой неизменностью raw БД и медиатеки.
+Schema 13 и контракт 1.1 добавляют устойчивые identity, active-run dedup/conflict, recovery того же run после restart, структурированные API/CLI errors, freshness полного audit, stale-hash preflight, latest-only/replayed rollback, 24-часовой fail-closed external evidence cache и append-only provenance generated media. UI раздельно показывает display/actionable/rollback targets, полное досье причин и последствий и не открывает pilot до `editorial_gate.ready`. Production gate перенесён на `scripts/production_apply_stage13.sh`.
+
+Финальная приёмка реализации: server regression 101/101; Playwright smoke 3/3; два последовательных full-прогона 42/42 с 334 assertion ID и без функциональных `XFAIL`; source-data 7/7 с 6 positive и единственным ожидаемым содержательным `GAP-01`; во всех профилях `contract_ok=true` и `source_unchanged=true`. На source-copy preview/apply: `1 757` items, `496 auto_ready / 1 261 editorial_review / 0 technical_blocker`; post-audit: `590 blocker / 530 warning`, причём все blocker являются формально сопоставленными содержательными вопросами, а `unicode_not_nfkc=0`.
 
 Детальные требования версии 3.0 в `outputs/cms-stage6-functional-requirements.md` приняты team lead системных аналитиков в третьем и последнем цикле как нормативный контракт. Это решение не означает готовность реализации. Финальный фактический вывод и evidence находятся в `outputs/cms-stage6-functional-test-conclusion.md`.
 
-До перехода к этапу 7 обязательно:
+До передачи материалов человеку на этапе 7 обязательно:
 
-1. Исправить `CMS-19` и `CMS-20`, перевести characterization-тесты в положительную регрессию.
-2. Реализовать и протестировать все Blocker gaps из `outputs/cms-stage6-functional-requirements.md`.
-3. Повторить server, smoke, два full и source-data контуры; сверить реестр `XFAIL`, coverage и неизменность raw-источника.
-4. Получить положительное fail-closed semantic verify на актуальном full post-apply audit.
-5. Обновить отчёт, руководство, реестр недостатков и этот канонический план по фактическому поведению.
+1. Закоммитить и развернуть schema 13 через `scripts/production_apply_stage13.sh`.
+2. Получить production evidence успешных restore drill, audit → preview → apply → post-audit → verify и неизменности workflow/migration-флагов.
+3. Убедиться через API/UI, что `preparation.editorial_gate.ready=true`.
+4. Только после этого создать малую пилотную редакционную партию. Дополнительного решения человека для технического gate не требуется.
 
 Цель: максимально сократить очередь материалов, требующих редакционного решения.
 
@@ -167,7 +168,7 @@
 
 ## Этап 7. Редакционная проверка спорных материалов
 
-**Статус: НЕ НАЧИНАТЬ до закрытия gate этапа 6.**
+**Статус: технически подготовлен; содержательную работу НЕ НАЧИНАТЬ до успешного production rollout schema 13 и `editorial_gate.ready=true`.**
 
 Цель: принять решения, которые могут изменить смысл, историческую достоверность или редакционную политику.
 

@@ -10,7 +10,7 @@
       "tests/e2e/test_regression.py::test_draft_save_and_noop",
       "tests/e2e/test_regression.py::test_public_navigation_and_logout"
     ],
-    "source_data_integrity_tests": 4
+    "source_data_integrity_tests": 6
   },
   "known_gaps": [],
   "suites": [

@@ -11,12 +11,16 @@ from server.config import Settings
 from server.db import init_database
 from server.migration_acceptance import (
     AcceptanceError,
+    EXTERNAL_CHECKER_VERSION,
+    _external_evidence,
     create_batch,
     execute_audit_run,
     get_batch,
     queue_audit,
+    recover_interrupted_audits,
     verify_acceptance,
 )
+from server.migration_preparation import execute_preparation_run, queue_preparation
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -100,7 +104,7 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
             table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("contents", "revisions", "users", "media", "redirects", "submissions")
         }
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 13
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:
@@ -112,8 +116,125 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
     assert verify_acceptance(settings.database_path) == {
         "ok": True,
         "schema": 9,
-        "rules_version": "1.0.0",
+            "rules_version": "1.1.0",
     }
+
+
+def test_audit_identity_dedup_conflict_and_restart_recovery(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    first = queue_audit(
+        settings.database_path,
+        actor_id=None,
+        scope={"check_external": False},
+    )
+    duplicate = queue_audit(
+        settings.database_path,
+        actor_id=None,
+        scope={"check_external": False},
+    )
+    assert duplicate["id"] == first["id"]
+    assert duplicate["deduplicated"] is True
+    try:
+        queue_audit(
+            settings.database_path,
+            actor_id=None,
+            scope={"year": 2026, "check_external": False},
+        )
+    except AcceptanceError as error:
+        assert error.code == "ACTIVE_AUDIT_SCOPE_CONFLICT"
+        assert error.details["active_run_id"] == first["id"]
+    else:
+        raise AssertionError("Conflicting active audit must be rejected")
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.execute(
+            "UPDATE migration_audit_runs SET status='running' WHERE id=?",
+            (first["id"],),
+        )
+    assert recover_interrupted_audits(settings.database_path) == 1
+    with sqlite3.connect(settings.database_path) as connection:
+        row = connection.execute(
+            """SELECT status,recovered,recovery_reason
+               FROM migration_audit_runs WHERE id=?""",
+            (first["id"],),
+        ).fetchone()
+    assert row == ("queued", 1, "APPLICATION_RESTART")
+
+
+def test_external_evidence_is_canonical_ttl_aware_and_fail_closed(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    checked: list[str] = []
+
+    def unavailable(url: str) -> tuple[bool, int | None, str | None]:
+        checked.append(url)
+        return False, 404, "HTTP 404"
+
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        first = _external_evidence(
+            connection,
+            "HTTPS://EXAMPLE.COM:443/a/../missing#fragment",
+            unavailable,
+            allow_online=True,
+        )
+        cached = _external_evidence(
+            connection,
+            "https://example.com/missing",
+            lambda _: (_ for _ in ()).throw(AssertionError("cache must be reused")),
+            allow_online=False,
+        )
+        connection.execute(
+            """UPDATE migration_link_cache SET checked_at='2000-01-01T00:00:00+00:00'
+               WHERE url_hash=?""",
+            (first["url_identity"],),
+        )
+        stale = _external_evidence(
+            connection,
+            "https://example.com/missing",
+            unavailable,
+            allow_online=False,
+        )
+    assert checked == ["https://example.com/missing"]
+    assert first["result"] == cached["result"] == "content_unavailable"
+    assert cached["cached"] is True
+    assert cached["checker_version"] == EXTERNAL_CHECKER_VERSION
+    assert stale["result"] == "missing_or_stale"
+
+
+def test_navigation_detector_does_not_flag_normal_phrase_you_are_here(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(
+            client, headers, "Форум православной молодёжи", year=2024
+        )
+        with sqlite3.connect(settings.database_path) as connection:
+            data = json.loads(connection.execute(
+                "SELECT data_json FROM contents WHERE id=?", (item["id"],)
+            ).fetchone()[0])
+            data["body"] = [{
+                "id": "paragraph-1",
+                "type": "paragraph",
+                "data": {
+                    "runs": [{
+                        "text": "Ценим всё, что происходит в сфере, которую вы здесь представляете.",
+                        "marks": [],
+                    }]
+                },
+            }]
+            connection.execute(
+                "UPDATE contents SET data_json=? WHERE id=?",
+                (json.dumps(data, ensure_ascii=False), item["id"]),
+            )
+        run_audit(settings)
+        with sqlite3.connect(settings.database_path) as connection:
+            assert connection.execute(
+                """SELECT COUNT(*) FROM migration_review_issues
+                   WHERE content_id=? AND code='legacy_navigation_text'
+                     AND status='open'""",
+                (item["id"],),
+            ).fetchone()[0] == 0
 
 
 def test_audit_rules_repeat_without_content_changes_and_old_bypass_is_closed(tmp_path: Path) -> None:
@@ -293,6 +414,16 @@ def test_api_roles_csrf_and_pilot_does_not_clear_flags(tmp_path: Path) -> None:
             )
         run_audit(settings)
         assert client.post("/api/admin/migration/batches/pilot").status_code == 403
+        preview = queue_preparation(settings.database_path, actor_id=None)
+        preview = execute_preparation_run(settings, preview["id"])
+        apply_run = queue_preparation(
+            settings.database_path,
+            actor_id=None,
+            mode="apply",
+            preview_run_id=preview["id"],
+        )
+        execute_preparation_run(settings, apply_run["id"])
+        run_audit(settings)
         pilot = client.post("/api/admin/migration/batches/pilot", headers=headers)
         assert pilot.status_code == 201, pilot.text
         assert len(pilot.json()["items"]) == 1

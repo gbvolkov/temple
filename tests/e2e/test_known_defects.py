@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from .conftest import ROOT, login, observe_open_defect
+from .test_admin_migration import _prepare_editorial_gate
 
 
 def test_cms_01_dirty_navigation(page, defect_registry, coverage_steps):
@@ -160,11 +161,11 @@ def test_cms_06_pilot_before_audit(page, live_cms, defect_registry, coverage_ste
     disabled = page.locator("[data-migration-pilot]").is_disabled()
     reason = page.locator("[data-migration-pilot-reason]").inner_text()
     coverage_steps.check("stage2.migration.disabled", disabled)
-    coverage_steps.check("stage2.migration.reason", "Сначала" in reason)
-    with sqlite3.connect(live_cms.settings.database_path) as connection:
-        connection.execute(
-            "INSERT INTO migration_audit_runs(id,rules_version,scope_json,status,counts_json,created_at,started_at,finished_at) VALUES ('stage2-audit','1.0.0','{}','completed','{}',datetime('now'),datetime('now'),datetime('now'))"
-        )
+    coverage_steps.check(
+        "stage2.migration.reason",
+        "завершённого применения" in reason or "семантическ" in reason.casefold(),
+    )
+    _prepare_editorial_gate(live_cms)
     page.locator('[data-panel="settings"]').click()
     page.locator('[data-panel="migration"]').click()
     page.locator("[data-migration-pilot]:enabled").wait_for()
@@ -177,7 +178,12 @@ def test_cms_06_pilot_before_audit(page, live_cms, defect_registry, coverage_ste
     page.locator("[data-migration-pilot]:disabled").wait_for()
     coverage_steps.check("stage2.migration.race-handled", page.locator("[data-migration-pilot]").is_disabled())
     observe_open_defect(
-        defect_registry, "CMS-06", bad=not disabled, good=disabled and "Сначала" in reason,
+        defect_registry,
+        "CMS-06",
+        bad=not disabled,
+        good=disabled and (
+            "завершённого применения" in reason or "семантическ" in reason.casefold()
+        ),
         detail=f"disabled={disabled}; reason={reason}",
     )
 

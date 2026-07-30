@@ -1,5 +1,18 @@
 # Финальное заключение по функциональной приёмке этапа 6
 
+## Актуализация после реализации schema 13
+
+Решение о недопуске ниже является историческим снимком до исправления. Реализация контракта 1.1 завершена 30 июля 2026 года:
+
+- `CMS-19/CMS-20` имеют статус `fixed` и выполняются как positive source-data regression;
+- schema 13, active identity, recovery, external evidence, semantic verify, latest/replayed rollback и generated-media provenance покрыты автоматическими тестами;
+- server: 101/101; smoke: 3/3; два последовательных full: 42/42, 334 assertion ID, без функциональных XFAIL;
+- source-data: 7/7, 6 positive + один ожидаемый содержательный `GAP-01`, `source_unchanged=true`, artifact `output/playwright/cms-regression/20260730T160241-094030Z`;
+- финальные browser artifacts: smoke `output/playwright/cms-regression/20260730T155727-829689Z`, full №1 `output/playwright/cms-regression/20260730T155740-660667Z`, full №2 `output/playwright/cms-regression/20260730T160006-281876Z`;
+- на подготовленной копии `unicode_not_nfkc=0`, `technical_blocker=0`, свежий post-apply audit полностью сопоставлен и semantic verify успешен.
+
+**Новое решение о допуске:** технический gate на restore/source-copy пройден. Содержательную работу этапа 7 можно начинать только после применения того же workflow в production через `scripts/production_apply_stage13.sh` и подтверждения `editorial_gate.ready=true`. Это последнее условие не требует содержательного решения человека.
+
 Дата: 30 июля 2026 года.  
 Объект: функциональность автоматической подготовки мигрированных материалов и подготовленные source-data.  
 Основание: `outputs/cms-stage6-functional-requirements.md`, версия 3.0.  

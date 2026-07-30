@@ -312,19 +312,18 @@ uv run python -m server.migration_preparation verify
 uv run python -m server.migration_preparation rollback --run-id <apply-id>
 ```
 
-Production rollout схемы 11 → 12 выполняет `scripts/production_apply_stage12.sh`. Скрипт требует нулевые `technical_blocker`, неизменность количества материалов, workflow-состояний и migration-флагов, SQLite quick/FK checks; те же preview/apply/verify сначала выполняются на восстановленной копии.
+Production rollout схемы 11/12 → 13 выполняет `scripts/production_apply_stage13.sh`. Скрипт требует нулевые `technical_blocker`, неизменность количества материалов, workflow-состояний и migration-флагов, SQLite quick/FK checks; audit → preview → apply → post-audit → semantic verify сначала выполняются на восстановленной копии.
 
-**Актуальное ограничение:** rollout схемы 12 и переход к редакционному этапу заблокированы результатами повторной приёмки от 30 июля 2026 года. `CMS-19` оставляет `unicode_not_nfkc` у 197 записей `auto_ready`, а `CMS-20` позволяет `verify=ok` при post-audit `590 blocker / 1 016 warning`. До исправления этих P0-дефектов текущий verify нельзя использовать как production gate; требуется новый full post-apply audit и fail-closed semantic verify.
+Schema 13 добавляет identity-дедупликацию, restart recovery, structured API/CLI errors, 24-часовой external evidence cache, latest-only idempotent rollback и append-only provenance generated media. `CMS-19/CMS-20` закрыты на полной source-copy: Unicode issues равны нулю, а semantic verify проходит только на свежем post-apply audit с полностью сопоставленными editorial reasons.
 
 Production deployment должен включать согласованный SQLite backup, копию `data/media`, проверку восстановления, миграции схемы, readiness и smoke-тест. Порт приложения предназначен для loopback; наружу сайт публикуется через HTTPS reverse proxy.
 
 ## 14. Текущая граница готовности
 
-Техническая платформа, автоматическая подготовка и ключевые workflow существуют, но повторная приёмка этапа 6 не завершена. До production cutover требуется:
+Техническая платформа, автоматическая подготовка и ключевые workflow готовы на restore/source-copy. До содержательного этапа 7 требуется:
 
-- исправить P0-дефекты `CMS-19` и `CMS-20` и закрыть Blocker gaps из `outputs/cms-stage6-functional-requirements.md`;
-- исправить дефекты из `outputs/cms-current-shortcomings.md`;
+- выполнить production rollout schema 13 и сохранить evidence;
+- подтвердить `editorial_gate.ready=true`;
 - завершить редакционную приёмку оставшихся спорных материалов;
-- устранить blockers аудита;
 - настроить production secrets, SMTP, backup/restore и HTTPS;
-- выполнить контрольный rollout на восстановленной копии.
+- начинать с малой пилотной партии и не передавать человеку технические коды.

@@ -781,6 +781,166 @@ def apply_media_reconciliation(connection: sqlite3.Connection) -> str:
     return "media reconciliation summaries enabled"
 
 
+MIGRATION_PREPARATION_HARDENING_SQL = """
+ALTER TABLE migration_audit_runs ADD COLUMN identity_hash TEXT;
+ALTER TABLE migration_audit_runs ADD COLUMN retry_of_run_id TEXT REFERENCES migration_audit_runs(id);
+ALTER TABLE migration_audit_runs ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0 CHECK(recovered IN (0,1));
+ALTER TABLE migration_audit_runs ADD COLUMN recovery_reason TEXT;
+ALTER TABLE migration_audit_runs ADD COLUMN error_json TEXT;
+ALTER TABLE migration_preparation_runs ADD COLUMN identity_hash TEXT;
+ALTER TABLE migration_preparation_runs ADD COLUMN retry_of_run_id TEXT REFERENCES migration_preparation_runs(id);
+ALTER TABLE migration_preparation_runs ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0 CHECK(recovered IN (0,1));
+ALTER TABLE migration_preparation_runs ADD COLUMN recovery_reason TEXT;
+ALTER TABLE migration_preparation_runs ADD COLUMN error_json TEXT;
+ALTER TABLE migration_link_cache ADD COLUMN normalized_url TEXT;
+ALTER TABLE migration_link_cache ADD COLUMN final_url TEXT;
+ALTER TABLE migration_link_cache ADD COLUMN result TEXT;
+ALTER TABLE migration_link_cache ADD COLUMN checker_version TEXT;
+ALTER TABLE migration_link_cache ADD COLUMN evidence_digest TEXT;
+CREATE TABLE migration_generated_media_events (
+  id TEXT PRIMARY KEY,
+  preparation_run_id TEXT NOT NULL REFERENCES migration_preparation_runs(id),
+  media_id TEXT NOT NULL REFERENCES media(id),
+  source_media_id TEXT REFERENCES media(id),
+  event_type TEXT NOT NULL CHECK(event_type IN ('generated','reused','retained_on_rollback','recovered')),
+  identity_hash TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  UNIQUE(preparation_run_id, media_id, event_type, identity_hash)
+);
+CREATE INDEX idx_migration_generated_media_events_run
+  ON migration_generated_media_events(preparation_run_id, created_at, id);
+"""
+
+MIGRATION_PREPARATION_HARDENING_COLUMNS = {
+    "migration_audit_runs": {
+        "identity_hash", "retry_of_run_id", "recovered", "recovery_reason", "error_json",
+    },
+    "migration_preparation_runs": {
+        "identity_hash", "retry_of_run_id", "recovered", "recovery_reason", "error_json",
+    },
+    "migration_link_cache": {
+        "normalized_url", "final_url", "result", "checker_version", "evidence_digest",
+    },
+    "migration_generated_media_events": {
+        "id", "preparation_run_id", "media_id", "source_media_id", "event_type",
+        "identity_hash", "details_json", "created_at",
+    },
+}
+
+MIGRATION_PREPARATION_HARDENING_INDEXES = {
+    "idx_migration_audit_runs_active_identity",
+    "idx_migration_preparation_runs_active_identity",
+    "idx_migration_generated_media_events_run",
+}
+
+
+def validate_migration_preparation_hardening(connection: sqlite3.Connection) -> None:
+    for table, required in MIGRATION_PREPARATION_HARDENING_COLUMNS.items():
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(required - columns)
+        if missing:
+            raise MigrationError(f"Stage 13 table {table} is incomplete: {', '.join(missing)}")
+    indexes = {
+        row["name"] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        )
+    }
+    missing_indexes = sorted(MIGRATION_PREPARATION_HARDENING_INDEXES - indexes)
+    if missing_indexes:
+        raise MigrationError("Stage 13 indexes are missing: " + ", ".join(missing_indexes))
+
+
+def apply_migration_preparation_hardening(connection: sqlite3.Connection) -> str:
+    preserved = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in (
+            "contents", "revisions", "media", "migration_audit_runs",
+            "migration_preparation_runs", "migration_preparation_items",
+        )
+    }
+    for statement in MIGRATION_PREPARATION_HARDENING_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    for row in connection.execute(
+        "SELECT id,scope_json,rules_version FROM migration_audit_runs WHERE identity_hash IS NULL"
+    ).fetchall():
+        identity = hashlib.sha256(
+            f"{row['scope_json']}:{row['rules_version']}".encode("utf-8")
+        ).hexdigest()
+        connection.execute(
+            "UPDATE migration_audit_runs SET identity_hash=? WHERE id=?",
+            (identity, row["id"]),
+        )
+    for row in connection.execute(
+        """SELECT id,mode,rules_version,preview_run_id,audit_run_id
+           FROM migration_preparation_runs WHERE identity_hash IS NULL"""
+    ).fetchall():
+        identity = hashlib.sha256(
+            (
+                f"{row['mode']}:{row['rules_version']}:"
+                f"{row['preview_run_id'] or row['audit_run_id'] or ''}"
+            ).encode("utf-8")
+        ).hexdigest()
+        connection.execute(
+            "UPDATE migration_preparation_runs SET identity_hash=? WHERE id=?",
+            (identity, row["id"]),
+        )
+    for table in ("migration_audit_runs", "migration_preparation_runs"):
+        duplicates = connection.execute(
+            f"""SELECT identity_hash FROM {table}
+                WHERE status IN ('queued','running') AND identity_hash IS NOT NULL
+                GROUP BY identity_hash HAVING COUNT(*)>1"""
+        ).fetchall()
+        for duplicate in duplicates:
+            rows = connection.execute(
+                f"""SELECT id FROM {table}
+                    WHERE status IN ('queued','running') AND identity_hash=?
+                    ORDER BY created_at,id""",
+                (duplicate["identity_hash"],),
+            ).fetchall()
+            for stale in rows[1:]:
+                payload = json.dumps({
+                    "code": "DUPLICATE_ACTIVE_RECOVERED",
+                    "message": "Duplicate active operation was closed during schema 13 migration",
+                    "details": {"canonical_run_id": rows[0]["id"]},
+                }, sort_keys=True, separators=(",", ":"))
+                connection.execute(
+                    f"""UPDATE {table} SET status='failed',error=?,
+                        error_json=?,finished_at=? WHERE id=?""",
+                    (
+                        "Duplicate active operation was closed during schema 13 migration",
+                        payload, datetime.now(UTC).isoformat(), stale["id"],
+                    ),
+                )
+    connection.execute(
+        """CREATE UNIQUE INDEX idx_migration_audit_runs_active_identity
+           ON migration_audit_runs(identity_hash)
+           WHERE status IN ('queued','running') AND identity_hash IS NOT NULL"""
+    )
+    connection.execute(
+        """CREATE UNIQUE INDEX idx_migration_preparation_runs_active_identity
+           ON migration_preparation_runs(identity_hash)
+           WHERE status IN ('queued','running') AND identity_hash IS NOT NULL"""
+    )
+    connection.execute(
+        """UPDATE migration_link_cache SET normalized_url=url,
+           result=CASE WHEN ok=1 THEN 'available' ELSE 'content_unavailable' END,
+           checker_version='legacy-1', evidence_digest=url_hash
+           WHERE normalized_url IS NULL"""
+    )
+    validate_migration_preparation_hardening(connection)
+    after = {
+        table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        for table in preserved
+    }
+    if preserved != after:
+        raise MigrationError(f"Stage 13 changed existing row counts: {preserved} -> {after}")
+    if connection.execute("PRAGMA foreign_key_check").fetchall():
+        raise MigrationError("Stage 13 broke foreign keys")
+    return "migration preparation contracts, evidence, and provenance hardened"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -908,6 +1068,20 @@ MIGRATIONS = (
             repr(sorted((name, sorted(columns)) for name, columns in PREPARATION_REQUIRED_COLUMNS.items())),
             repr(sorted(PREPARATION_REQUIRED_INDEXES)),
             inspect.getsource(validate_preparation_schema),
+        )),
+    ),
+    Migration(
+        13,
+        "migration_preparation_hardening",
+        apply_migration_preparation_hardening,
+        "\n".join((
+            MIGRATION_PREPARATION_HARDENING_SQL,
+            repr(sorted(
+                (name, sorted(columns))
+                for name, columns in MIGRATION_PREPARATION_HARDENING_COLUMNS.items()
+            )),
+            repr(sorted(MIGRATION_PREPARATION_HARDENING_INDEXES)),
+            inspect.getsource(validate_migration_preparation_hardening),
         )),
     ),
 )

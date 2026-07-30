@@ -9,7 +9,7 @@
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", migration_accept: "Принят после миграции", migration_archive: "Архивирован при приёмке", migration_trash: "Перемещён в корзину при приёмке", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationItems: new Map(), preparationTimer: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationDisplayRun: null, preparationItems: new Map(), preparationTimer: null, dossierOpenerId: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -1050,7 +1050,7 @@
   const individualMigrationWarnings = new Set(["duplicate_content", "duplicate_title", "duplicate_media_reference", "external_link_unavailable", "missing_legacy_media", "unpublished_internal_link"]);
 
   function migrationSourceText(item) {
-    const data = item.data || {};
+    const data = item.source_data || item.data || {};
     if (typeof data.body_text === "string") return data.body_text;
     const source = data.body || data.biography;
     if (typeof source === "string") return source;
@@ -1117,12 +1117,13 @@
     const reasons = item.reasons || [];
     panel.innerHTML = `<div class="acceptance-panel preparation-dossier">
       <button class="button button--ghost button--compact" type="button" data-migration-back>← К dashboard</button>
-      <div class="workflow-panel__head"><div><div class="eyebrow">Досье автоматической подготовки</div><h1>${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
-      <section class="acceptance-section"><h2>Рекомендация</h2><p>${escapeHtml(item.recommendation || "Дополнительных действий не требуется.")}</p>${reasons.length ? `<ul>${reasons.map(reason => `<li>${escapeHtml(typeof reason === "string" ? reason : reason.message || reason.code || JSON.stringify(reason))}</li>`).join("")}</ul>` : ""}</section>
-      <section class="acceptance-section"><h2>Применяемые правила</h2><div class="acceptance-item-issues">${transformations.map(rule => `<span class="acceptance-chip">${escapeHtml(rule.rule || "нормализация")}</span>`).join("") || '<span class="state-pill">Данные уже соответствуют правилам</span>'}</div></section>
+      <div class="workflow-panel__head"><div><div class="eyebrow">Досье автоматической подготовки</div><h1 id="preparation-dossier-title" tabindex="-1">${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
+      <section class="acceptance-section"><h2>Рекомендация</h2><p>${escapeHtml(item.recommendation || "Дополнительных действий не требуется.")}</p><div class="dossier-reasons">${reasons.length ? reasons.map(reason => typeof reason === "string" ? `<article><b>Неуточнённая причина</b><p>Материал целиком</p><p>${escapeHtml(reason)}</p></article>` : `<article><b>${escapeHtml(reason.code || "unmapped_reason")}</b><p><strong>Поле:</strong> ${escapeHtml(reason.field_path || "Материал целиком")}</p><p>${escapeHtml(reason.message || "Описание отсутствует")}</p>${reason.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(reason.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") : '<p>Причин для ручной проверки нет.</p>'}</div></section>
+      <section class="acceptance-section"><h2>Применяемые правила</h2><div class="dossier-rules">${transformations.map(rule => `<article><b>${escapeHtml(rule.rule || "normalization")}</b><p>${escapeHtml(rule.label || "Автоматическое преобразование")}</p><p><strong>Поле:</strong> ${escapeHtml(rule.field || "Материал целиком")}${Object.hasOwn(rule, "value") ? ` · <strong>Значение:</strong> ${escapeHtml(String(rule.value))}` : ""}</p>${rule.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(rule.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") || '<span class="state-pill">Данные уже соответствуют правилам</span>'}</div></section>
       <section class="preparation-diff"><article><h2>До</h2><pre>${escapeHtml(JSON.stringify(item.before, null, 2))}</pre></article><article><h2>После</h2><pre>${escapeHtml(JSON.stringify(item.proposed, null, 2))}</pre></article></section>
-      ${item.options?.length ? `<section class="acceptance-section"><h2>Варианты для редакционного этапа</h2><ul>${item.options.map(option => `<li>${escapeHtml(typeof option === "string" ? option : option.label || option.value || JSON.stringify(option))}</li>`).join("")}</ul></section>` : ""}
+      ${item.options?.length ? `<section class="acceptance-section"><h2>Варианты для редакционного этапа</h2><ul>${item.options.map(option => typeof option === "string" ? `<li>${escapeHtml(option)}</li>` : `<li><b>${escapeHtml(option.label || option.value || "Вариант")}</b><p>${escapeHtml(option.consequence || "Последствие не описано")}</p></li>`).join("")}</ul></section>` : ""}
     </div>`;
+    panel.querySelector("#preparation-dossier-title")?.focus();
   }
 
   async function preparationAction(mode) {
@@ -1172,17 +1173,20 @@
     if (requestId !== state.migration.requestId || !panel.querySelector("[data-acceptance-metrics]")) return false;
     const acceptance = status.acceptance || { totals: status.totals, issues: {}, runs: [] };
     const runs = acceptance.runs || [];
-    const fullRuns = runs.filter(run => !run.scope || Object.keys(run.scope).length === 0);
+    const fullRuns = runs.filter(run => !run.scope || !["content_id", "content_type", "year"].some(key => run.scope[key]));
+    const latestFullRun = fullRuns[0] || null;
     const auditActive = fullRuns.some(run => ["queued", "running"].includes(run.status));
-    const auditReady = fullRuns.some(run => run.status === "completed");
+    const auditReady = latestFullRun?.status === "completed";
     const pilot = panel.querySelector("[data-migration-pilot]");
     const pilotReason = panel.querySelector("[data-migration-pilot-reason]");
-    if (pilot) pilot.disabled = !auditReady || auditActive;
-    if (pilotReason) pilotReason.textContent = auditActive ? "Полный аудит выполняется. Пилот станет доступен после завершения." : auditReady ? "Завершённый полный аудит найден." : "Сначала запустите и дождитесь завершения полного аудита.";
     const preparation = status.preparation || { runs: [], counts: {} };
+    const editorialGate = preparation.editorial_gate || { ready: false, code: "EDITORIAL_GATE_UNKNOWN", message: "Семантический шлюз ещё не проверен." };
+    if (pilot) pilot.disabled = !editorialGate.ready;
+    if (pilotReason) pilotReason.textContent = editorialGate.message;
     const preparationRuns = preparation.runs || [];
-    const displayPreparation = preparationRuns[0] || null;
-    state.migration.preparationRun = displayPreparation;
+    const displayPreparation = preparation.display_run || preparationRuns[0] || null;
+    state.migration.preparationDisplayRun = displayPreparation;
+    state.migration.preparationRun = preparation.actionable_preview || null;
     let preparationItems = { items: [], total: 0, limit: 50, offset: state.migration.preparationOffset };
     if (displayPreparation?.status === "completed") {
       const params = new URLSearchParams({ limit: "50", offset: String(state.migration.preparationOffset) });
@@ -1193,14 +1197,20 @@
     state.migration.preparationItems = new Map(preparationItems.items.map(item => [item.content_id, item]));
     const preparationActive = preparationRuns.some(run => ["queued", "running"].includes(run.status));
     const applyButton = panel.querySelector("[data-preparation-apply]");
-    if (applyButton) applyButton.disabled = preparationActive || displayPreparation?.mode !== "preview" || displayPreparation?.status !== "completed";
+    if (applyButton) {
+      applyButton.disabled = preparationActive || !preparation.actionable_preview;
+      applyButton.title = applyButton.disabled ? "Нет безопасного завершённого preview для применения" : "";
+    }
     const rollbackButton = panel.querySelector("[data-preparation-rollback]");
     if (rollbackButton) {
-      rollbackButton.hidden = displayPreparation?.mode !== "apply" || displayPreparation?.status !== "completed";
-      rollbackButton.dataset.preparationRollback = displayPreparation?.id || "";
+      rollbackButton.hidden = !preparation.rollback_target;
+      rollbackButton.dataset.preparationRollback = preparation.rollback_target?.id || "";
     }
     const previewButton = panel.querySelector("[data-preparation-preview]");
-    if (previewButton) previewButton.disabled = preparationActive || !auditReady;
+    if (previewButton) {
+      previewButton.disabled = preparationActive || !auditReady || auditActive;
+      previewButton.title = previewButton.disabled ? (latestFullRun?.status === "failed" ? "Последний полный аудит завершился ошибкой" : "Требуется актуальный завершённый полный аудит") : "";
+    }
     const preparationCounts = displayPreparation?.counts || preparation.counts || {};
     panel.querySelector("[data-preparation-metrics]").innerHTML = [
       ["Материалов", preparationCounts.contents || 0],
@@ -1210,6 +1220,7 @@
     ].map(([label, value]) => `<article class="metric-card"><b>${Number(value).toLocaleString("ru-RU")}</b><span>${label}</span></article>`).join("");
     const preparationStatus = panel.querySelector("[data-preparation-status]");
     if (preparationStatus) {
+      preparationStatus.setAttribute("aria-live", "polite");
       preparationStatus.innerHTML = displayPreparation
         ? `<span class="state-pill">${escapeHtml(displayPreparation.mode)} · ${escapeHtml(displayPreparation.status)}</span><span>Правила ${escapeHtml(displayPreparation.rules_version)} · ${escapeHtml(formatDate(displayPreparation.created_at))}${displayPreparation.error ? ` · ${escapeHtml(displayPreparation.error)}` : ""}</span>`
         : '<span>Запусков пока нет. После полного аудита сформируйте preview.</span>';
@@ -1218,7 +1229,7 @@
     panel.querySelector("[data-preparation-count]").textContent = `${Number(preparationItems.total || 0).toLocaleString("ru-RU")} материалов`;
     panel.querySelector("[data-preparation-prev]").disabled = state.migration.preparationOffset === 0;
     panel.querySelector("[data-preparation-next]").disabled = state.migration.preparationOffset + preparationItems.items.length >= preparationItems.total;
-    panel.querySelector("[data-preparation-runs]").innerHTML = preparationRuns.map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.mode)} · ${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.changed || 0)} изменений${run.preview_run_id ? " · по preview" : ""}${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Запусков пока нет.</div>';
+    panel.querySelector("[data-preparation-runs]").innerHTML = preparationRuns.map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.mode)} · ${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.changed || 0)} изменений${run.preview_run_id ? ` · preview ${escapeHtml(run.preview_run_id)}` : ""}${run.recovered ? ` · восстановлен (${escapeHtml(run.recovery_reason || "restart")})` : ""}${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Запусков пока нет.</div>';
     clearTimeout(state.migration.preparationTimer);
     if (preparationActive) state.migration.preparationTimer = setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1500);
     const total = Number(acceptance.totals.contents || 0), remaining = Number(acceptance.totals.review_required || 0);
@@ -1508,7 +1519,11 @@
     if (target.matches("[data-preparation-next]")) { state.migration.preparationOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.dataset.preparationItem) {
       const item = state.migration.preparationItems.get(target.dataset.preparationItem);
-      if (item) { clearTimeout(state.migration.preparationTimer); renderPreparationDossier(item); }
+      if (item) {
+        state.migration.dossierOpenerId = target.dataset.preparationItem;
+        clearTimeout(state.migration.preparationTimer);
+        renderPreparationDossier(item);
+      }
     }
     if (target.matches("[data-migration-pilot]")) {
       try { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
@@ -1518,7 +1533,13 @@
     if (target.matches("[data-migration-issues-prev]")) { state.migration.issuesOffset = Math.max(0, state.migration.issuesOffset - 50); await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-next]")) { state.migration.issuesOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.dataset.migrationBatch) await openMigrationBatch(target.dataset.migrationBatch).catch(error => toast(error.message));
-    if (target.matches("[data-migration-back]")) { renderMigrationDashboardShell(); await refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (target.matches("[data-migration-back]")) {
+      const dossierOpenerId = state.migration.dossierOpenerId;
+      renderMigrationDashboardShell();
+      await refreshMigrationStatus().catch(error => toast(error.message));
+      if (dossierOpenerId) panel.querySelector(`[data-preparation-item="${CSS.escape(dossierOpenerId)}"]`)?.focus();
+      state.migration.dossierOpenerId = null;
+    }
     if (target.dataset.migrationOpenContent) await guardUnsavedChanges(async () => { selectContentType(target.dataset.contentType); await openRecord(target.dataset.migrationOpenContent).catch(error => toast(error.message)); });
     if (target.matches("[data-batch-item-save]")) await saveMigrationBatchItem(target).catch(error => toast(error.message));
     if (target.matches("[data-batch-submit]")) await migrationBatchAction("submit").catch(error => toast(error.message));

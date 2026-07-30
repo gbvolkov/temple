@@ -54,7 +54,7 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
         source.backup(destination)
     init_database(target)
     migrated = database_report(target)
-    assert migrated["schema_version"] == 12
+    assert migrated["schema_version"] == 13
     assert migrated["quick_check"] == ["ok"]
     assert migrated["foreign_key_error_count"] == 0
     after = stable_database_metrics(database_report(source_db))
@@ -243,7 +243,6 @@ def test_stage6_real_source_automatic_preparation(prepared_source):
 
 
 @pytest.mark.source_data
-@pytest.mark.defect("CMS-19")
 def test_cms_19_auto_ready_is_not_semantically_clean(prepared_source, defect_registry):
     settings: Settings = prepared_source["settings"]
     applied = prepared_source["applied"]
@@ -265,27 +264,26 @@ def test_cms_19_auto_ready_is_not_semantically_clean(prepared_source, defect_reg
                WHERE pi.run_id=? AND pi.classification='auto_ready'""",
             (post_audit["id"], applied["id"]),
         ).fetchone()[0]
-    observe_open_defect(
-        defect_registry,
-        "CMS-19",
-        bad=auto_ready_unicode == 197 and total_unicode == 486,
-        good=auto_ready_unicode == 0,
-        detail=(
-            f"auto_ready_unicode_not_nfkc={auto_ready_unicode}; "
-            f"total_unicode_not_nfkc={total_unicode}"
-        ),
+    assert defect_registry["CMS-19"]["status"] == "fixed"
+    assert auto_ready_unicode == 0 and total_unicode == 0, (
+        f"auto_ready_unicode_not_nfkc={auto_ready_unicode}; "
+        f"total_unicode_not_nfkc={total_unicode}"
     )
 
 
 @pytest.mark.source_data
-@pytest.mark.defect("CMS-20")
 def test_cms_20_verify_fails_closed_on_post_apply_violations(prepared_source, defect_registry):
     settings: Settings = prepared_source["settings"]
     post_audit = prepared_source["post_audit"]
     try:
         verification = verify_preparation(settings.database_path)
     except PreparationError as error:
-        verification = {"ok": False, "error": str(error)}
+        verification = {
+            "ok": False,
+            "error": str(error),
+            "code": error.code,
+            "details": error.details,
+        }
     with sqlite3.connect(settings.database_path) as connection:
         counts = dict(
             connection.execute(
@@ -298,13 +296,8 @@ def test_cms_20_verify_fails_closed_on_post_apply_violations(prepared_source, de
     blockers = counts.get("blocker", 0)
     warnings = counts.get("warning", 0)
     verify_ok = verification.get("ok") is True
-    observe_open_defect(
-        defect_registry,
-        "CMS-20",
-        bad=verify_ok and blockers == 590 and warnings == 1_016,
-        good=not verify_ok,
-        detail=(
-            f"verify_ok={verify_ok}; blockers={blockers}; warnings={warnings}; "
-            f"verification={verification}"
-        ),
+    assert defect_registry["CMS-20"]["status"] == "fixed"
+    assert verify_ok, (
+        f"verify_ok={verify_ok}; blockers={blockers}; warnings={warnings}; "
+        f"verification={verification}"
     )

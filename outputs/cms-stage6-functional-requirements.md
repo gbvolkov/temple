@@ -1,5 +1,7 @@
 # Детальные функциональные требования этапа 6
 
+> Реализация contract 1.1 / rules 1.1.0 / schema 13 завершена 30 июля 2026 года. Исторические AS-IS fingerprints, planned node names и GAP-статусы ниже сохранены как принятый baseline требований; актуальный execution status приведён в `outputs/cms-stage6-functional-test-conclusion.md`. `CMS-19/CMS-20` теперь fixed positive regressions, production entrypoint — `scripts/production_apply_stage13.sh`.
+
 Дата: 30 июля 2026 года.  
 Версия требований: 3.0, финальный кандидат для цикла согласования 3.  
 Объект: этап 6 «Автоматическая подготовка мигрированных материалов».  

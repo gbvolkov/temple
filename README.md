@@ -76,7 +76,7 @@ uv run python -m server.media_reconciliation --apply
 
 Сверка сопоставляет manifest, физические и производные файлы, реестр `media`, ссылки текущих и исторических версий, `media_usages`, CSV-отчёт и очередь `missing_media_issues`. Для актуального источника 13 746 зеркалированных URL соответствуют 13 698 уникальным файлам и 48 алиасам; на диске находятся все 13 698 оригиналов и одна самостоятельная CMS-загрузка. Ровно 201 отсутствующий на старом сервере URL импортируется в панель «Утрачено». Production rollout схемы 9 → 11 выполняется через `scripts/production_apply_stage11.sh` и допускает изменение рабочей БД только после успешной сверки восстановленной копии.
 
-Схема 12 добавляет автоматическую подготовку мигрированных материалов. Preview классифицирует каждую запись как `auto_ready`, `editorial_review` или `technical_blocker`, сохраняет версии «до/после», причины и предлагаемые решения. Apply повторно проверяет версии и хеши, создаёт ревизии только для изменённых материалов, не публикует их и не снимает `migration_review_required`. Запуск доступен из migration dashboard и CLI:
+Схема 13 завершает автоматическую подготовку мигрированных материалов. Preview классифицирует каждую запись как `auto_ready`, `editorial_review` или `technical_blocker`, сохраняет версии «до/после», причины и предлагаемые решения. Apply повторно проверяет версии и хеши, создаёт ревизии только для изменённых материалов, не публикует их и не снимает `migration_review_required`. Контракт 1.1 добавляет identity-дедупликацию, restart recovery, структурированные ошибки, 24-часовой cache внешних проверок, append-only provenance сгенерированных медиа и fail-closed semantic verify по свежему post-apply audit. Запуск доступен из migration dashboard и CLI:
 
 ```powershell
 uv run python -m server.migration_preparation preview
@@ -85,7 +85,7 @@ uv run python -m server.migration_preparation verify
 uv run python -m server.migration_preparation rollback --run-id <apply-id>
 ```
 
-Production rollout схемы 11 → 12 выполняется через `scripts/production_apply_stage12.sh`: preview/apply/verify сначала проходят на восстановленной копии, затем повторяются в production с закрытыми JSON-отчётами и проверкой неизменности статусов и migration-флагов.
+Production rollout схемы 11/12 → 13 выполняется через `scripts/production_apply_stage13.sh`: restore drill, audit, preview, apply, повторный full audit и semantic verify сначала проходят на восстановленной копии, затем повторяются в production с закрытыми JSON-отчётами и проверкой workflow, migration-флагов, SQLite и provenance. Старый stage-12 wrapper больше не является production gate.
 
 ## Формы посетителей
 
@@ -135,7 +135,7 @@ uv run python scripts/run_cms_regression.py --profile source-data `
 
 Артефакты сохраняются в `output/playwright/cms-regression/<UTC timestamp>/`. Неожиданное изменение поведения открытого дефекта, `XPASS`, повреждение baseline или изменение source-data завершают прогон с ошибкой. Для визуальной диагностики доступен параметр `--headed`.
 
-Фактическое существующее покрытие перечислено assertion-by-assertion в `tests/e2e/coverage.json`; full-профиль не содержит `XFAIL`. `CMS-01`–`CMS-18` и `GAP-02/03` проверяются как положительные регрессии. Повторная приёмка этапа 6 выявила открытые P0 `CMS-19/CMS-20`; source-data профиль теперь содержит три strict expected `XFAIL`: `GAP-01`, `CMS-19`, `CMS-20`, при этом подтверждает неизменность raw-источника. Полный нормативный перечень дополнительных negative/recovery/semantic/rollout веток находится в `outputs/cms-stage6-functional-requirements.md`; пустой `known_gaps` старой runtime-матрицы не означает закрытие этих Blocker gaps. До их устранения этап 7 не начинается.
+Фактическое существующее покрытие перечислено assertion-by-assertion в `tests/e2e/coverage.json`; full-профиль не содержит `XFAIL`. `CMS-01`–`CMS-20` и `GAP-02/03` проверяются как положительные регрессии. Source-data профиль выполняет 7 сценариев и содержит только один ожидаемый `XFAIL` — содержательную очередь `GAP-01`; `CMS-19/CMS-20` стали passing regression, а raw-источник подтверждён неизменным. Редакционный этап разрешается только после успешного production-прогона stage 13 и зелёного `editorial_gate.ready`.
 
 ## Публикация и рабочие версии
 

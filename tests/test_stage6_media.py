@@ -116,11 +116,11 @@ def test_media_migration_is_idempotent_and_preserves_existing_rows(tmp_path: Pat
         assert "missing_media_issues" in {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 12
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 13
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 12
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 13
 
 
 def test_reindex_job_is_durable_exclusive_and_reports_progress(tmp_path: Path) -> None:

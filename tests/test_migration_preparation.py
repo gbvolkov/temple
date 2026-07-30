@@ -18,6 +18,7 @@ from server.migration_preparation import (
     get_preparation_run,
     list_preparation_items,
     queue_preparation,
+    recover_interrupted_preparations,
     rollback_preparation,
     verify_preparation,
 )
@@ -157,6 +158,7 @@ def test_preview_apply_is_idempotent_and_rollback_is_compensating(tmp_path: Path
             preview_run_id=result["id"],
         )
         assert same["id"] == applied["id"]
+        full_audit(settings)
         assert verify_preparation(settings.database_path)["run_id"] == applied["id"]
         with sqlite3.connect(settings.database_path) as connection:
             connection.row_factory = sqlite3.Row
@@ -210,6 +212,89 @@ def test_apply_rejects_stale_preview_without_partial_changes(tmp_path: Path) -> 
             assert connection.execute(
                 "SELECT COUNT(*) FROM revisions WHERE content_id=?", (item["id"],)
             ).fetchone()[0] == 1
+
+
+def test_apply_rejects_stale_hash_without_version_change(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers)
+        result = preview(settings)
+        with sqlite3.connect(settings.database_path) as connection:
+            revisions_before = connection.execute(
+                "SELECT COUNT(*) FROM revisions WHERE content_id=?", (item["id"],)
+            ).fetchone()[0]
+            data = json.loads(connection.execute(
+                "SELECT data_json FROM contents WHERE id=?", (item["id"],)
+            ).fetchone()[0])
+            data["summary"] = "Изменено вне API без повышения версии"
+            connection.execute(
+                "UPDATE contents SET data_json=? WHERE id=?",
+                (json.dumps(data, ensure_ascii=False), item["id"]),
+            )
+        queued = queue_preparation(
+            settings.database_path,
+            actor_id=None,
+            mode="apply",
+            preview_run_id=result["id"],
+        )
+        with pytest.raises(PreparationError) as captured:
+            execute_preparation_run(settings, queued["id"])
+        assert captured.value.code == "STALE_HASH"
+        with sqlite3.connect(settings.database_path) as connection:
+            assert connection.execute(
+                "SELECT COUNT(*) FROM revisions WHERE content_id=?", (item["id"],)
+            ).fetchone()[0] == revisions_before
+
+
+def test_preview_identity_deduplicates_active_and_restart_requeues_same_run(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        create_imported_news(client, headers)
+        full_audit(settings)
+        first = queue_preparation(settings.database_path, actor_id=None)
+        duplicate = queue_preparation(settings.database_path, actor_id=None)
+        assert duplicate["id"] == first["id"]
+        assert duplicate["deduplicated"] is True
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute(
+                "UPDATE migration_preparation_runs SET status='running' WHERE id=?",
+                (first["id"],),
+            )
+        assert recover_interrupted_preparations(settings.database_path) == 1
+        recovered = get_preparation_run(settings.database_path, first["id"])
+        assert recovered["status"] == "queued"
+        assert recovered["recovered"] is True
+        assert recovered["recovery_reason"] == "APPLICATION_RESTART"
+
+
+def test_generated_values_receive_final_nfkc_normalization(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(
+            client,
+            headers,
+            title="Приходская встреча 12.05.2018",
+        )
+        with sqlite3.connect(settings.database_path) as connection:
+            data = json.loads(connection.execute(
+                "SELECT data_json FROM contents WHERE id=?", (item["id"],)
+            ).fetchone()[0])
+            data["body_text"] = "И\u0306юльская встреча\u0001 состоялась 12.05.2018."
+            data["summary"] = ""
+            connection.execute(
+                "UPDATE contents SET data_json=? WHERE id=?",
+                (json.dumps(data, ensure_ascii=False), item["id"]),
+            )
+        result = preview(settings)
+        proposed = list_preparation_items(
+            settings.database_path, result["id"]
+        )["items"][0]["proposed"]
+        serialized = json.dumps(proposed, ensure_ascii=False)
+        assert serialized == __import__("unicodedata").normalize("NFKC", serialized)
+        assert "\u0001" not in serialized
 
 
 def test_unresolved_date_and_duplicate_are_editorial_not_technical(tmp_path: Path) -> None:
@@ -413,6 +498,30 @@ def test_leaflet_pdf_cover_is_generated_and_registered(tmp_path: Path) -> None:
         assert media["mime_type"] == "image/webp"
         assert media["source"] == "migration_preparation"
         assert content["cover"] == cover_rule["url"]
+        with sqlite3.connect(settings.database_path) as connection:
+            event = connection.execute(
+                """SELECT event_type,source_media_id FROM migration_generated_media_events
+                   WHERE preparation_run_id=? AND media_id=?""",
+                (applied["id"], cover_rule["media_id"]),
+            ).fetchone()
+        assert event == ("generated", cover_rule["pdf_media_id"])
+
+        rolled_back = rollback_preparation(
+            settings.database_path, applied["id"], actor_id=None
+        )
+        replayed = rollback_preparation(
+            settings.database_path, applied["id"], actor_id=None
+        )
+        assert rolled_back["replayed"] is False
+        assert replayed["replayed"] is True
+        assert generated.is_file()
+        with sqlite3.connect(settings.database_path) as connection:
+            assert connection.execute(
+                """SELECT COUNT(*) FROM migration_generated_media_events
+                   WHERE preparation_run_id=? AND media_id=?
+                     AND event_type='retained_on_rollback'""",
+                (applied["id"], cover_rule["media_id"]),
+            ).fetchone()[0] == 1
 
 
 def test_rollback_conflict_stops_before_changing_any_material(tmp_path: Path) -> None:
