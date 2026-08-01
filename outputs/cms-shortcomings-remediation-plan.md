@@ -153,6 +153,8 @@ Schema 13 и контракт 1.1 добавляют устойчивые identi
 3. Убедиться через API/UI, что `preparation.editorial_gate.ready=true`.
 4. Только после этого создать малую пилотную редакционную партию. Дополнительного решения человека для технического gate не требуется.
 
+Для чистой production-установки без существующей runtime-БД используется отдельный fail-closed процесс из `outputs/cms-production-clean-migration-guide.md`: `build_public_source_bundle.ps1` собирает свежий read-only snapshot на Windows, а `production_bootstrap_clean.sh` выполняет полный импорт schema 13 в staging на Ubuntu. Он не заменяет upgrade-скрипт `production_apply_stage13.sh` для уже работающей CMS и отказывается запускаться поверх непустого `data/`.
+
 Цель: максимально сократить очередь материалов, требующих редакционного решения.
 
 - Сгруппировать проблемы по типу и причине.
@@ -199,11 +201,11 @@ Schema 13 и контракт 1.1 добавляют устойчивые identi
 Цель: безопасно применить решения и подтвердить готовность CMS.
 
 Для чистой production-установки зафиксирован отдельный двухфазный контур:
-`build_public_migration_bundle.sh` формирует immutable bundle непосредственно
-из публичного источника, а `production_bootstrap_from_public_bundle.sh`
-разворачивает его только в пустое runtime-хранилище после schema, media,
-audit/preparation и semantic verify gate. Контракт и rollback описаны в
-`outputs/cms-production-clean-migration-guide.md`. Закрытые черновики,
+`build_public_source_bundle.ps1` формирует immutable bundle непосредственно
+из публичного источника на Windows, а `production_bootstrap_clean.sh`
+разворачивает его на Ubuntu только в пустое runtime-хранилище после schema,
+media, audit/preparation и semantic verify gate. Контракт и rollback описаны
+в `outputs/cms-production-clean-migration-guide.md`. Закрытые черновики,
 пользователи и внутренняя история MODX намеренно не входят в scope.
 
 - Применить утверждённые решения атомарными пакетами с журналом и возможностью отката.

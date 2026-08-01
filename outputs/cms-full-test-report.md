@@ -1,14 +1,14 @@
 # Полный отчёт о тестировании CMS
 
-Дата актуализации: 30 июля 2026 года
+Дата актуализации: 1 августа 2026 года
 
-Дополнение clean migration: immutable public source-bundle, чистый schema 13
-bootstrap и сохраняющий runtime rollback покрыты отдельными server/contract
-тестами. После изменения пройдены server 107/107, smoke 3/3, full 42/42 с
-334 assertion ID и source-data 7/7 с единственным ожидаемым содержательным
-`GAP-01`; `contract_ok=true`, `source_unchanged=true`. Артефакты:
-`20260730T200303-292959Z`, `20260730T200322-973961Z`,
-`20260730T200600-961958Z`.
+Дополнение clean migration: свежий read-only public source-bundle на Windows,
+чистый schema 13 bootstrap на Ubuntu и автоматическое сохранение failed runtime
+покрыты отдельными server/contract-тестами. После изменения пройдены server
+119/119, smoke 3/3, full 42/42 с 334 assertion ID и source-data 7/7 с
+единственным ожидаемым содержательным `GAP-01`; `contract_ok=true`,
+`source_unchanged=true`. Артефакты: `20260801T095023-777450Z`,
+`20260801T095037-541728Z`, `20260801T095311-785405Z`.
 
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
@@ -36,11 +36,14 @@ CMS функционально реализует полный базовый ц
 - постоянный Playwright full-профиль содержит 42 положительных теста и не содержит функциональных `XFAIL`;
 - runtime-матрица подтверждает 334 существующие уникальные проверки; dossier assertion усилен проверкой code/field/message/rule/evidence/consequence/focus;
 - source-data профиль прошёл 7 из 7 тестов: 6 позитивных и один ожидаемый `GAP-01`; fingerprint БД и медиатеки до/после совпал;
-- финальная приёмка этапа 6: server 101/101; smoke 3/3; два последовательных full-прогона 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
-- финальные артефакты: `20260730T155727-829689Z` (smoke), `20260730T155740-660667Z` и `20260730T160006-281876Z` (full), `20260730T160241-094030Z` (source-data), каталог `output/playwright/cms-regression/`;
+- актуальная приёмка: server 119/119; smoke 3/3; full 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
+- актуальные артефакты: `20260801T095023-777450Z` (smoke), `20260801T095037-541728Z` (full), `20260801T095311-785405Z` (source-data), каталог `output/playwright/cms-regression/`;
 - `node --check` для `site/app.js`, `site/cms.js` и Playwright-runner прошёл;
 - горизонтального переполнения на 390 и 320 px не обнаружено;
 - исходная рабочая БД `data/cms.sqlite3` не изменялась.
+- отдельный реальный Playwright smoke публичного source-crawler: 1 страница,
+  HTTP 200, 0 failures, 0 заблокированных write-запросов; очередь намеренно не
+  исчерпана из-за тестового `--max-pages 1`.
 
 ## 2. Среда и сохранность данных
 
@@ -67,7 +70,7 @@ CMS функционально реализует полный базовый ц
 1. интерактивный CLI-сеанс `cmsqa` для инвентаризации всех экранов, типов полей и блочного редактора;
 2. повторяемый Chromium-runner `output/playwright/cms-full-qa/cms_qa_runner.cjs` для длинных end-to-end workflow.
 
-Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 334 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-18` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидаются три `XFAIL`: содержательный `GAP-01` и технические `CMS-19/CMS-20`. Новая нормативная матрица в `outputs/cms-stage6-functional-requirements.md` имеет приоритет над прежним утверждением о полной автоматизации и показывает обязательные непокрытые ветки.
+Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 334 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-20` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидается только один `XFAIL`: содержательный `GAP-01`.
 
 ## 4. Полная матрица кнопок, переходов и workflow
 
@@ -472,7 +475,7 @@ Inline-форматирование абзаца:
 
 ## 6. Автоматические проверки
 
-Серверный контур: 90/90 тестов прошли без warnings.
+Серверный контур: 119/119 тестов прошли без warnings.
 
 Постоянный браузерный контур после переноса всех исследовательских групп:
 
@@ -480,24 +483,30 @@ Inline-форматирование абзаца:
 |---|---:|---|
 | `smoke` | 3/3 | вход, save/no-op, публичный переход, logout/login |
 | `full` | 42/42 | 42 позитивных, 0 `XFAIL`, 334 coverage assertions |
-| `source-data` | 7/7 | 4 позитивных, 3 ожидаемых `GAP-01/CMS-19/CMS-20`, источник не изменён |
+| `source-data` | 7/7 | 6 позитивных, 1 ожидаемый `GAP-01`, источник не изменён |
 
 В full-профиле автоматизированы составные поля и rich-editor mutations, основной UI lifecycle и bulk workflow, обе публичные формы и обработка заявок, chooser и lifecycle медиатеки, CRUD/пароль/сессии пользователей, ролевая матрица, migration dashboard/audit, основной happy path автоматической подготовки и обе терминальные ветки партии. `known_gaps` в старой runtime-матрице пуст, но это не закрывает новые обязательные сценарии freshness, semantic verify, dossier, crash/recovery и source rollout из детальных требований.
 
 | Файл | Количество |
 |---|---:|
 | `test_baseline.py` | 4 |
+| `test_clean_deploy.py` | 9 |
+| `test_clean_deploy_contract.py` | 3 |
+| `test_clean_migration_rollout.py` | 3 |
 | `test_cms_api.py` | 10 |
 | `test_full_import.py` | 4 |
 | `test_importer.py` | 4 |
 | `test_legacy_tools.py` | 6 |
 | `test_media_reconciliation.py` | 3 |
-| `test_migration_preparation.py` | 7 |
+| `test_migration_bundle.py` | 3 |
+| `test_migration_preparation.py` | 10 |
 | `test_migrations.py` | 9 |
-| `test_stage10_migration_acceptance.py` | 5 |
+| `test_stage10_migration_acceptance.py` | 8 |
 | `test_stage5_editor.py` | 7 |
 | `test_stage4_performance.py` | 2 |
 | `test_stage6_media.py` | 11 |
+| `test_stage6_cli_contract.py` | 2 |
+| `test_stage6_rollout_contract.py` | 3 |
 | `test_stage7_users_workflow.py` | 3 |
 | `test_stage8_submissions.py` | 10 |
 | `test_stage9_search_seo.py` | 5 |
@@ -508,9 +517,9 @@ Inline-форматирование абзаца:
 
 Актуальные воспроизводимые результаты постоянной регрессии:
 
-- `output/playwright/cms-regression/20260730T134511-428742Z/summary.json` и `output/playwright/cms-regression/20260730T134734-459187Z/summary.json` — два последовательных full-прогона, каждый 42/42, 0 `XFAIL`, 334 проверки;
-- `output/playwright/cms-regression/20260730T134458-765507Z/summary.json` — smoke 3/3;
-- `output/playwright/cms-regression/20260730T134150-771044Z/summary.json` — source-data 7/7: 4 positive, три ожидаемых `GAP-01/CMS-19/CMS-20`, источник не изменён;
+- `output/playwright/cms-regression/20260801T095037-541728Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
+- `output/playwright/cms-regression/20260801T095023-777450Z/summary.json` — smoke 3/3;
+- `output/playwright/cms-regression/20260801T095311-785405Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
 
 Артефакты исходного интерактивного аудита:
 
@@ -526,4 +535,9 @@ Inline-форматирование абзаца:
 
 ## 8. Вывод о готовности
 
-Базовые workflow CMS стабильны в существующем регрессионном контуре, но автоматическая подготовка и данные **не допущены к этапу 7 или production rollout**. Сначала необходимо исправить `CMS-19/CMS-20`, закрыть все Blocker gaps детальных требований, получить положительный fail-closed semantic verify на свежем post-apply audit и повторить server, smoke, два full и source-data прогона. Только затем разрешается содержательная работа человека по `GAP-01`.
+Базовые workflow CMS и автоматическая подготовка технически готовы к clean
+production rollout; `CMS-19/CMS-20` закрыты положительной регрессией. До
+содержательной работы этапа 7 необходимо выполнить каноническую миграцию по
+`outputs/cms-production-clean-migration-guide.md` и получить production
+`editorial_gate.ready=true`. После этого человеку передаётся только
+содержательная очередь `GAP-01`.

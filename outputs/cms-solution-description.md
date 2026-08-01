@@ -13,12 +13,13 @@
 - формы посетителей и очередь уведомлений;
 - роли и управление сессиями;
 - инструменты полного импорта и миграционной приёмки;
+- двухфазный clean rollout: Windows формирует проверяемый source-bundle публичного MODX, Ubuntu импортирует его в staging и активирует только после schema/media/audit/preparation gate;
 - поиск, SEO, sitemap, RSS и чистые публичные URL.
 
 Чистая production-установка выполняется через проверяемый immutable
 source-bundle: свежий Playwright-crawl публичного MODX, зеркалирование всех
 обнаруженных файлов, import plan и missing-media evidence формируются отдельно
-от production, подписываются SHA-256 и проходят повторную проверку перед
+от production, фиксируются SHA-256 и проходят повторную проверку перед
 staging-import. Runtime активируется только после schema 13, reconciliation,
 post-apply audit и semantic verify.
 

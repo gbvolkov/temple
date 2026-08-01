@@ -29,3 +29,4 @@ baseline-*.tar.gz.sha256
 /temple-backups/
 uv.lock
 /output/
+/.clean-deploy/

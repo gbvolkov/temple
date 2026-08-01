@@ -11,8 +11,9 @@ from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 from .config import ROOT
 
 
-DOCUMENT_RE = re.compile(r"\.(?:pdf|docx?|xlsx?|pptx?|zip)(?:$|\?)", re.I)
+DOCUMENT_RE = re.compile(r"\.(?:pdf|docx?|xlsx?|pptx?|zip|csv|txt|mp4)(?:$|\?)", re.I)
 PAGE_RE = re.compile(r"(?:/|\.html?|\.php)$", re.I)
+READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def normalize_url(value: str, base_url: str, allowed_host: str) -> str | None:
@@ -36,6 +37,36 @@ def atomic_json(path: Path, data: dict) -> None:
     temporary.replace(path)
 
 
+def inventory_seed_urls(inventory: object, base_url: str) -> list[str]:
+    if not isinstance(inventory, dict) or not isinstance(inventory.get("pages"), list):
+        raise ValueError("Seed inventory must contain an object with a pages list")
+    values: list[str] = []
+    for item in inventory["pages"]:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("url") or item.get("path")
+        if value:
+            values.append(urljoin(base_url, str(value)))
+    return list(dict.fromkeys(values))
+
+
+def is_read_only_method(method: str) -> bool:
+    return method.upper() in READ_ONLY_METHODS
+
+
+async def enforce_read_only_route(route, blocked_write_requests: list[dict]) -> None:
+    request = route.request
+    if is_read_only_method(request.method):
+        await route.continue_()
+        return
+    blocked_write_requests.append({
+        "method": request.method.upper(),
+        "url": request.url,
+        "blocked_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    })
+    await route.abort("blockedbyclient")
+
+
 async def extract_page(page, url: str) -> dict:
     response = await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     await page.wait_for_timeout(120)
@@ -46,7 +77,13 @@ async def extract_page(page, url: str) -> dict:
           const text = (clone.innerText || '').replace(/\n{3,}/g, '\n\n').trim();
           const links = [...document.querySelectorAll('a[href]')].map(a => ({ text: (a.textContent || '').trim(), href: a.href }));
           const images = [...document.querySelectorAll('img')].map(img => ({ src: img.currentSrc || img.src || '', alt: img.alt || '' })).filter(item => item.src);
-          const documents = links.filter(item => /\.(pdf|docx?|xlsx?|pptx?|zip)(\?|$)/i.test(item.href));
+          const embeddedMedia = [...document.querySelectorAll('video[src],video source[src]')]
+            .map(node => ({ text: node.getAttribute('title') || '', href: node.src || '' }))
+            .filter(item => item.href);
+          const documents = [
+            ...links.filter(item => /\.(pdf|docx?|xlsx?|pptx?|zip|csv|txt|mp4)(\?|$)/i.test(item.href)),
+            ...embeddedMedia,
+          ];
           return {
             title: document.title || '',
             headings: [...document.querySelectorAll('h1,h2')].map(h => (h.textContent || '').trim()).filter(Boolean),
@@ -83,6 +120,7 @@ async def crawl(
     headless: bool = True,
     browser_executable: Path | None = None,
     checkpoint_every: int = 25,
+    seed_urls: list[str] | None = None,
 ) -> dict:
     from playwright.async_api import async_playwright
 
@@ -92,14 +130,31 @@ async def crawl(
     if not normalized_base:
         raise ValueError("Base URL must be an HTTP(S) page")
 
+    normalized_seeds = [
+        candidate
+        for raw in (seed_urls or [])
+        if (candidate := normalize_url(raw, base_url, allowed_host))
+    ]
+    normalized_seeds = list(dict.fromkeys(normalized_seeds))
     if resume and output.exists():
         state = json.loads(output.read_text(encoding="utf-8"))
         if state.get("base_url") != normalized_base:
             raise ValueError("Existing checkpoint belongs to another base URL")
     else:
-        state = {"schema_version": "1.0.0", "base_url": normalized_base, "queue": [normalized_base], "visited": [], "pages": [], "failures": []}
+        state = {
+            "schema_version": "1.0.0",
+            "base_url": normalized_base,
+            "queue": list(dict.fromkeys([normalized_base, *normalized_seeds])),
+            "visited": [],
+            "pages": [],
+            "failures": [],
+            "seed_count": len(normalized_seeds),
+        }
 
     visited = set(state.get("visited", []))
+    for seed in normalized_seeds:
+        if seed not in visited and seed not in state["queue"]:
+            state["queue"].append(seed)
     queued = set(state.get("queue", []))
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(
@@ -109,7 +164,14 @@ async def crawl(
         context = await browser.new_context(
             viewport={"width": 1440, "height": 900},
             user_agent="sv-innokenty-migration-audit/1.0 (read-only; contact parish administrator)",
+            service_workers="block",
         )
+        blocked_write_requests = state.setdefault("blocked_write_requests", [])
+
+        async def enforce_read_only(route) -> None:
+            await enforce_read_only_route(route, blocked_write_requests)
+
+        await context.route("**/*", enforce_read_only)
         page = await context.new_page()
         while state["queue"] and (max_pages <= 0 or len(state["pages"]) < max_pages):
             url = state["queue"].pop(0)
@@ -151,7 +213,15 @@ def main() -> None:
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--executable", type=Path, help="Путь к уже установленному Chromium")
     parser.add_argument("--checkpoint-every", type=int, default=25)
+    parser.add_argument("--seed-inventory", type=Path, help="JSON inventory of previously known public URLs")
     args = parser.parse_args()
+    seed_urls: list[str] = []
+    if args.seed_inventory:
+        inventory = json.loads(args.seed_inventory.read_text(encoding="utf-8"))
+        try:
+            seed_urls = inventory_seed_urls(inventory, args.base_url)
+        except ValueError as error:
+            parser.error(str(error))
     state = asyncio.run(crawl(
         args.base_url,
         args.output,
@@ -161,6 +231,7 @@ def main() -> None:
         headless=not args.headed,
         browser_executable=args.executable,
         checkpoint_every=args.checkpoint_every,
+        seed_urls=seed_urls,
     ))
     print(json.dumps({"pages": len(state["pages"]), "failures": len(state["failures"]), "remaining": len(state["queue"])}, ensure_ascii=False))
 

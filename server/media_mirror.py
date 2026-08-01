@@ -20,13 +20,16 @@ def atomic_json(path: Path, data: dict) -> None:
     temporary.replace(path)
 
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".csv", ".txt", ".mp4"}
 MIME_EXTENSIONS = {
     "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/svg+xml": ".svg",
     "application/pdf": ".pdf", "application/msword": ".doc",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.ms-excel": ".xls",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "text/csv": ".csv",
+    "text/plain": ".txt",
+    "video/mp4": ".mp4",
 }
 
 
@@ -60,14 +63,25 @@ def collect_assets(source: object, allowed_hosts: set[str] | None = None) -> lis
             url = document.get("href", "") if isinstance(document, dict) else str(document)
             canonical = canonical_asset_url(url, allowed_hosts)
             if canonical:
-                found[canonical] = {"url": canonical, "kind": "document", "label": document.get("text", "") if isinstance(document, dict) else ""}
+                extension = Path(unquote(urlsplit(canonical).path)).suffix.lower()
+                found[canonical] = {
+                    "url": canonical,
+                    "kind": "video" if extension == ".mp4" else "document",
+                    "label": document.get("text", "") if isinstance(document, dict) else "",
+                }
     if isinstance(source, dict) and isinstance(source.get("records"), list):
         def walk(value):
             if isinstance(value, str):
                 canonical = canonical_asset_url(value, allowed_hosts)
                 if canonical:
                     extension = Path(unquote(urlsplit(canonical).path)).suffix.lower()
-                    yield canonical, "image" if extension in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"} else "document"
+                    yield canonical, (
+                        "image"
+                        if extension in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+                        else "video"
+                        if extension == ".mp4"
+                        else "document"
+                    )
             elif isinstance(value, list):
                 for item in value:
                     yield from walk(item)

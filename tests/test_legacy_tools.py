@@ -51,6 +51,15 @@ def test_media_collection_download_and_manifest_rewrite(tmp_path, monkeypatch):
     assert len(assets) > 150
     assert len({asset["url"] for asset in assets}) == len(assets)
     assert all(asset["url"].startswith("https://www.sv-innokenty.ru/") for asset in assets)
+    video = collect_assets({"pages": [{
+        "images": [],
+        "documents": [{"href": "https://www.sv-innokenty.ru/assets/school.mp4", "text": "Видео"}],
+    }]})
+    assert video == [{
+        "url": "https://www.sv-innokenty.ru/assets/school.mp4",
+        "kind": "video",
+        "label": "Видео",
+    }]
 
     payload = b"read-only-mirror-test"
 
