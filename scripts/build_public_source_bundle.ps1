@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$SourceBaseUrl = "https://www.sv-innokenty.ru/",
-    [string]$OutputRoot = "",
+    [Parameter(Mandatory = $true)]
+    [string]$PreprodRoot,
     [string]$BundleId = "",
     [int]$MaxMediaMb = 200,
     [int]$MediaWorkers = 4,
@@ -15,9 +16,19 @@ $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
 $ProjectDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-if (-not $OutputRoot) {
-    $OutputRoot = Join-Path $ProjectDir "output\source-bundles"
+if (-not [System.IO.Path]::IsPathRooted($PreprodRoot)) {
+    throw "PreprodRoot must be an absolute Windows path"
 }
+$PreprodRoot = [System.IO.Path]::GetFullPath($PreprodRoot)
+$ExpectedProjectDir = [System.IO.Path]::GetFullPath((Join-Path $PreprodRoot "release-checkout"))
+if (-not [string]::Equals($ProjectDir, $ExpectedProjectDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Run this script only from the dedicated <PreprodRoot>\release-checkout, never from the development checkout"
+}
+$OutputRoot = [System.IO.Path]::GetFullPath((Join-Path $PreprodRoot "source-bundles"))
+$RuntimeRoot = [System.IO.Path]::GetFullPath((Join-Path $PreprodRoot "runtime"))
+$env:UV_CACHE_DIR = Join-Path $RuntimeRoot "uv-cache"
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $RuntimeRoot "venv"
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $RuntimeRoot "playwright-browsers"
 if (-not $BundleId) {
     $BundleId = "public-source-{0}" -f (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 }
@@ -37,7 +48,6 @@ foreach ($Command in @("uv", "git", "tar")) {
     }
 }
 
-$OutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
 $OutputDrive = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($OutputRoot))
 $MinimumFreeBytes = 15GB
 if (-not $OutputDrive.IsReady -or $OutputDrive.AvailableFreeSpace -lt $MinimumFreeBytes) {
@@ -145,6 +155,9 @@ try {
         bundle_id = $BundleId
         source_url = $SourceBaseUrl
         git_sha = $GitSha
+        preprod_root = $PreprodRoot
+        release_checkout = $ProjectDir
+        runtime_root = $RuntimeRoot
         archive = $Archive
         checksum = $Checksum
         sha256 = $ArchiveHash

@@ -6,6 +6,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_windows_source_bundle_is_fresh_complete_and_immutable():
     script = (ROOT / "scripts" / "build_public_source_bundle.ps1").read_text(encoding="utf-8")
+    assert "[Parameter(Mandatory = $true)]" in script
+    assert "PreprodRoot must be an absolute Windows path" in script
+    assert 'Join-Path $PreprodRoot "release-checkout"' in script
+    assert "never from the development checkout" in script
+    assert 'Join-Path $PreprodRoot "source-bundles"' in script
+    assert 'Join-Path $PreprodRoot "runtime"' in script
+    assert "UV_CACHE_DIR" in script
+    assert "UV_PROJECT_ENVIRONMENT" in script
+    assert "PLAYWRIGHT_BROWSERS_PATH" in script
+    assert 'Join-Path $ProjectDir "output\\source-bundles"' not in script
     assert "server.legacy_crawl" in script
     assert "--fresh" in script
     assert "--seed-inventory" in script and "known-public-routes.json" in script
@@ -27,6 +37,19 @@ def test_windows_source_bundle_is_fresh_complete_and_immutable():
     crawler = (ROOT / "server" / "legacy_crawl.py").read_text(encoding="utf-8")
     assert 'service_workers="block"' in crawler
     assert 'context.route("**/*", enforce_read_only)' in crawler
+
+
+def test_windows_preprod_is_documented_outside_the_development_checkout():
+    guide = (ROOT / "outputs" / "cms-production-clean-migration-guide.md").read_text(encoding="utf-8")
+    assert "C:\\CMS-Preprod\\" in guide
+    assert "release-checkout" in guide
+    assert "runtime\\" in guide
+    assert "source-bundles\\" in guide
+    assert "-PreprodRoot $PreprodRoot" in guide
+    assert "cd C:\\Projects" not in guide
+    assert "Set-Location C:\\Projects\\temple" not in guide
+    assert "output/source-bundles" not in guide
+    assert "output\\source-bundles" not in guide
 
 
 def test_ubuntu_bootstrap_refuses_existing_data_and_activates_only_after_gates():

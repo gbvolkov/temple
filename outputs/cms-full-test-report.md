@@ -4,11 +4,12 @@
 
 Дополнение clean migration: свежий read-only public source-bundle на Windows,
 чистый schema 13 bootstrap на Ubuntu и автоматическое сохранение failed runtime
-покрыты отдельными server/contract-тестами. После изменения пройдены server
-119/119, smoke 3/3, full 42/42 с 334 assertion ID и source-data 7/7 с
+покрыты отдельными server/contract-тестами. Windows-preprod checkout, runtime и
+bundle отделены от dev-каталога и защищены fail-closed проверкой пути. После
+изменения пройдены server 120/120, smoke 3/3, full 42/42 с 334 assertion ID и source-data 7/7 с
 единственным ожидаемым содержательным `GAP-01`; `contract_ok=true`,
-`source_unchanged=true`. Артефакты: `20260801T095023-777450Z`,
-`20260801T095037-541728Z`, `20260801T095311-785405Z`.
+`source_unchanged=true`. Артефакты: `20260801T102032-188126Z`,
+`20260801T102047-746954Z`, `20260801T102317-199122Z`.
 
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
@@ -36,8 +37,8 @@ CMS функционально реализует полный базовый ц
 - постоянный Playwright full-профиль содержит 42 положительных теста и не содержит функциональных `XFAIL`;
 - runtime-матрица подтверждает 334 существующие уникальные проверки; dossier assertion усилен проверкой code/field/message/rule/evidence/consequence/focus;
 - source-data профиль прошёл 7 из 7 тестов: 6 позитивных и один ожидаемый `GAP-01`; fingerprint БД и медиатеки до/после совпал;
-- актуальная приёмка: server 119/119; smoke 3/3; full 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
-- актуальные артефакты: `20260801T095023-777450Z` (smoke), `20260801T095037-541728Z` (full), `20260801T095311-785405Z` (source-data), каталог `output/playwright/cms-regression/`;
+- актуальная приёмка: server 120/120; smoke 3/3; full 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
+- актуальные артефакты: `20260801T102032-188126Z` (smoke), `20260801T102047-746954Z` (full), `20260801T102317-199122Z` (source-data), каталог `output/playwright/cms-regression/`;
 - `node --check` для `site/app.js`, `site/cms.js` и Playwright-runner прошёл;
 - горизонтального переполнения на 390 и 320 px не обнаружено;
 - исходная рабочая БД `data/cms.sqlite3` не изменялась.
@@ -475,7 +476,7 @@ Inline-форматирование абзаца:
 
 ## 6. Автоматические проверки
 
-Серверный контур: 119/119 тестов прошли без warnings.
+Серверный контур: 120/120 тестов прошли без warnings.
 
 Постоянный браузерный контур после переноса всех исследовательских групп:
 
@@ -491,7 +492,7 @@ Inline-форматирование абзаца:
 |---|---:|
 | `test_baseline.py` | 4 |
 | `test_clean_deploy.py` | 9 |
-| `test_clean_deploy_contract.py` | 3 |
+| `test_clean_deploy_contract.py` | 4 |
 | `test_clean_migration_rollout.py` | 3 |
 | `test_cms_api.py` | 10 |
 | `test_full_import.py` | 4 |
@@ -517,9 +518,9 @@ Inline-форматирование абзаца:
 
 Актуальные воспроизводимые результаты постоянной регрессии:
 
-- `output/playwright/cms-regression/20260801T095037-541728Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
-- `output/playwright/cms-regression/20260801T095023-777450Z/summary.json` — smoke 3/3;
-- `output/playwright/cms-regression/20260801T095311-785405Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
+- `output/playwright/cms-regression/20260801T102047-746954Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
+- `output/playwright/cms-regression/20260801T102032-188126Z/summary.json` — smoke 3/3;
+- `output/playwright/cms-regression/20260801T102317-199122Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
 
 Артефакты исходного интерактивного аудита:
 

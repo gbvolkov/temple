@@ -96,25 +96,66 @@ tar --version
 
 ### 3.2. Получение точной версии кода
 
-Для нового checkout:
+Windows-preprod **не должен использовать dev-checkout**
+`C:\Projects\temple` и не должен сохранять runtime-данные или bundle внутри
+репозитория. Для него используется отдельный корень со строго заданной
+структурой:
+
+```text
+C:\CMS-Preprod\
+├── release-checkout\       # отдельный чистый checkout main
+├── runtime\                # отдельные venv, uv cache и Playwright browsers
+└── source-bundles\         # crawl, media, tar.gz и checksum
+```
+
+Можно выбрать другой абсолютный путь или отдельный диск, но имя каталога
+checkout должно оставаться `release-checkout`. В новом PowerShell задайте
+корень и создайте **новый отдельный checkout**:
 
 ```powershell
-cd C:\Projects
-git clone https://github.com/gbvolkov/temple.git
-cd temple
+$PreprodRoot = 'C:\CMS-Preprod'
+$ReleaseCheckout = Join-Path $PreprodRoot 'release-checkout'
+$BundleRoot = Join-Path $PreprodRoot 'source-bundles'
+
+if (Test-Path -LiteralPath $ReleaseCheckout) {
+    throw "Dedicated preprod checkout already exists: $ReleaseCheckout"
+}
+New-Item -ItemType Directory -Path $PreprodRoot -Force | Out-Null
+git clone https://github.com/gbvolkov/temple.git $ReleaseCheckout
+Set-Location $ReleaseCheckout
 git checkout main
 git pull --ff-only origin main
 git status --short
 ```
 
-`git status --short` не должен ничего вывести. Bundle запоминает текущий commit; Ubuntu разрешит импорт только из того же commit.
+`git status --short` не должен ничего вывести. Bundle запоминает текущий
+commit; Ubuntu разрешит импорт только из того же commit. Dev-каталог при этих
+действиях не читается и не изменяется.
 
 ### 3.3. Запуск полного read-only сбора
 
 ```powershell
-Set-Location C:\Projects\temple
-powershell -ExecutionPolicy Bypass -File .\scripts\build_public_source_bundle.ps1
+$PreprodRoot = 'C:\CMS-Preprod'
+$ReleaseCheckout = Join-Path $PreprodRoot 'release-checkout'
+$BundleRoot = Join-Path $PreprodRoot 'source-bundles'
+$BundleId = "public-source-{0}" -f (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
+
+Set-Location $ReleaseCheckout
+powershell -ExecutionPolicy Bypass `
+  -File .\scripts\build_public_source_bundle.ps1 `
+  -PreprodRoot $PreprodRoot `
+  -BundleId $BundleId
+
+$BundleDir = Join-Path $BundleRoot $BundleId
+$Archive = "$BundleDir.tar.gz"
+$Checksum = "$Archive.sha256"
 ```
+
+Скрипт прекращает работу, если он запущен не из
+`<PreprodRoot>\release-checkout`. `uv`-кэш, виртуальная среда и браузер
+Playwright принудительно размещаются в `<PreprodRoot>\runtime`, а результаты —
+в `<PreprodRoot>\source-bundles`. Поэтому dev `.venv`, `output/` и рабочее
+дерево не используются.
 
 Скрипт самостоятельно:
 
@@ -135,9 +176,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_public_source_bundle.ps
 Типовой результат:
 
 ```text
-output/source-bundles/public-source-YYYYMMDDTHHMMSSZ.tar.gz
-output/source-bundles/public-source-YYYYMMDDTHHMMSSZ.tar.gz.sha256
-output/source-bundles/public-source-YYYYMMDDTHHMMSSZ/
+C:\CMS-Preprod\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz
+C:\CMS-Preprod\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz.sha256
+C:\CMS-Preprod\source-bundles\public-source-YYYYMMDDTHHMMSSZ\
 ```
 
 Появление 404/410 в списке обследованных страниц или медиа не равно
@@ -149,17 +190,19 @@ SHA-256 останавливают сбор. Поэтому успешный bun
 
 ### 3.4. Повторная локальная проверка
 
-Подставьте фактическое имя каталога:
+Продолжайте в том же PowerShell. Если открыто новое окно, повторно задайте
+`$PreprodRoot`, `$ReleaseCheckout`, `$BundleRoot`, `$BundleId`, `$BundleDir`,
+`$Archive` и `$Checksum`. Проверка выполняется Python из изолированного
+preprod-runtime:
 
 ```powershell
-uv run python scripts\validate_source_bundle.py verify `
-  output\source-bundles\public-source-YYYYMMDDTHHMMSSZ
+$PreprodPython = Join-Path $PreprodRoot 'runtime\venv\Scripts\python.exe'
+Set-Location $ReleaseCheckout
+& $PreprodPython -m scripts.validate_source_bundle verify $BundleDir
 
-Get-FileHash -Algorithm SHA256 `
-  output\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz
+Get-FileHash -Algorithm SHA256 -LiteralPath $Archive
 
-Get-Content `
-  output\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz.sha256
+Get-Content -LiteralPath $Checksum
 ```
 
 Хеши должны совпасть. Сохраните JSON-результат Windows-этапа вместе с релизными материалами.
@@ -175,10 +218,10 @@ ssh <ubuntu-user>@<ubuntu-host> "mkdir -p ~/migration-incoming && chmod 700 ~/mi
 Передайте ровно два файла:
 
 ```powershell
-scp output\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz `
+scp $Archive `
   <ubuntu-user>@<ubuntu-host>:~/migration-incoming/
 
-scp output\source-bundles\public-source-YYYYMMDDTHHMMSSZ.tar.gz.sha256 `
+scp $Checksum `
   <ubuntu-user>@<ubuntu-host>:~/migration-incoming/
 ```
 

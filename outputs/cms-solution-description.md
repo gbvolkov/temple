@@ -22,6 +22,9 @@ source-bundle: свежий Playwright-crawl публичного MODX, зерк
 от production, фиксируются SHA-256 и проходят повторную проверку перед
 staging-import. Runtime активируется только после schema 13, reconciliation,
 post-apply audit и semantic verify.
+На Windows используется отдельный preprod-root: чистый `release-checkout`,
+изолированные `runtime`/Playwright/uv-кэши и `source-bundles` не пересекаются с
+dev-checkout. Сборочный скрипт fail-closed отклоняет запуск из dev-каталога.
 
 ## 2. Архитектура
 

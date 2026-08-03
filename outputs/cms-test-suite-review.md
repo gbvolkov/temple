@@ -12,10 +12,10 @@ CMS-01–CMS-20 и GAP-02/03 переведены в положительную 
 
 | Контур | Результат | Артефакт |
 |---|---|---|
-| Серверные тесты | 119/119, без failures и warnings | локальный полный pytest-прогон 01.08.2026 |
-| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260801T095023-777450Z` |
-| Playwright full | 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260801T095037-541728Z` |
-| Source-data schema 13 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260801T095311-785405Z` |
+| Серверные тесты | 120/120, без failures и warnings | локальный полный pytest-прогон 01.08.2026 |
+| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260801T102032-188126Z` |
+| Playwright full | 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260801T102047-746954Z` |
+| Source-data schema 13 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260801T102317-199122Z` |
 
 Прежний `StarletteDeprecationWarning` закрыт положительным subprocess-тестом с warnings-as-errors.
 
@@ -65,20 +65,21 @@ uv run python scripts/run_cms_regression.py --profile source-data `
 
 ## Дополнение: clean migration workflow
 
-Clean migration охватывается 18 server/contract-тестами, из них 12 проверяют
+Clean migration охватывается 19 server/contract-тестами, из них 13 проверяют
 актуальный Windows → Ubuntu workflow. Они проверяют свежую пересборку
 структурных данных, seed всех 1 615 известных публичных маршрутов, запрет
 небезопасных HTTP-методов, bundle/database contract, повреждение файла,
 fail-closed production `.env`, checksum/tar guards, порядок production gate,
-запрет применения поверх существующего runtime и сохраняющий данные rollback.
+запрет применения поверх существующего runtime, сохраняющий данные rollback и
+обязательную изоляцию Windows-preprod checkout/runtime/bundle от dev-каталога.
 
 Контрольный прогон после добавления workflow:
 
-- server: 119/119;
-- smoke: 3/3, artifact `20260801T095023-777450Z`;
-- full: 42/42, 334 assertion ID, artifact `20260801T095037-541728Z`;
+- server: 120/120;
+- smoke: 3/3, artifact `20260801T102032-188126Z`;
+- full: 42/42, 334 assertion ID, artifact `20260801T102047-746954Z`;
 - source-data: 7/7, 6 positive + ожидаемый содержательный `GAP-01`,
-  artifact `20260801T095311-785405Z`;
+  artifact `20260801T102317-199122Z`;
 - во всех Playwright-профилях `contract_ok=true` и `source_unchanged=true`.
 
 Дополнительно реальный одностраничный smoke нового source-crawler против

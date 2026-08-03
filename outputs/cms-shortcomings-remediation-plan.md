@@ -207,6 +207,11 @@ Schema 13 и контракт 1.1 добавляют устойчивые identi
 media, audit/preparation и semantic verify gate. Контракт и rollback описаны
 в `outputs/cms-production-clean-migration-guide.md`. Закрытые черновики,
 пользователи и внутренняя история MODX намеренно не входят в scope.
+Windows-сборка выполняется только из отдельного
+`<PreprodRoot>\release-checkout`; её venv/cache/Playwright runtime и bundle
+размещаются в соседних каталогах `<PreprodRoot>\runtime` и
+`<PreprodRoot>\source-bundles`. Использование dev-checkout или его `output/`
+для preprod запрещено и блокируется сборочным скриптом.
 
 - Применить утверждённые решения атомарными пакетами с журналом и возможностью отката.
 - Повторить полный миграционный аудит.
