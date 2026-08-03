@@ -37,6 +37,12 @@ def atomic_json(path: Path, data: dict) -> None:
     temporary.replace(path)
 
 
+def synchronize_checkpoint_state(state: dict, visited: set[str]) -> None:
+    state["visited"] = sorted(visited)
+    state["remaining_queue"] = len(state.get("queue", []))
+    state["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
+
+
 def inventory_seed_urls(inventory: object, base_url: str) -> list[str]:
     if not isinstance(inventory, dict) or not isinstance(inventory.get("pages"), list):
         raise ValueError("Seed inventory must contain an object with a pages list")
@@ -189,9 +195,7 @@ async def crawl(
             except Exception as error:
                 state["failures"].append({"url": url, "error": str(error), "captured_at": datetime.now(UTC).isoformat(timespec="seconds")})
             visited.add(url)
-            state["visited"] = sorted(visited)
-            state["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
-            state["remaining_queue"] = len(state["queue"])
+            synchronize_checkpoint_state(state, visited)
             if len(state["pages"]) % max(checkpoint_every, 1) == 0 or not state["queue"]:
                 atomic_json(output, state)
                 print(json.dumps({"pages": len(state["pages"]), "failures": len(state["failures"]), "remaining": len(state["queue"])}, ensure_ascii=False), flush=True)
@@ -199,6 +203,7 @@ async def crawl(
                 await asyncio.sleep(delay_seconds)
         await context.close()
         await browser.close()
+    synchronize_checkpoint_state(state, visited)
     atomic_json(output, state)
     return state
 

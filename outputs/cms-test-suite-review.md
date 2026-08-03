@@ -6,16 +6,16 @@
 
 Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 334 уникальных assertion ID и пустой `known_gaps`. Повторная приёмка этапа 6 расширила нормативный контракт: дополнительные negative/recovery/semantic/rollout ветки перечислены как `MISSING` в `outputs/cms-stage6-functional-requirements.md`; пустой старый `known_gaps` не означает их закрытие.
 
-CMS-01–CMS-23 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить все сценарии без функциональных `XFAIL`. Source-data профиль выполняет шесть положительных сценариев и один зарегистрированный expected `XFAIL`: содержательный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
+CMS-01–CMS-24 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить все сценарии без функциональных `XFAIL`. Source-data профиль выполняет шесть положительных сценариев и один зарегистрированный expected `XFAIL`: содержательный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
 
 ## Результаты приёмки
 
 | Контур | Результат | Артефакт |
 |---|---|---|
-| Серверные тесты | 125/125, без failures и warnings | локальный полный pytest-прогон 03.08.2026 |
-| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260803T204818-417776Z` |
-| Playwright full | 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260803T204836-616051Z` |
-| Source-data schema 13 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260803T205111-049598Z` |
+| Серверные тесты | 126/126, без failures и warnings | локальный полный pytest-прогон 03.08.2026 |
+| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260803T205853-202345Z` |
+| Playwright full | 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260803T205911-279984Z` |
+| Source-data schema 13 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260803T210140-227811Z` |
 
 Прежний `StarletteDeprecationWarning` закрыт положительным subprocess-тестом с warnings-as-errors.
 
@@ -65,24 +65,25 @@ uv run python scripts/run_cms_regression.py --profile source-data `
 
 ## Дополнение: clean migration workflow
 
-Clean migration охватывается 24 server/contract-тестами, из них 18 проверяют
+Clean migration охватывается 25 server/contract-тестами, из них 19 проверяют
 актуальный Windows → Ubuntu workflow. Они проверяют свежую пересборку
 структурных данных, seed всех 1 615 известных публичных маршрутов, запрет
 небезопасных HTTP-методов, bundle/database contract, повреждение файла,
 fail-closed production `.env`, checksum/tar guards, порядок production gate,
 запрет применения поверх существующего runtime, сохраняющий данные rollback и
 обязательную изоляцию Windows-preprod checkout/runtime/bundle от dev-каталога.
-После реального сбоя добавлены regressions `CMS-21`–`CMS-23`: bounded retry
+После реального сбоя добавлены regressions `CMS-21`–`CMS-24`: bounded retry
 временной сети без retry постоянного 404/410, модульный запуск validator на
-Windows/Ubuntu и resume только незапечатанного bundle.
+Windows/Ubuntu, resume только незапечатанного bundle и синхронизация
+`remaining_queue` после удаления дублирующего хвоста очереди.
 
 Контрольный прогон после добавления workflow:
 
-- server: 125/125;
-- smoke: 3/3, artifact `20260803T204818-417776Z`;
-- full: 42/42, 334 assertion ID, artifact `20260803T204836-616051Z`;
+- server: 126/126;
+- smoke: 3/3, artifact `20260803T205853-202345Z`;
+- full: 42/42, 334 assertion ID, artifact `20260803T205911-279984Z`;
 - source-data: 7/7, 6 positive + ожидаемый содержательный `GAP-01`,
-  artifact `20260803T205111-049598Z`;
+  artifact `20260803T210140-227811Z`;
 - во всех Playwright-профилях `contract_ok=true` и `source_unchanged=true`.
 
 Дополнительно реальный одностраничный smoke нового source-crawler против

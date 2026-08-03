@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import server.legacy_crawl as legacy_crawl
 from scripts.validate_production_env import validate as validate_environment
 from scripts.build_structured_source import build as build_structured_source, normalized_route_template
 from scripts.validate_source_bundle import (
@@ -204,6 +205,23 @@ def test_known_public_inventory_seeds_orphan_routes():
         "https://www.sv-innokenty.ru/known-orphan.html",
         "https://www.sv-innokenty.ru/still-linked.html",
     ]
+
+
+def test_crawl_checkpoint_syncs_remaining_after_duplicate_queue_drain():
+    synchronize = getattr(legacy_crawl, "synchronize_checkpoint_state", None)
+    assert synchronize is not None
+    state = {
+        "queue": [],
+        "visited": ["https://www.sv-innokenty.ru/"],
+        "remaining_queue": 24,
+        "updated_at": "stale",
+    }
+
+    synchronize(state, {"https://www.sv-innokenty.ru/"})
+
+    assert state["remaining_queue"] == 0
+    assert state["visited"] == ["https://www.sv-innokenty.ru/"]
+    assert state["updated_at"] != "stale"
 
 
 def test_public_crawler_allows_only_read_only_http_methods():
