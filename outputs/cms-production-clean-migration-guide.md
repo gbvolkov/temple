@@ -166,7 +166,9 @@ Playwright принудительно размещаются в `<PreprodRoot>\r
 5. требует пустую очередь и отсутствие crawler failures;
 6. пересобирает структурные страницы и выпуски листка из свежих данных crawl, используя `current-sections.json` только как перечень обязательных маршрутов;
 7. строит inventory и dry-run структурного импорта;
-8. зеркалирует все обнаруженные медиа;
+8. зеркалирует все обнаруженные медиа; временные сетевые ошибки и HTTP
+   408/425/429/5xx повторяются до трёх раз с увеличивающейся задержкой, а
+   постоянные 404/410 сразу классифицируются как `permanent_missing`;
 9. строит полный import plan;
 10. формирует missing-media report;
 11. проверяет каждый зеркалированный файл по SHA-256 из media manifest;
@@ -188,7 +190,40 @@ C:\CMS-Preprod\source-bundles\public-source-YYYYMMDDTHHMMSSZ\
 SHA-256 останавливают сбор. Поэтому успешный bundle не может молча потерять
 доступный файл.
 
-### 3.4. Повторная локальная проверка
+Во время media mirror поле `errors` включает все ещё отсутствующие файлы.
+Смотрите также отдельные счётчики: `permanent_missing` допустим для 404/410;
+`retry_exhausted` и `fatal` должны завершиться нулём. `retried` показывает,
+сколько файлов потребовали повторного сетевого запроса.
+
+### 3.4. Возобновление незапечатанного bundle
+
+Если сборка прервалась после crawl или во время/после media mirror, не удаляйте
+каталог. После устранения причины обновите чистый `main` и возобновите тот же
+`BundleId`:
+
+```powershell
+$PreprodRoot = 'C:\CMS-Preprod'
+$ReleaseCheckout = Join-Path $PreprodRoot 'release-checkout'
+$BundleId = 'public-source-YYYYMMDDTHHMMSSZ'
+
+Set-Location $ReleaseCheckout
+git pull --ff-only origin main
+git status --short
+
+powershell -ExecutionPolicy Bypass `
+  -File .\scripts\build_public_source_bundle.ps1 `
+  -PreprodRoot $PreprodRoot `
+  -BundleId $BundleId `
+  -Resume
+```
+
+`git status --short` должен быть пустым. Resume продолжает незавершённую crawl
+queue, повторно использует успешно скачанные и проверяемые по manifest файлы,
+повторяет только отсутствующие медиа, пересобирает производные отчёты и затем
+запечатывает bundle. Уже созданные `source-bundle-manifest.json`, `tar.gz` или
+checksum означают запечатанный bundle: его изменение и resume запрещены.
+
+### 3.5. Повторная локальная проверка
 
 Продолжайте в том же PowerShell. Если открыто новое окно, повторно задайте
 `$PreprodRoot`, `$ReleaseCheckout`, `$BundleRoot`, `$BundleId`, `$BundleDir`,
@@ -207,7 +242,7 @@ Get-Content -LiteralPath $Checksum
 
 Хеши должны совпасть. Сохраните JSON-результат Windows-этапа вместе с релизными материалами.
 
-### 3.5. Копирование на Ubuntu
+### 3.6. Копирование на Ubuntu
 
 Создайте закрытый каталог на сервере:
 

@@ -25,6 +25,10 @@ post-apply audit и semantic verify.
 На Windows используется отдельный preprod-root: чистый `release-checkout`,
 изолированные `runtime`/Playwright/uv-кэши и `source-bundles` не пересекаются с
 dev-checkout. Сборочный скрипт fail-closed отклоняет запуск из dev-каталога.
+Media mirror различает постоянные 404/410, исчерпанные временные retry и fatal
+errors. Незаконченный незапечатанный bundle можно безопасно продолжить: crawl
+использует checkpoint, уже mirrored-файлы пропускаются, а отчёты и immutable
+manifest строятся заново; sealed bundle остаётся неизменяемым.
 
 ## 2. Архитектура
 

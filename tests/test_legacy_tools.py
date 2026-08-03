@@ -1,11 +1,12 @@
 import hashlib
 import json
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 from server.importer import media_mapping, rewrite_media_urls, run_import
 from server.legacy_crawl import normalize_url
 from server.legacy_inventory import build_inventory, classify_path, suspicious_path
-from server.media_mirror import collect_assets, download_asset
+from server.media_mirror import collect_assets, download_asset, mirror
 from server.media_report import build_report
 from server.migration_audit import audit
 
@@ -93,6 +94,122 @@ def test_media_collection_download_and_manifest_rewrite(tmp_path, monkeypatch):
     mapping = media_mapping(manifest)
     rewritten = rewrite_media_urls({"cover": result["url"], "nested": [result["url"]]}, mapping)
     assert rewritten == {"cover": result["local_url"], "nested": [result["local_url"]]}
+
+
+def test_media_mirror_retries_transient_network_failure(tmp_path, monkeypatch):
+    url = "https://www.sv-innokenty.ru/assets/retry.jpg"
+    attempts = 0
+
+    def flaky_download(asset, destination, max_bytes):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise URLError(TimeoutError("temporary timeout"))
+        return {
+            **asset,
+            "status": "mirrored",
+            "content_type": "image/jpeg",
+            "size_bytes": 1,
+            "sha256": "a" * 64,
+            "stored_path": "aa/asset.jpg",
+            "local_url": "/media/legacy/aa/asset.jpg",
+        }
+
+    monkeypatch.setattr("server.media_mirror.download_asset", flaky_download)
+    manifest_path = tmp_path / "manifest.json"
+    result = mirror(
+        {"pages": [{"images": [{"src": url}], "documents": []}]},
+        tmp_path / "media",
+        manifest_path,
+        execute=True,
+        workers=1,
+        retries=2,
+        retry_backoff_seconds=0,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert attempts == 2
+    assert result["mirrored"] == 1
+    assert result["errors"] == 0
+    assert manifest["entries"][url]["download_attempts"] == 2
+
+
+def test_media_mirror_does_not_retry_permanent_missing_file(tmp_path, monkeypatch):
+    url = "https://www.sv-innokenty.ru/assets/missing.jpg"
+    attempts = 0
+
+    def missing_download(asset, destination, max_bytes):
+        nonlocal attempts
+        attempts += 1
+        raise HTTPError(asset["url"], 404, "Not Found", {}, None)
+
+    monkeypatch.setattr("server.media_mirror.download_asset", missing_download)
+    manifest_path = tmp_path / "manifest.json"
+    result = mirror(
+        {"pages": [{"images": [{"src": url}], "documents": []}]},
+        tmp_path / "media",
+        manifest_path,
+        execute=True,
+        workers=1,
+        retries=3,
+        retry_backoff_seconds=0,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert attempts == 1
+    assert result["mirrored"] == 0
+    assert result["permanent_missing"] == 1
+    assert result["retry_exhausted"] == 0
+    assert manifest["errors"] == [{
+        "url": url,
+        "error": "HTTP Error 404: Not Found",
+        "classification": "permanent_missing",
+        "attempts": 1,
+    }]
+
+
+def test_media_mirror_resume_skips_already_mirrored_entries(tmp_path, monkeypatch):
+    existing_url = "https://www.sv-innokenty.ru/assets/existing.jpg"
+    pending_url = "https://www.sv-innokenty.ru/assets/pending.jpg"
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps({
+        "schema_version": "1.0.0",
+        "entries": {existing_url: {
+            "url": existing_url,
+            "status": "mirrored",
+            "stored_path": "aa/existing.jpg",
+        }},
+        "errors": [{"url": pending_url, "error": "temporary timeout"}],
+    }), encoding="utf-8")
+    requested: list[str] = []
+
+    def download_pending(asset, destination, max_bytes):
+        requested.append(asset["url"])
+        return {
+            **asset,
+            "status": "mirrored",
+            "content_type": "image/jpeg",
+            "size_bytes": 1,
+            "sha256": "b" * 64,
+            "stored_path": "bb/pending.jpg",
+            "local_url": "/media/legacy/bb/pending.jpg",
+        }
+
+    monkeypatch.setattr("server.media_mirror.download_asset", download_pending)
+    result = mirror(
+        {"pages": [{"images": [{"src": existing_url}, {"src": pending_url}], "documents": []}]},
+        tmp_path / "media",
+        manifest_path,
+        execute=True,
+        workers=1,
+        retries=0,
+        retry_backoff_seconds=0,
+    )
+
+    assert requested == [pending_url]
+    assert result["planned"] == 2
+    assert result["mirrored"] == 2
+    assert result["errors"] == 0
 
 
 def test_readiness_report_refuses_partial_migration(tmp_path):

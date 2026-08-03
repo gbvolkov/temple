@@ -6,6 +6,8 @@ param(
     [string]$BundleId = "",
     [int]$MaxMediaMb = 200,
     [int]$MediaWorkers = 4,
+    [int]$MediaRetries = 3,
+    [switch]$Resume,
     [switch]$SkipDependencySync,
     [switch]$SkipBrowserInstall
 )
@@ -38,8 +40,8 @@ if ($BundleId -notmatch '^public-source-[0-9]{8}T[0-9]{6}Z$') {
 if ($SourceBaseUrl -ne "https://www.sv-innokenty.ru/") {
     throw "The current importer is contracted for https://www.sv-innokenty.ru/ only"
 }
-if ($MaxMediaMb -lt 1 -or $MediaWorkers -lt 1) {
-    throw "MaxMediaMb and MediaWorkers must be positive"
+if ($MaxMediaMb -lt 1 -or $MediaWorkers -lt 1 -or $MediaRetries -lt 0) {
+    throw "MaxMediaMb and MediaWorkers must be positive; MediaRetries must be non-negative"
 }
 
 foreach ($Command in @("uv", "git", "tar")) {
@@ -56,7 +58,16 @@ if (-not $OutputDrive.IsReady -or $OutputDrive.AvailableFreeSpace -lt $MinimumFr
 $BundleDir = Join-Path $OutputRoot $BundleId
 $Archive = "$BundleDir.tar.gz"
 $Checksum = "$Archive.sha256"
-if ((Test-Path $BundleDir) -or (Test-Path $Archive) -or (Test-Path $Checksum)) {
+$SealedManifest = Join-Path $BundleDir "source-bundle-manifest.json"
+if ($Resume) {
+    if (-not (Test-Path -LiteralPath $BundleDir -PathType Container)) {
+        throw "Resume requested but the bundle directory does not exist: $BundleId"
+    }
+    if ((Test-Path -LiteralPath $SealedManifest) -or (Test-Path -LiteralPath $Archive) -or (Test-Path -LiteralPath $Checksum)) {
+        throw "Cannot resume a sealed source bundle: $BundleId"
+    }
+}
+elseif ((Test-Path $BundleDir) -or (Test-Path $Archive) -or (Test-Path $Checksum)) {
     throw "Bundle destination already exists: $BundleId"
 }
 
@@ -108,18 +119,28 @@ try {
     $MissingMd = Join-Path $BundleDir "missing-legacy-media.md"
     $KnownRoutes = Join-Path $BundleDir "known-public-routes.json"
 
-    Copy-Item -LiteralPath "outputs\legacy-inventory.json" -Destination $KnownRoutes
-    Invoke-Checked "Fresh read-only Playwright crawl" {
-        uv run python -m server.legacy_crawl --base-url $SourceBaseUrl --output $Crawl --fresh --seed-inventory $KnownRoutes
+    if ($Resume) {
+        if (-not (Test-Path -LiteralPath $Crawl -PathType Leaf) -or -not (Test-Path -LiteralPath $KnownRoutes -PathType Leaf)) {
+            throw "Resume requires legacy-crawl-checkpoint.json and known-public-routes.json"
+        }
+        Invoke-Checked "Resume read-only Playwright crawl" {
+            uv run python -m server.legacy_crawl --base-url $SourceBaseUrl --output $Crawl --seed-inventory $KnownRoutes
+        }
+    }
+    else {
+        Copy-Item -LiteralPath "outputs\legacy-inventory.json" -Destination $KnownRoutes
+        Invoke-Checked "Fresh read-only Playwright crawl" {
+            uv run python -m server.legacy_crawl --base-url $SourceBaseUrl --output $Crawl --fresh --seed-inventory $KnownRoutes
+        }
     }
     Invoke-Checked "Rebuild structured sections from the fresh crawl" {
-        uv run python scripts/build_structured_source.py --crawl $Crawl --route-template current-sections.json --output $Structured --bundle-route-template $BundledRouteTemplate
+        uv run python -m scripts.build_structured_source --crawl $Crawl --route-template current-sections.json --output $Structured --bundle-route-template $BundledRouteTemplate
     }
     Invoke-Checked "Build legacy inventory" {
         uv run python -m server.legacy_inventory --crawl $Crawl --sections $Structured --json $InventoryJson --markdown $InventoryMd
     }
     Invoke-Checked "Mirror all discovered media" {
-        uv run python -m server.media_mirror --source $Crawl --destination (Join-Path $BundleDir "media\legacy") --manifest $MediaManifest --execute --max-mb $MaxMediaMb --workers $MediaWorkers
+        uv run python -m server.media_mirror --source $Crawl --destination (Join-Path $BundleDir "media\legacy") --manifest $MediaManifest --execute --max-mb $MaxMediaMb --workers $MediaWorkers --retries $MediaRetries
     }
     Invoke-Checked "Build full import plan" {
         uv run python -m server.full_import --source $Crawl --media-manifest $MediaManifest --plan $Plan
@@ -138,10 +159,10 @@ try {
         uv run python -m server.media_report --plan $Plan --manifest $MediaManifest --csv $MissingCsv --markdown $MissingMd
     }
     Invoke-Checked "Create immutable bundle manifest" {
-        uv run python scripts/validate_source_bundle.py create $BundleDir --source-url $SourceBaseUrl --git-sha $GitSha
+        uv run python -m scripts.validate_source_bundle create $BundleDir --source-url $SourceBaseUrl --git-sha $GitSha
     }
     Invoke-Checked "Verify source bundle before packing" {
-        uv run python scripts/validate_source_bundle.py verify $BundleDir
+        uv run python -m scripts.validate_source_bundle verify $BundleDir
     }
     Invoke-Checked "Create source bundle archive" {
         tar -C $BundleDir -czf $Archive .
@@ -158,6 +179,8 @@ try {
         preprod_root = $PreprodRoot
         release_checkout = $ProjectDir
         runtime_root = $RuntimeRoot
+        resumed = [bool]$Resume
+        media_retries = $MediaRetries
         archive = $Archive
         checksum = $Checksum
         sha256 = $ArchiveHash

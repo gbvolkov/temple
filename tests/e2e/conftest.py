@@ -26,6 +26,19 @@ ROOT = Path(__file__).resolve().parents[2]
 E2E_ROOT = ROOT / "tests" / "e2e"
 
 
+def declared_test_nodeid(nodeid: str) -> bool:
+    parts = nodeid.replace("\\", "/").split("::")
+    if len(parts) < 2:
+        return False
+    source_path = (ROOT / parts[0]).resolve()
+    if source_path != ROOT and ROOT not in source_path.parents:
+        return False
+    if not source_path.is_file():
+        return False
+    function_name = parts[-1].split("[", 1)[0]
+    return f"def {function_name}(" in source_path.read_text(encoding="utf-8")
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     registry = json.loads((E2E_ROOT / "defects.json").read_text(encoding="utf-8"))
     coverage = json.loads((E2E_ROOT / "coverage.json").read_text(encoding="utf-8"))
@@ -61,7 +74,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if missing_nodes:
             raise pytest.UsageError(f"Coverage references unknown tests: {', '.join(sorted(missing_nodes))}")
         defect_nodes = {defect["test_nodeid"] for defect in registry["defects"]}
-        missing_defect_nodes = defect_nodes - collected_nodeids
+        missing_defect_nodes = {
+            nodeid
+            for nodeid in defect_nodes - collected_nodeids
+            if not declared_test_nodeid(nodeid)
+        }
         if missing_defect_nodes:
             raise pytest.UsageError(
                 f"Defect registry references unknown tests: {', '.join(sorted(missing_defect_nodes))}"

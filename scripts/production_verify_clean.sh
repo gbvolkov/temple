@@ -40,8 +40,8 @@ test -r data/cms.sqlite3 || { echo "Production database is missing" >&2; exit 1;
 mkdir -p "$REPORTS_DIR"
 
 python3 scripts/validate_production_env.py "$ENV_FILE" >"$REPORTS_DIR/environment-reverify.json"
-python3 scripts/validate_source_bundle.py verify "$SOURCE_DIR" >"$REPORTS_DIR/source-bundle-reverify.json"
-python3 scripts/validate_source_bundle.py verify-database "$SOURCE_DIR" \
+python3 -m scripts.validate_source_bundle verify "$SOURCE_DIR" >"$REPORTS_DIR/source-bundle-reverify.json"
+python3 -m scripts.validate_source_bundle verify-database "$SOURCE_DIR" \
   --database data/cms.sqlite3 --post-activation >"$REPORTS_DIR/database-reverify.json"
 test "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA quick_check;')" = "ok"
 test -z "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA foreign_key_check;')"

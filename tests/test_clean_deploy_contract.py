@@ -19,15 +19,15 @@ def test_windows_source_bundle_is_fresh_complete_and_immutable():
     assert "server.legacy_crawl" in script
     assert "--fresh" in script
     assert "--seed-inventory" in script and "known-public-routes.json" in script
-    assert "build_structured_source.py" in script
+    assert "scripts.build_structured_source" in script
     assert "--bundle-route-template" in script
     assert 'Copy-Item -LiteralPath "current-sections.json"' not in script
     assert "server.importer" in script and "--dry-run" in script
     assert "server.media_mirror" in script and "--execute" in script
     assert "server.full_import" in script
     assert "server.media_report" in script
-    assert "validate_source_bundle.py create" in script
-    assert "validate_source_bundle.py verify" in script
+    assert "scripts.validate_source_bundle create" in script
+    assert "scripts.validate_source_bundle verify" in script
     assert "Get-FileHash -Algorithm SHA256" in script
     assert "git status --porcelain --untracked-files=normal" in script
     assert "git branch --show-current" in script
@@ -50,6 +50,32 @@ def test_windows_preprod_is_documented_outside_the_development_checkout():
     assert "Set-Location C:\\Projects\\temple" not in guide
     assert "output/source-bundles" not in guide
     assert "output\\source-bundles" not in guide
+
+
+def test_source_bundle_validator_is_invoked_as_a_module():
+    windows = (ROOT / "scripts" / "build_public_source_bundle.ps1").read_text(encoding="utf-8")
+    bootstrap = (ROOT / "scripts" / "production_bootstrap_clean.sh").read_text(encoding="utf-8")
+    verify = (ROOT / "scripts" / "production_verify_clean.sh").read_text(encoding="utf-8")
+    assert "uv run python -m scripts.validate_source_bundle create" in windows
+    assert "uv run python -m scripts.validate_source_bundle verify" in windows
+    assert "python3 -m scripts.validate_source_bundle verify" in bootstrap
+    assert "python3 -m scripts.validate_source_bundle verify-database" in bootstrap
+    assert "python3 -m scripts.validate_source_bundle verify" in verify
+    assert "python3 -m scripts.validate_source_bundle verify-database" in verify
+    assert "python scripts/validate_source_bundle.py" not in windows
+    assert "python3 scripts/validate_source_bundle.py" not in bootstrap
+    assert "python3 scripts/validate_source_bundle.py" not in verify
+
+
+def test_windows_source_bundle_can_resume_only_an_unsealed_bundle():
+    script = (ROOT / "scripts" / "build_public_source_bundle.ps1").read_text(encoding="utf-8")
+    assert "[switch]$Resume" in script
+    assert "Cannot resume a sealed source bundle" in script
+    assert "Resume requested but the bundle directory does not exist" in script
+    assert 'if ($Resume)' in script
+    assert '"Resume read-only Playwright crawl"' in script
+    assert "--retries $MediaRetries" in script
+    assert 'Join-Path $BundleDir "source-bundle-manifest.json"' in script
 
 
 def test_ubuntu_bootstrap_refuses_existing_data_and_activates_only_after_gates():
@@ -80,8 +106,8 @@ def test_post_deploy_verification_rechecks_every_persistent_gate():
     script = (ROOT / "scripts" / "production_verify_clean.sh").read_text(encoding="utf-8")
     for expected in (
         "validate_production_env.py",
-        "validate_source_bundle.py verify",
-        "validate_source_bundle.py verify-database",
+        "scripts.validate_source_bundle verify",
+        "scripts.validate_source_bundle verify-database",
         "--post-activation",
         "PRAGMA quick_check",
         "PRAGMA foreign_key_check",

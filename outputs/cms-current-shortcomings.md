@@ -1,10 +1,10 @@
 # Текущие недоработки CMS
 
-Дата актуализации: 30 июля 2026 года
+Дата актуализации: 3 августа 2026 года
 
-Источник: серверный regression, Playwright smoke/full и source-data подготовка schema 13 на безопасной копии (7 тестов, `source_unchanged=true`)
+Источник: серверный regression 125/125, Playwright smoke/full и source-data подготовка schema 13 на безопасной копии (7 тестов, `source_unchanged=true`)
 
-На этапах 2–6 исправлены зарегистрированные недостатки `CMS-01`–`CMS-20`, а также расхождения `GAP-02` и `GAP-03`; они выполняются как положительная регрессия. Единственная текущая недоработка — содержательная очередь `GAP-01`. Технический gate готов на restore/source-copy, но перед передачей материалов человеку необходимо выполнить production rollout schema 13 и получить `editorial_gate.ready=true`.
+На этапах 2–6 и при подготовке clean production migration исправлены зарегистрированные недостатки `CMS-01`–`CMS-23`, а также расхождения `GAP-02` и `GAP-03`; они выполняются как положительная регрессия. Единственная текущая недоработка — содержательная очередь `GAP-01`. Технический gate готов на restore/source-copy, но перед передачей материалов человеку необходимо выполнить production rollout schema 13 и получить `editorial_gate.ready=true`.
 
 ## Приоритеты
 
@@ -242,6 +242,33 @@ Backend `q` ищет `title`, `legacy_url`, `message`, но не `i.code`.
 **Ожидание:** отсутствующий, незавершённый, устаревший или семантически несогласованный post-audit даёт `ok=false`, ненулевой CLI exit и останавливает rollout; любое blocker/warning у `auto_ready` также проваливает проверку.
 
 **Автотест:** `tests/e2e/test_source_data.py::test_cms_20_verify_fails_closed_on_post_apply_violations`.
+
+## Исправлено при реальном clean migration 3 августа 2026 года
+
+### CMS-21 — transient media timeout не повторялся
+
+**Исторический приоритет:** P0.
+
+После 11 574 успешных файлов один публичный URL завершился `WinError 10060`,
+хотя контрольный HEAD сразу вернул HTTP 200. Добавлены ограниченные retry с
+backoff, отдельные `permanent_missing/retry_exhausted/fatal` и позитивный плюс
+негативный тесты; 404/410 не повторяются.
+
+### CMS-22 — validator запускался как файл
+
+**Исторический приоритет:** P0.
+
+После зеркалирования 13 636 файлов команда завершалась
+`ModuleNotFoundError: No module named 'server'`. Все Windows/Ubuntu вызовы
+переведены на `python -m scripts.validate_source_bundle` и защищены контрактом.
+
+### CMS-23 — поздний сбой нельзя было продолжить
+
+**Исторический приоритет:** P1.
+
+Добавлен явный `-Resume`: он продолжает crawl checkpoint, пропускает уже
+mirrored-файлы, повторяет отсутствующие и пересобирает отчёты. Resume разрешён
+только до создания immutable manifest/archive/checksum.
 
 ## Исправлено на этапе 6
 
