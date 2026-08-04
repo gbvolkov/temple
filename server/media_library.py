@@ -120,6 +120,38 @@ def _inspect_image(path: Path) -> Inspection:
     return Inspection(detected, mime, extension, kind, width=width, height=height)
 
 
+def _inspect_legacy_static_gif(path: Path) -> Inspection:
+    """Validate a mirrored single-frame GIF without enabling GIF uploads."""
+    try:
+        with Image.open(path) as image:
+            if image.format != "GIF":
+                raise MediaError("Legacy GIF не соответствует заявленному формату", 415)
+            frame_count = int(getattr(image, "n_frames", 1))
+            if frame_count != 1:
+                raise MediaError("Анимированный legacy GIF требует отдельного преобразования", 415)
+            image.verify()
+        with Image.open(path) as image:
+            width, height = image.size
+            if width <= 0 or height <= 0 or width * height > 40_000_000:
+                raise MediaError(
+                    "Legacy GIF превышает ограничение 40 мегапикселей",
+                    413,
+                )
+    except MediaError:
+        raise
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as error:
+        raise MediaError("Файл не является корректным static legacy GIF", 415) from error
+    return Inspection(
+        "gif",
+        "image/gif",
+        ".gif",
+        "image",
+        width=width,
+        height=height,
+        metadata={"legacy_static_gif": True, "frame_count": frame_count},
+    )
+
+
 def _inspect_pdf(path: Path) -> Inspection:
     try:
         document = pdfium.PdfDocument(str(path))
@@ -514,7 +546,11 @@ def index_library(
             media_id = existing["id"] if existing else str(uuid.uuid5(MEDIA_NAMESPACE, media_url(stored_name)))
             digest = sha256_file(path)
             try:
-                inspection = inspect_file(path, original_name)
+                inspection = (
+                    _inspect_legacy_static_gif(path)
+                    if stored_name.startswith("legacy/") and path.suffix.lower() == ".gif"
+                    else inspect_file(path, original_name)
+                )
                 status = "ready"
                 error = None
                 report["ready"] += 1

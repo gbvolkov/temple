@@ -134,7 +134,6 @@ with tarfile.open(sys.argv[1], "r:gz") as archive:
             raise SystemExit(f"Unsafe archive member: {member.name}")
 PY
 tar -C "$SOURCE_DIR" -xzf "$BUNDLE_ARCHIVE"
-python3 -m scripts.validate_source_bundle verify "$SOURCE_DIR" >"$REPORTS_DIR/source-bundle-verification.json"
 BUNDLE_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8"))["git_sha"])' "$SOURCE_DIR/source-bundle-manifest.json")"
 test "$BUNDLE_SHA" = "$CURRENT_SHA" || {
   echo "Bundle was created from $BUNDLE_SHA, deployment checkout is $CURRENT_SHA" >&2
@@ -147,6 +146,17 @@ test "${#IMAGE_REFERENCES[@]}" -eq 1 || { echo "Exactly one Compose image is req
 IMAGE_REFERENCE="${IMAGE_REFERENCES[0]}"
 IMAGE_ID="$(sudo docker image inspect --format '{{.Id}}' "$IMAGE_REFERENCE")"
 test -n "$IMAGE_ID"
+
+run_validation_image() {
+  sudo docker run --rm \
+    --env-file "$ENV_FILE" \
+    -v "$SOURCE_DIR:/source:ro" \
+    -v "$STAGE_DATA:/data:ro" \
+    "$IMAGE_REFERENCE" "$@"
+}
+
+run_validation_image python -m scripts.validate_source_bundle verify /source \
+  >"$REPORTS_DIR/source-bundle-verification.json"
 
 rsync -a "$SOURCE_DIR/media/legacy/" "$STAGE_DATA/media/legacy/"
 install -m 600 "$PROJECT_DIR/data/.gitkeep" "$STAGE_DATA/.gitkeep"
@@ -188,8 +198,8 @@ run_image python -m server.media_reconciliation \
 run_image python -m server.search reindex --database /data/cms.sqlite3 >"$REPORTS_DIR/search-reindex.txt"
 run_image python -m server.search verify --database /data/cms.sqlite3 >"$REPORTS_DIR/search-verify.txt"
 run_image python -m server.migrations verify --database /data/cms.sqlite3 >"$REPORTS_DIR/migrations-verify.json"
-python3 -m scripts.validate_source_bundle verify-database "$SOURCE_DIR" \
-  --database "$STAGE_DATA/cms.sqlite3" >"$REPORTS_DIR/database-before-preparation.json"
+run_validation_image python -m scripts.validate_source_bundle verify-database /source \
+  --database /data/cms.sqlite3 >"$REPORTS_DIR/database-before-preparation.json"
 
 run_image python -m server.migration_preparation preview \
   --database /data/cms.sqlite3 >"$REPORTS_DIR/preparation-preview.json"
@@ -204,8 +214,8 @@ run_image python -m server.migration_preparation verify \
   --database /data/cms.sqlite3 >"$REPORTS_DIR/preparation-verify.json"
 run_image python -m server.search verify --database /data/cms.sqlite3 >"$REPORTS_DIR/search-verify-after-preparation.txt"
 run_image python -m server.migrations verify --database /data/cms.sqlite3 >"$REPORTS_DIR/migrations-verify-after-preparation.json"
-python3 -m scripts.validate_source_bundle verify-database "$SOURCE_DIR" \
-  --database "$STAGE_DATA/cms.sqlite3" >"$REPORTS_DIR/database-final.json"
+run_validation_image python -m scripts.validate_source_bundle verify-database /source \
+  --database /data/cms.sqlite3 >"$REPORTS_DIR/database-final.json"
 
 ORIGINAL_MOVED=0
 SUCCESS=0

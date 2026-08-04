@@ -40,9 +40,17 @@ test -r data/cms.sqlite3 || { echo "Production database is missing" >&2; exit 1;
 mkdir -p "$REPORTS_DIR"
 
 python3 scripts/validate_production_env.py "$ENV_FILE" >"$REPORTS_DIR/environment-reverify.json"
-python3 -m scripts.validate_source_bundle verify "$SOURCE_DIR" >"$REPORTS_DIR/source-bundle-reverify.json"
-python3 -m scripts.validate_source_bundle verify-database "$SOURCE_DIR" \
-  --database data/cms.sqlite3 --post-activation >"$REPORTS_DIR/database-reverify.json"
+run_validation_image() {
+  sudo docker compose run --rm --no-deps -T \
+    -v "$SOURCE_DIR:/source:ro" \
+    -v "$PROJECT_DIR/data:/data:ro" \
+    "$SERVICE" "$@"
+}
+
+run_validation_image python -m scripts.validate_source_bundle verify /source \
+  >"$REPORTS_DIR/source-bundle-reverify.json"
+run_validation_image python -m scripts.validate_source_bundle verify-database /source \
+  --database /data/cms.sqlite3 --post-activation >"$REPORTS_DIR/database-reverify.json"
 test "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA quick_check;')" = "ok"
 test -z "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA foreign_key_check;')"
 

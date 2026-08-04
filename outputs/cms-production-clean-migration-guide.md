@@ -1,6 +1,6 @@
 # Пошаговая миграция CMS в чистую production-среду
 
-Дата: 1 августа 2026 года
+Дата актуализации: 4 августа 2026 года
 
 Источник: `https://www.sv-innokenty.ru/`
 
@@ -273,6 +273,10 @@ scp $Checksum `
 - Docker Engine и Docker Compose plugin из официального Docker repository. Актуальная инструкция: `https://docs.docker.com/engine/install/ubuntu/`;
 - рабочий reverse proxy/TLS настраивается отдельно и этим rollout не изменяется.
 
+Системному Python не нужны пакеты проекта (`pypdfium2`, Pillow и другие):
+полная проверка source-bundle и staging-БД выполняется в application image после
+Docker build. Host Python используется только для stdlib-проверок.
+
 Сначала установите системные утилиты:
 
 ```bash
@@ -407,9 +411,9 @@ bash scripts/production_bootstrap_clean.sh \
 
 1. повторную SHA-256 проверку архива;
 2. проверку всех tar entries против path traversal, ссылок и device entries;
-3. проверку manifest и каждого файла внутри bundle;
-4. проверку совпадения Git SHA Windows и Ubuntu;
-5. Docker build;
+3. чтение Git SHA из manifest и проверку совпадения Git SHA Windows и Ubuntu;
+4. Docker build;
+5. проверку manifest и каждого файла внутри bundle в application image;
 6. schema 13, структурный импорт и полный crawl-импорт в staging;
 7. missing-media report и media reconciliation;
 8. FTS reindex/verify;
@@ -419,6 +423,11 @@ bash scripts/production_bootstrap_clean.sh \
 12. SQLite quick/FK checks и сравнение количества материалов/редиректов с bundle;
 13. атомарную активацию `data/`;
 14. запуск CMS и локальные health/CMS/public API smoke checks.
+
+Во время media reindex корректные одно-кадровые GIF принимаются только из
+зеркального каталога `legacy/`. Это совместимость с публичным источником, а не
+разрешение пользовательской GIF-загрузки; анимированные и повреждённые GIF
+останавливают соответствующий технический gate.
 
 При успехе вывод содержит:
 

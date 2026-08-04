@@ -58,13 +58,30 @@ def test_source_bundle_validator_is_invoked_as_a_module():
     verify = (ROOT / "scripts" / "production_verify_clean.sh").read_text(encoding="utf-8")
     assert "uv run python -m scripts.validate_source_bundle create" in windows
     assert "uv run python -m scripts.validate_source_bundle verify" in windows
-    assert "python3 -m scripts.validate_source_bundle verify" in bootstrap
-    assert "python3 -m scripts.validate_source_bundle verify-database" in bootstrap
-    assert "python3 -m scripts.validate_source_bundle verify" in verify
-    assert "python3 -m scripts.validate_source_bundle verify-database" in verify
+    assert "run_validation_image python -m scripts.validate_source_bundle verify" in bootstrap
+    assert "run_validation_image python -m scripts.validate_source_bundle verify-database" in bootstrap
+    assert "run_validation_image python -m scripts.validate_source_bundle verify" in verify
+    assert "run_validation_image python -m scripts.validate_source_bundle verify-database" in verify
+    assert "python3 -m scripts.validate_source_bundle" not in bootstrap
+    assert "python3 -m scripts.validate_source_bundle" not in verify
     assert "python scripts/validate_source_bundle.py" not in windows
     assert "python3 scripts/validate_source_bundle.py" not in bootstrap
     assert "python3 scripts/validate_source_bundle.py" not in verify
+
+
+def test_cms_25_ubuntu_source_bundle_validation_runs_in_built_image():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    bootstrap = (ROOT / "scripts" / "production_bootstrap_clean.sh").read_text(encoding="utf-8")
+    verify = (ROOT / "scripts" / "production_verify_clean.sh").read_text(encoding="utf-8")
+    assert "COPY scripts ./scripts" in dockerfile
+    assert "python3 -m scripts.validate_source_bundle" not in bootstrap
+    assert "python3 -m scripts.validate_source_bundle" not in verify
+    assert bootstrap.index('docker compose build "$SERVICE"') < bootstrap.index(
+        "scripts.validate_source_bundle verify"
+    )
+    assert '-v "$SOURCE_DIR:/source:ro"' in bootstrap
+    assert '-v "$STAGE_DATA:/data:ro"' in bootstrap
+    assert '-v "$PROJECT_DIR/data:/data:ro"' in verify
 
 
 def test_windows_source_bundle_can_resume_only_an_unsealed_bundle():

@@ -15,7 +15,7 @@ from PIL import Image
 from server.app import create_app
 from server.config import Settings
 from server.db import init_database
-from server.media_library import index_library
+from server.media_library import MediaError, index_library, inspect_file
 from server.media_reindex import (
     MediaReindexError,
     execute_next_job,
@@ -444,3 +444,46 @@ def test_indexer_is_repeatable_and_imports_missing_queue(tmp_path: Path) -> None
         assert connection.execute("SELECT COUNT(*) FROM media").fetchone()[0] == 1
         assert connection.execute("SELECT COUNT(*) FROM missing_media_issues").fetchone()[0] == 1
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_cms_26_static_legacy_gif_is_indexed_without_enabling_gif_upload(
+    tmp_path: Path,
+) -> None:
+    settings = settings_for(tmp_path)
+    legacy = settings.media_dir / "legacy" / "aa" / "legacy-static.gif"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_bytes(image_bytes(format_name="GIF"))
+    init_database(settings.database_path)
+
+    with pytest.raises(MediaError):
+        inspect_file(legacy, "user-upload.gif")
+    first = index_library(settings.database_path, settings.media_dir)
+    second = index_library(settings.database_path, settings.media_dir)
+    assert first["ready"] == second["ready"] == 1
+    assert first["invalid"] == second["invalid"] == 0
+    with sqlite3.connect(settings.database_path) as connection:
+        row = connection.execute(
+            "SELECT mime_type,kind,status,metadata_json FROM media"
+        ).fetchone()
+    assert row[:3] == ("image/gif", "image", "ready")
+    metadata = __import__("json").loads(row[3])
+    assert metadata["legacy_static_gif"] is True
+    assert metadata["frame_count"] == 1
+
+    animated = settings.media_dir / "legacy" / "aa" / "legacy-animated.gif"
+    frames = [Image.new("RGB", (8, 8), color) for color in ("red", "blue")]
+    stream = io.BytesIO()
+    frames[0].save(stream, "GIF", save_all=True, append_images=frames[1:], duration=100)
+    animated.write_bytes(stream.getvalue())
+    report = index_library(settings.database_path, settings.media_dir)
+    assert report["ready"] == 1
+    assert report["invalid"] == 1
+    with sqlite3.connect(settings.database_path) as connection:
+        animated_row = connection.execute(
+            "SELECT status,metadata_json FROM media WHERE stored_name = ?",
+            ("legacy/aa/legacy-animated.gif",),
+        ).fetchone()
+    assert animated_row[0] == "invalid"
+    assert "Анимированный legacy GIF" in __import__("json").loads(animated_row[1])[
+        "validation_error"
+    ]

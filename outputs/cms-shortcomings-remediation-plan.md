@@ -155,6 +155,14 @@ Schema 13 и контракт 1.1 добавляют устойчивые identi
 
 Для чистой production-установки без существующей runtime-БД используется отдельный fail-closed процесс из `outputs/cms-production-clean-migration-guide.md`: `build_public_source_bundle.ps1` собирает свежий read-only snapshot на Windows, а `production_bootstrap_clean.sh` выполняет полный импорт schema 13 в staging на Ubuntu. Он не заменяет upgrade-скрипт `production_apply_stage13.sh` для уже работающей CMS и отказывается запускаться поверх непустого `data/`.
 
+4 августа 2026 года два первых clean cutover корректно завершились
+автоматическим rollback прежней CMS и выявили `CMS-25`/`CMS-26`. Validator
+bundle и staging-БД перенесён из host Python в application image; корректные
+одно-кадровые GIF разрешены только для зеркального `legacy/`, без изменения
+политики пользовательской загрузки. Повторная приёмка исправлений: server
+128/128, smoke 3/3, full 42/42, source-data 7/7; `contract_ok=true`,
+`source_unchanged=true`, функциональных `XFAIL` нет.
+
 Цель: максимально сократить очередь материалов, требующих редакционного решения.
 
 - Сгруппировать проблемы по типу и причине.
