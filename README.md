@@ -269,6 +269,11 @@ docker compose up -d --build
 
 Пошаговая инструкция чистого production-развёртывания из актуального публичного источника разделена на изолированную Windows-preprod сборку неизменяемого source-bundle и Ubuntu bootstrap: `outputs/cms-production-clean-migration-guide.md`. Windows-скрипт допускает только отдельный `<PreprodRoot>\release-checkout`, хранит runtime/bundle вне dev-репозитория, повторяет временные media-сбои и поддерживает `-Resume` только для незапечатанного bundle. Используются `scripts/build_public_source_bundle.ps1`, `scripts/production_bootstrap_clean.sh` и `scripts/production_verify_clean.sh`; clean bootstrap отказывается работать с существующей БД или непустой медиатекой. Bundle/database validation выполняется внутри application image и не требует Python-пакетов проекта на Ubuntu-host. Static GIF принимаются только из зеркального `legacy/`; пользовательская GIF-загрузка остаётся запрещённой.
 
+Проверенные legacy image extension mismatch также обрабатываются только внутри
+`legacy/` с сохранением реального MIME и provenance; upload API остаётся
+строгим. Media reconciliation обязана завершиться с `status=ok` и
+`unexplained_count=0` как до, так и после активации.
+
 Read-only обход завершён: обследовано 1615 URL, из них 1606 рабочих и 9 возвращают 404. В новую CMS импортировано 1757 записей-черновиков и подготовлено 1606 редиректов. Из 13947 известных медиа-URL 13746 успешно зеркалированы в 13698 уникальных локальных файлов; 201 URL отсутствует на исходном сервере и задокументирован в отдельном отчёте. Исходный MODX при обходе и переносе не изменялся.
 
 Перед переключением домена остаётся редакторская приёмка всех 1757 черновиков. Система намеренно не публикует непроверенный импорт; актуальное состояние всех барьеров находится в `outputs/migration-readiness.md`.

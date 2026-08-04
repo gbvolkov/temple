@@ -163,6 +163,15 @@ bundle и staging-БД перенесён из host Python в application image;
 128/128, smoke 3/3, full 42/42, source-data 7/7; `contract_ok=true`,
 `source_unchanged=true`, функциональных `XFAIL` нет.
 
+Первый успешный clean bootstrap затем выявил ещё два технических отклонения:
+`CMS-27` для корректного PNG с историческим `.jpg` и `CMS-28`, позволявший
+активацию при reconciliation warning. Legacy mismatch теперь принимается
+только после проверки байтов и сохраняется с provenance, user upload остаётся
+строгим. Bootstrap и post-activation verify требуют reconciliation
+`status=ok`/`unexplained_count=0`. Повторная локальная приёмка расширена до
+server 130/130; production rollout считается окончательно завершённым только
+после повторного clean gate с нулём необъяснённых media-расхождений.
+
 Цель: максимально сократить очередь материалов, требующих редакционного решения.
 
 - Сгруппировать проблемы по типу и причине.

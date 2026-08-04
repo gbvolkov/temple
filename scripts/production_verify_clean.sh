@@ -47,10 +47,22 @@ run_validation_image() {
     "$SERVICE" "$@"
 }
 
+assert_reconciliation_ok() {
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); reconciliation=data["reconciliation"]; raise SystemExit(0 if reconciliation["status"]=="ok" and reconciliation["unexplained_count"]==0 else "Media reconciliation gate failed")' "$1"
+}
+
 run_validation_image python -m scripts.validate_source_bundle verify /source \
   >"$REPORTS_DIR/source-bundle-reverify.json"
 run_validation_image python -m scripts.validate_source_bundle verify-database /source \
   --database /data/cms.sqlite3 --post-activation >"$REPORTS_DIR/database-reverify.json"
+run_validation_image python -m server.media_reconciliation \
+  --database /data/cms.sqlite3 \
+  --media /data/media \
+  --manifest /data/legacy-media-manifest.json \
+  --missing-report /data/missing-legacy-media.csv \
+  --derivatives /data/media-derivatives \
+  >"$REPORTS_DIR/media-reconciliation-reverify.json"
+assert_reconciliation_ok "$REPORTS_DIR/media-reconciliation-reverify.json"
 test "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA quick_check;')" = "ok"
 test -z "$(sqlite3 -readonly data/cms.sqlite3 'PRAGMA foreign_key_check;')"
 

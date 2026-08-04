@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -82,6 +81,15 @@ def test_cms_25_ubuntu_source_bundle_validation_runs_in_built_image():
     assert '-v "$SOURCE_DIR:/source:ro"' in bootstrap
     assert '-v "$STAGE_DATA:/data:ro"' in bootstrap
     assert '-v "$PROJECT_DIR/data:/data:ro"' in verify
+
+
+def test_cms_28_clean_deployment_fails_closed_on_media_reconciliation_warning():
+    bootstrap = (ROOT / "scripts" / "production_bootstrap_clean.sh").read_text(encoding="utf-8")
+    verify = (ROOT / "scripts" / "production_verify_clean.sh").read_text(encoding="utf-8")
+    assert 'assert_reconciliation_ok "$REPORTS_DIR/media-reconciliation.json"' in bootstrap
+    assert "server.media_reconciliation" in verify
+    assert "media-reconciliation-reverify.json" in verify
+    assert 'assert_reconciliation_ok "$REPORTS_DIR/media-reconciliation-reverify.json"' in verify
 
 
 def test_windows_source_bundle_can_resume_only_an_unsealed_bundle():

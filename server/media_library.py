@@ -120,6 +120,23 @@ def _inspect_image(path: Path) -> Inspection:
     return Inspection(detected, mime, extension, kind, width=width, height=height)
 
 
+def _inspect_legacy_image(path: Path) -> Inspection:
+    """Trust verified legacy image bytes while preserving suffix mismatch evidence."""
+    inspection = _inspect_image(path)
+    stored_extension = path.suffix.lower()
+    canonical_stored_extension = ".jpg" if stored_extension == ".jpeg" else stored_extension
+    if canonical_stored_extension == inspection.extension:
+        return inspection
+    return replace(
+        inspection,
+        metadata={
+            "legacy_extension_mismatch": True,
+            "legacy_stored_extension": stored_extension,
+            "detected_extension": inspection.extension,
+        },
+    )
+
+
 def _inspect_legacy_static_gif(path: Path) -> Inspection:
     """Validate a mirrored single-frame GIF without enabling GIF uploads."""
     try:
@@ -546,11 +563,17 @@ def index_library(
             media_id = existing["id"] if existing else str(uuid.uuid5(MEDIA_NAMESPACE, media_url(stored_name)))
             digest = sha256_file(path)
             try:
-                inspection = (
-                    _inspect_legacy_static_gif(path)
-                    if stored_name.startswith("legacy/") and path.suffix.lower() == ".gif"
-                    else inspect_file(path, original_name)
-                )
+                if stored_name.startswith("legacy/") and path.suffix.lower() == ".gif":
+                    inspection = _inspect_legacy_static_gif(path)
+                elif stored_name.startswith("legacy/") and path.suffix.lower() in {
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".webp",
+                }:
+                    inspection = _inspect_legacy_image(path)
+                else:
+                    inspection = inspect_file(path, original_name)
                 status = "ready"
                 error = None
                 report["ready"] += 1

@@ -487,3 +487,28 @@ def test_cms_26_static_legacy_gif_is_indexed_without_enabling_gif_upload(
     assert "Анимированный legacy GIF" in __import__("json").loads(animated_row[1])[
         "validation_error"
     ]
+
+
+def test_cms_27_legacy_image_extension_mismatch_is_ready_without_relaxing_uploads(
+    tmp_path: Path,
+) -> None:
+    settings = settings_for(tmp_path)
+    legacy = settings.media_dir / "legacy" / "91" / "historical-mismatch.jpg"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_bytes(image_bytes(format_name="PNG"))
+    init_database(settings.database_path)
+
+    with pytest.raises(MediaError):
+        inspect_file(legacy, "user-upload.jpg")
+    report = index_library(settings.database_path, settings.media_dir)
+    assert report["ready"] == 1
+    assert report["invalid"] == 0
+    with sqlite3.connect(settings.database_path) as connection:
+        row = connection.execute(
+            "SELECT mime_type,kind,status,metadata_json FROM media"
+        ).fetchone()
+    assert row[:3] == ("image/png", "image", "ready")
+    metadata = __import__("json").loads(row[3])
+    assert metadata["legacy_extension_mismatch"] is True
+    assert metadata["legacy_stored_extension"] == ".jpg"
+    assert metadata["detected_extension"] == ".png"

@@ -173,6 +173,10 @@ run_image() {
     "$IMAGE_REFERENCE" "$@"
 }
 
+assert_reconciliation_ok() {
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); reconciliation=data["reconciliation"]; raise SystemExit(0 if reconciliation["status"]=="ok" and reconciliation["unexplained_count"]==0 else "Media reconciliation gate failed")' "$1"
+}
+
 run_image python -m server.importer \
   --source /data/structured-sections.json \
   --database /data/cms.sqlite3 \
@@ -195,6 +199,7 @@ run_image python -m server.media_reconciliation \
   --missing-report /data/missing-legacy-media.csv \
   --derivatives /data/media-derivatives \
   --apply >"$REPORTS_DIR/media-reconciliation.json"
+assert_reconciliation_ok "$REPORTS_DIR/media-reconciliation.json"
 run_image python -m server.search reindex --database /data/cms.sqlite3 >"$REPORTS_DIR/search-reindex.txt"
 run_image python -m server.search verify --database /data/cms.sqlite3 >"$REPORTS_DIR/search-verify.txt"
 run_image python -m server.migrations verify --database /data/cms.sqlite3 >"$REPORTS_DIR/migrations-verify.json"

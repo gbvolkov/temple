@@ -13,11 +13,15 @@ media-сбои повторяются, validator запускается как �
 второй — 36 корректных одно-кадровых legacy GIF. `CMS-25` переносит
 bundle/database validation в application image, а `CMS-26` разрешает только
 проверенные static GIF внутри `legacy/`, не открывая GIF-upload пользователям.
-После исправлений пройдены server 128/128, smoke
+Первая успешная активация дополнительно выявила один PNG с историческим `.jpg`
+и отсутствие fail-closed проверки reconciliation warning. `CMS-27` сохраняет
+реальный MIME и provenance только для проверенного legacy mismatch, `CMS-28`
+требует `status=ok` и `unexplained_count=0` до и после активации.
+После исправлений пройдены server 130/130, smoke
 3/3, full 42/42 с 334 assertion ID и source-data 7/7 с
 единственным ожидаемым содержательным `GAP-01`; `contract_ok=true`,
-`source_unchanged=true`. Артефакты: `20260804T181557-965183Z`,
-`20260804T181647-888798Z`, `20260804T181915-323815Z`.
+`source_unchanged=true`. Артефакты: `20260804T184426-667727Z`,
+`20260804T184838-759593Z`, `20260804T185111-333706Z`.
 
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
@@ -26,7 +30,7 @@ bundle/database validation в application image, а `CMS-26` разрешает 
 
 CMS функционально реализует полный базовый цикл: вход, создание и редактирование материалов, ревизии, согласование, немедленную и отложенную публикацию, архив, корзину, восстановление, медиатеку, заявки, пользователей и миграционную приёмку.
 
-Техническая реализация schema 13 готова к повторному production rollout. `CMS-01`–`CMS-26` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`; человека можно подключать только после успешного production stage 13 и `editorial_gate.ready=true`.
+Техническая реализация schema 13 готова к повторному production rollout. `CMS-01`–`CMS-28` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`; человека можно подключать только после успешного production stage 13 и `editorial_gate.ready=true`.
 
 Нормативный контракт повторной приёмки: `outputs/cms-stage6-functional-requirements.md` версии 3.0 (`ACCEPT` после трёх циклов). Финальное заключение о фактическом недопуске к этапу 7: `outputs/cms-stage6-functional-test-conclusion.md`.
 
@@ -45,8 +49,8 @@ CMS функционально реализует полный базовый ц
 - постоянный Playwright full-профиль содержит 42 положительных теста и не содержит функциональных `XFAIL`;
 - runtime-матрица подтверждает 334 существующие уникальные проверки; dossier assertion усилен проверкой code/field/message/rule/evidence/consequence/focus;
 - source-data профиль прошёл 7 из 7 тестов: 6 позитивных и один ожидаемый `GAP-01`; fingerprint БД и медиатеки до/после совпал;
-- актуальная приёмка: server 128/128; smoke 3/3; full 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
-- актуальные артефакты: `20260804T181557-965183Z` (smoke), `20260804T181647-888798Z` (full), `20260804T181915-323815Z` (source-data), каталог `output/playwright/cms-regression/`;
+- актуальная приёмка: server 130/130; smoke 3/3; full 42/42 и 334/334 assertion ID; source-data 7/7 с единственным зарегистрированным `GAP-01`; все контуры имеют `contract_ok=true`, исходные runtime-данные не изменились;
+- актуальные артефакты: `20260804T184426-667727Z` (smoke), `20260804T184838-759593Z` (full), `20260804T185111-333706Z` (source-data), каталог `output/playwright/cms-regression/`;
 - `node --check` для `site/app.js`, `site/cms.js` и Playwright-runner прошёл;
 - горизонтального переполнения на 390 и 320 px не обнаружено;
 - исходная рабочая БД `data/cms.sqlite3` не изменялась.
@@ -79,7 +83,7 @@ CMS функционально реализует полный базовый ц
 1. интерактивный CLI-сеанс `cmsqa` для инвентаризации всех экранов, типов полей и блочного редактора;
 2. повторяемый Chromium-runner `output/playwright/cms-full-qa/cms_qa_runner.cjs` для длинных end-to-end workflow.
 
-Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 334 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-26` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидается только один `XFAIL`: содержательный `GAP-01`.
+Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 334 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-28` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидается только один `XFAIL`: содержательный `GAP-01`.
 
 ## 4. Полная матрица кнопок, переходов и workflow
 
@@ -484,7 +488,7 @@ Inline-форматирование абзаца:
 
 ## 6. Автоматические проверки
 
-Серверный контур: 128/128 тестов прошли без warnings.
+Серверный контур: 130/130 тестов прошли без warnings.
 
 Постоянный браузерный контур после переноса всех исследовательских групп:
 
@@ -500,7 +504,7 @@ Inline-форматирование абзаца:
 |---|---:|
 | `test_baseline.py` | 4 |
 | `test_clean_deploy.py` | 10 |
-| `test_clean_deploy_contract.py` | 7 |
+| `test_clean_deploy_contract.py` | 8 |
 | `test_clean_migration_rollout.py` | 3 |
 | `test_cms_api.py` | 10 |
 | `test_full_import.py` | 4 |
@@ -513,7 +517,7 @@ Inline-форматирование абзаца:
 | `test_stage10_migration_acceptance.py` | 8 |
 | `test_stage5_editor.py` | 7 |
 | `test_stage4_performance.py` | 2 |
-| `test_stage6_media.py` | 12 |
+| `test_stage6_media.py` | 13 |
 | `test_stage6_cli_contract.py` | 2 |
 | `test_stage6_rollout_contract.py` | 3 |
 | `test_stage7_users_workflow.py` | 3 |
@@ -526,9 +530,9 @@ Inline-форматирование абзаца:
 
 Актуальные воспроизводимые результаты постоянной регрессии:
 
-- `output/playwright/cms-regression/20260804T181647-888798Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
-- `output/playwright/cms-regression/20260804T181557-965183Z/summary.json` — smoke 3/3;
-- `output/playwright/cms-regression/20260804T181915-323815Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
+- `output/playwright/cms-regression/20260804T184838-759593Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
+- `output/playwright/cms-regression/20260804T184426-667727Z/summary.json` — smoke 3/3;
+- `output/playwright/cms-regression/20260804T185111-333706Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
 
 Артефакты исходного интерактивного аудита:
 
@@ -545,7 +549,7 @@ Inline-форматирование абзаца:
 ## 8. Вывод о готовности
 
 Базовые workflow CMS и автоматическая подготовка технически готовы к clean
-production rollout; `CMS-19`–`CMS-26` закрыты положительной регрессией. До
+production rollout; `CMS-19`–`CMS-28` закрыты положительной регрессией. До
 содержательной работы этапа 7 необходимо выполнить каноническую миграцию по
 `outputs/cms-production-clean-migration-guide.md` и получить production
 `editorial_gate.ready=true`. После этого человеку передаётся только
