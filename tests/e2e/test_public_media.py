@@ -148,6 +148,7 @@ def test_public_forms_and_submission_workflow(page, live_cms, coverage_steps):
     school_row = page.locator("[data-submission-open]").filter(has_text=school_reference)
     school_row.wait_for()
     school_row.click()
+    detail.get_by_role("heading", name=school_reference, exact=True).wait_for()
     pii = page.locator("[data-submission-detail]").inner_text()
     coverage_steps.check(
         "submission.cms.school-pii",

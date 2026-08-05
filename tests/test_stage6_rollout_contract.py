@@ -31,6 +31,18 @@ def test_stage14_wrapper_accepts_schema_13_and_targets_14() -> None:
     assert "external treby legacy status" in rollout
 
 
+def test_cms_30_rollout_supports_direct_docker_without_passwordless_sudo() -> None:
+    baseline = script("production_baseline.sh")
+    rollout = script("production_apply_stage4.sh")
+    for deployment_script in (baseline, rollout):
+        assert "select_docker_command" in deployment_script
+        assert "DOCKER=(docker)" in deployment_script
+        assert "DOCKER=(sudo -n docker)" in deployment_script
+        assert "sudo docker" not in deployment_script
+    assert "sudo rm -rf" not in rollout
+    assert '\"${DOCKER[@]}\" run --rm' in rollout
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(

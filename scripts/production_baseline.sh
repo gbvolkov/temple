@@ -8,12 +8,25 @@ MIN_FREE_KB=$((8 * 1024 * 1024))
 SERVICE="cms"
 RESTORE_PORT="18000"
 
-for command_name in git curl rsync sqlite3 tar sha256sum python3 sudo docker df find stat; do
+for command_name in git curl rsync sqlite3 tar sha256sum python3 docker df find stat; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is missing: $command_name" >&2
     exit 1
   }
 done
+
+select_docker_command() {
+  if docker info >/dev/null 2>&1; then
+    DOCKER=(docker)
+  elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER=(sudo -n docker)
+  else
+    echo "Docker is unavailable directly and through passwordless sudo" >&2
+    exit 1
+  fi
+}
+
+select_docker_command
 
 cd "$PROJECT_DIR"
 git rev-parse --verify "${BASELINE_TAG}^{}" >/dev/null
@@ -52,19 +65,19 @@ if [[ -z "$FREE_KB" || "$FREE_KB" -lt "$MIN_FREE_KB" ]]; then
   exit 1
 fi
 
-CONTAINER_ID="$(sudo docker compose ps -q "$SERVICE")"
+CONTAINER_ID="$("${DOCKER[@]}" compose ps -q "$SERVICE")"
 if [[ -z "$CONTAINER_ID" ]]; then
   echo "CMS container is not running" >&2
   exit 1
 fi
-HEALTH_STATUS="$(sudo docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$CONTAINER_ID")"
+HEALTH_STATUS="$("${DOCKER[@]}" inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$CONTAINER_ID")"
 if [[ "$HEALTH_STATUS" != "healthy" ]]; then
   echo "CMS container health is $HEALTH_STATUS, expected healthy" >&2
   exit 1
 fi
-sudo docker compose ps
+"${DOCKER[@]}" compose ps
 curl -fsS http://127.0.0.1:8000/api/health >/dev/null
-sudo docker compose logs --tail=100 "$SERVICE" >"$BACKUP_ROOT/$BACKUP_ID-preflight.log"
+"${DOCKER[@]}" compose logs --tail=100 "$SERVICE" >"$BACKUP_ROOT/$BACKUP_ID-preflight.log"
 test -r data/cms.sqlite3
 test -d data/media
 test -w data
@@ -84,7 +97,7 @@ mkdir -p "$STAGING/data/media"
 chmod 700 "$STAGING"
 rsync -a --delete data/media/ "$STAGING/data/media/"
 
-IMAGE_ID="$(sudo docker inspect --format '{{.Image}}' "$CONTAINER_ID")"
+IMAGE_ID="$("${DOCKER[@]}" inspect --format '{{.Image}}' "$CONTAINER_ID")"
 if [[ -z "$IMAGE_ID" ]]; then
   echo "Unable to determine the running image ID" >&2
   exit 1
@@ -95,17 +108,17 @@ RESTORE_STARTED=0
 cleanup() {
   exit_code=$?
   if [[ "$RESTORE_STARTED" -eq 1 ]]; then
-    sudo docker stop "$RESTORE_CONTAINER" >/dev/null 2>&1 || true
+    "${DOCKER[@]}" stop "$RESTORE_CONTAINER" >/dev/null 2>&1 || true
   fi
   if [[ "$CMS_STOPPED" -eq 1 ]]; then
-    sudo docker compose up -d "$SERVICE" >/dev/null 2>&1 || true
+    "${DOCKER[@]}" compose up -d "$SERVICE" >/dev/null 2>&1 || true
   fi
   exit "$exit_code"
 }
 trap cleanup EXIT
 
 DOWNTIME_STARTED="$(date +%s)"
-sudo docker compose stop "$SERVICE"
+"${DOCKER[@]}" compose stop "$SERVICE"
 CMS_STOPPED=1
 
 sqlite3 data/cms.sqlite3 "PRAGMA wal_checkpoint(TRUNCATE);" >"$STAGING/sqlite-checkpoint.txt"
@@ -133,9 +146,9 @@ printf '%s\n' "$BASELINE_SHA" >"$STAGING/baseline-tag-sha.txt"
 printf '%s\n' "$BASELINE_TAG" >"$STAGING/git-tag.txt"
 printf '%s\n' "$CURRENT_SHA" >"$STAGING/checkout-git-sha.txt"
 printf '%s\n' "$IMAGE_ID" >"$STAGING/docker-image-id.txt"
-sudo docker compose ps >"$STAGING/docker-compose-ps-before.txt"
+"${DOCKER[@]}" compose ps >"$STAGING/docker-compose-ps-before.txt"
 
-sudo docker compose up -d "$SERVICE"
+"${DOCKER[@]}" compose up -d "$SERVICE"
 for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
     CMS_STOPPED=0
@@ -150,7 +163,7 @@ fi
 DOWNTIME_SECONDS=$(( $(date +%s) - DOWNTIME_STARTED ))
 printf '%s\n' "$DOWNTIME_SECONDS" >"$STAGING/downtime-seconds.txt"
 curl -fsS http://127.0.0.1:8000/ >/dev/null
-sudo docker compose ps >"$STAGING/docker-compose-ps-after.txt"
+"${DOCKER[@]}" compose ps >"$STAGING/docker-compose-ps-after.txt"
 
 python3 -m server.baseline media-manifest \
   --media-dir "$STAGING/data/media" \
@@ -205,7 +218,7 @@ if command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$RESTORE_PORT "; then
   echo "Restore test port $RESTORE_PORT is already in use" >&2
   exit 1
 fi
-sudo docker run -d --rm \
+"${DOCKER[@]}" run -d --rm \
   --name "$RESTORE_CONTAINER" \
   --env-file "$RESTORED/.env" \
   -p "127.0.0.1:$RESTORE_PORT:8000" \
@@ -220,7 +233,7 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "http://127.0.0.1:$RESTORE_PORT/api/health" >/dev/null
 curl -fsS "http://127.0.0.1:$RESTORE_PORT/api/public/content?limit=1" >/dev/null
-sudo docker stop "$RESTORE_CONTAINER" >/dev/null
+"${DOCKER[@]}" stop "$RESTORE_CONTAINER" >/dev/null
 RESTORE_STARTED=0
 
 case "$RESTORE_ROOT" in

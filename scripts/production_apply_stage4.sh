@@ -22,12 +22,25 @@ case "$BACKUP_ID" in
   *) echo "Usage: LOCAL_BACKUP_SHA256=<sha256> $DEPLOYMENT_ENTRYPOINT baseline-YYYYMMDDTHHMMSSZ" >&2; exit 1 ;;
 esac
 
-for command_name in git curl sqlite3 tar sha256sum python3 sudo docker grep seq date awk tr find; do
+for command_name in git curl sqlite3 tar sha256sum python3 docker grep seq date awk tr find sed; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is missing: $command_name" >&2
     exit 1
   }
 done
+
+select_docker_command() {
+  if docker info >/dev/null 2>&1; then
+    DOCKER=(docker)
+  elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER=(sudo -n docker)
+  else
+    echo "Docker is unavailable directly and through passwordless sudo" >&2
+    exit 1
+  fi
+}
+
+select_docker_command
 
 cd "$PROJECT_DIR"
 ARCHIVE="$BACKUP_ROOT/$BACKUP_ID.tar.gz"
@@ -43,11 +56,22 @@ PREPARATION_PREVIEW_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-pre
 PREPARATION_APPLY_REPORT="$BACKUP_ROOT/$BACKUP_ID-stage${DEPLOYMENT_STAGE}-preparation-apply.json"
 
 remove_test_root() {
+  local cleanup_image=""
   case "$TEST_ROOT" in
     "$BACKUP_ROOT"/stage"$DEPLOYMENT_STAGE"-test-baseline-*)
-      if [[ -e "$TEST_ROOT" ]]; then
-        sudo rm -rf -- "$TEST_ROOT"
+      if [[ -e "$TEST_ROOT" ]] && ! rm -rf -- "$TEST_ROOT" 2>/dev/null; then
+        cleanup_image="$("${DOCKER[@]}" compose config --images | sed -n '1p')"
+        if [[ -z "$cleanup_image" ]] || ! "${DOCKER[@]}" image inspect "$cleanup_image" >/dev/null 2>&1; then
+          echo "Unable to select a local image for disposable restore cleanup" >&2
+          return 1
+        fi
+        "${DOCKER[@]}" run --rm \
+          -v "$BACKUP_ROOT:/cleanup-root" \
+          --entrypoint rm \
+          "$cleanup_image" \
+          -rf -- "/cleanup-root/$(basename "$TEST_ROOT")"
       fi
+      [[ ! -e "$TEST_ROOT" ]] || { echo "Unable to remove disposable restore path: $TEST_ROOT" >&2; return 1; }
       ;;
     *)
       echo "Refusing to remove unsafe test path: $TEST_ROOT" >&2
@@ -297,10 +321,10 @@ if command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$TEST_PORT "; then
   exit 1
 fi
 
-sudo docker compose build "$SERVICE"
-mapfile -t IMAGE_REFERENCES < <(sudo docker compose config --images)
+"${DOCKER[@]}" compose build "$SERVICE"
+mapfile -t IMAGE_REFERENCES < <("${DOCKER[@]}" compose config --images)
 require_equal "Compose image count" "${#IMAGE_REFERENCES[@]}" "1"
-NEW_IMAGE_ID="$(sudo docker image inspect --format '{{.Id}}' "${IMAGE_REFERENCES[0]}")"
+NEW_IMAGE_ID="$("${DOCKER[@]}" image inspect --format '{{.Id}}' "${IMAGE_REFERENCES[0]}")"
 test -n "$NEW_IMAGE_ID"
 
 mkdir -p "$TEST_ROOT"
@@ -353,7 +377,7 @@ cleanup() {
   local cleanup_code=0
   set +e
   if [[ "$TEST_STARTED" -eq 1 ]]; then
-    sudo docker stop "$TEST_CONTAINER" >/dev/null 2>&1 || true
+    "${DOCKER[@]}" stop "$TEST_CONTAINER" >/dev/null 2>&1 || true
   fi
   remove_test_root || cleanup_code=$?
   if [[ "$exit_code" -eq 0 && "$cleanup_code" -ne 0 ]]; then
@@ -373,7 +397,7 @@ if (( DEPLOYMENT_STAGE >= 8 )); then
   TEST_ENV_ARGS=(-e SUBMISSION_NOTIFY_TO=)
 fi
 
-sudo docker run -d --rm \
+"${DOCKER[@]}" run -d --rm \
   --name "$TEST_CONTAINER" \
   --env-file "$TEST_DATA/.env" \
   "${TEST_ENV_ARGS[@]}" \
@@ -387,12 +411,12 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "http://127.0.0.1:$TEST_PORT/api/health" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
 if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
-  sudo docker exec "$TEST_CONTAINER" python -m server.media_library index \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.media_library index \
     --database /data/cms.sqlite3 \
     --media-dir /data/media \
     --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
 fi
-sudo docker exec "$TEST_CONTAINER" python -m server.migrations verify \
+"${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migrations verify \
   --database /data/cms.sqlite3 >/dev/null
 validate_database "$TEST_DATA/data/cms.sqlite3" "restored stage $DEPLOYMENT_STAGE image"
 if (( DEPLOYMENT_STAGE >= 6 )); then
@@ -415,12 +439,12 @@ fi
 if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
   # Full ruleset on the disposable restore, including cached two-attempt
   # external-link checks. The command changes only acceptance tables.
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance scan >/dev/null
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance verify >/dev/null
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_acceptance scan >/dev/null
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_acceptance verify >/dev/null
   python3 scripts/stage10_restore_smoke.py "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$TEST_DATA/data/cms.sqlite3"
 fi
 if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
-  sudo docker exec "$TEST_CONTAINER" python -m server.media_reconciliation \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.media_reconciliation \
     --database /data/cms.sqlite3 \
     --media /data/media \
     --manifest /data/legacy-media-manifest.json \
@@ -433,16 +457,16 @@ if (( DEPLOYMENT_STAGE >= 12 )); then
   TEST_PREP_REVIEW="$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')"
   TEST_PREP_CONTENTS="$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents;')"
   TEST_PREP_WORKFLOW="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation preview \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_preparation preview \
     --database /data/cms.sqlite3 >"$TEST_ROOT/preparation-preview.json"
   TEST_PREVIEW_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8"))["id"])' "$TEST_ROOT/preparation-preview.json")"
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); counts=data["counts"]; assert data["status"]=="completed" and counts.get("technical_blocker",0)==0 and counts.get("contents",0)==int(sys.argv[2])' "$TEST_ROOT/preparation-preview.json" "$TEST_PREP_REVIEW"
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation apply \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_preparation apply \
     --database /data/cms.sqlite3 \
     --preview-run-id "$TEST_PREVIEW_ID" >"$TEST_ROOT/preparation-apply.json"
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_acceptance scan \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_acceptance scan \
     --database /data/cms.sqlite3 --skip-external >"$TEST_ROOT/preparation-post-audit.json"
-  sudo docker exec "$TEST_CONTAINER" python -m server.migration_preparation verify \
+  "${DOCKER[@]}" exec "$TEST_CONTAINER" python -m server.migration_preparation verify \
     --database /data/cms.sqlite3 >/dev/null
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); assert data["status"]=="completed" and data["counts"].get("technical_blocker",0)==0' "$TEST_ROOT/preparation-apply.json"
   require_equal "restored stage 12 review flags" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$TEST_PREP_REVIEW"
@@ -544,7 +568,7 @@ assert status == 200
 PY
 fi
 
-sudo docker stop "$TEST_CONTAINER" >/dev/null
+"${DOCKER[@]}" stop "$TEST_CONTAINER" >/dev/null
 TEST_STARTED=0
 remove_test_root
 trap - EXIT
@@ -552,19 +576,19 @@ trap - EXIT
 # Production is changed only after the restored copy passes every check.
 validate_database data/cms.sqlite3 "production immediately before deployment" "$SOURCE_SCHEMA"
 DEPLOYMENT_STARTED="$(date +%s)"
-sudo docker compose up -d --no-deps "$SERVICE"
+"${DOCKER[@]}" compose up -d --no-deps "$SERVICE"
 for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then break; fi
   sleep 1
 done
 curl -fsS http://127.0.0.1:8000/api/health | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"]=="ok" and data["schema_version"]==sys.argv[1]' "$EXPECTED_CONTENT_SCHEMA"
 if [[ "$DEPLOYMENT_STAGE" == "6" ]]; then
-  sudo docker compose exec -T "$SERVICE" python -m server.media_library index \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.media_library index \
     --database /data/cms.sqlite3 \
     --media-dir /data/media \
     --missing-report /app/outputs/missing-legacy-media.csv >/dev/null
 fi
-sudo docker compose exec -T "$SERVICE" python -m server.migrations verify \
+"${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migrations verify \
   --database /data/cms.sqlite3 >/dev/null
 validate_database data/cms.sqlite3 "production after stage $DEPLOYMENT_STAGE"
 if (( DEPLOYMENT_STAGE >= 9 )); then
@@ -580,9 +604,9 @@ if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
   STAGE10_WORKFLOW_BEFORE="$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
   STAGE10_ACTOR_ID="$(database_value data/cms.sqlite3 "SELECT id FROM users WHERE role='admin' AND is_active=1 ORDER BY created_at,id LIMIT 1;")"
   test -n "$STAGE10_ACTOR_ID" || { echo "An active production administrator is required for the pilot batch" >&2; exit 1; }
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance scan >/dev/null
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance verify >/dev/null
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance create-pilot --actor-id "$STAGE10_ACTOR_ID" >/dev/null
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_acceptance scan >/dev/null
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_acceptance verify >/dev/null
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_acceptance create-pilot --actor-id "$STAGE10_ACTOR_ID" >/dev/null
   require_equal "stage 10 review flags" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$STAGE10_REVIEW_BEFORE"
   require_equal "stage 10 contents" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')" "$STAGE10_CONTENTS_BEFORE"
   require_equal "stage 10 revisions" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM revisions;')" "$STAGE10_REVISIONS_BEFORE"
@@ -593,7 +617,7 @@ if [[ "$DEPLOYMENT_STAGE" == "10" ]]; then
   validate_database data/cms.sqlite3 "production after stage 10 audit"
 fi
 if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
-  sudo docker compose exec -T "$SERVICE" python -m server.media_reconciliation \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.media_reconciliation \
     --database /data/cms.sqlite3 \
     --media /data/media \
     --manifest /data/legacy-media-manifest.json \
@@ -607,18 +631,18 @@ if (( DEPLOYMENT_STAGE >= 12 )); then
   STAGE12_REVIEW_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')"
   STAGE12_CONTENTS_BEFORE="$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents;')"
   STAGE12_WORKFLOW_BEFORE="$(database_value data/cms.sqlite3 "SELECT group_concat(status||':'||amount,',') FROM (SELECT status,COUNT(*) amount FROM contents GROUP BY status ORDER BY status);")"
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation preview \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_preparation preview \
     --database /data/cms.sqlite3 >"$PREPARATION_PREVIEW_REPORT"
   chmod 600 "$PREPARATION_PREVIEW_REPORT"
   STAGE12_PREVIEW_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8"))["id"])' "$PREPARATION_PREVIEW_REPORT")"
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); counts=data["counts"]; assert data["status"]=="completed" and counts.get("technical_blocker",0)==0 and counts.get("contents",0)==int(sys.argv[2])' "$PREPARATION_PREVIEW_REPORT" "$STAGE12_REVIEW_BEFORE"
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation apply \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_preparation apply \
     --database /data/cms.sqlite3 \
     --preview-run-id "$STAGE12_PREVIEW_ID" >"$PREPARATION_APPLY_REPORT"
   chmod 600 "$PREPARATION_APPLY_REPORT"
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_acceptance scan \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_acceptance scan \
     --database /data/cms.sqlite3 --skip-external >"${PREPARATION_APPLY_REPORT%.json}-post-audit.json"
-  sudo docker compose exec -T "$SERVICE" python -m server.migration_preparation verify \
+  "${DOCKER[@]}" compose exec -T "$SERVICE" python -m server.migration_preparation verify \
     --database /data/cms.sqlite3 >/dev/null
   python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); assert data["status"]=="completed" and data["counts"].get("technical_blocker",0)==0' "$PREPARATION_APPLY_REPORT"
   require_equal "stage 12 review flags" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$STAGE12_REVIEW_BEFORE"
