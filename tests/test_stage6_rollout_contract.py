@@ -18,6 +18,19 @@ def test_stage13_wrapper_accepts_only_schema_11_or_12_and_targets_13() -> None:
     assert "production_apply_stage4.sh" in wrapper
 
 
+def test_stage14_wrapper_accepts_schema_13_and_targets_14() -> None:
+    wrapper = script("production_apply_stage14.sh")
+    rollout = script("production_apply_stage4.sh")
+    assert "export DEPLOYMENT_STAGE=14" in wrapper
+    assert '13)' in wrapper
+    assert "export EXPECTED_SCHEMA=14" in wrapper
+    assert "export EXPECTED_CONTENT_SCHEMA=1.7.0" in wrapper
+    assert "production_apply_stage4.sh" in wrapper
+    assert "/schedule /treby /about" in rollout
+    assert "production treby legacy status" in rollout
+    assert "external treby legacy status" in rollout
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(

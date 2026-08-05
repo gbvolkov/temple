@@ -64,7 +64,7 @@
               <a href="/schedule">Открыть расписание <span>→</span></a>
             </div>
             <div class="menu-panel__actions"><a class="button button--primary" href="/search">⌕&nbsp; Поиск по сайту</a><button class="button button--light" type="button" data-note-open>Подать записку</button>{% if contact.available %}<a class="button button--light" href="/about#contacts">Как добраться</a>{% endif %}</div>
-            <div class="menu-panel__secondary"><a href="/news">Новости</a><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a>{% if contact.available and contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}</div>
+            <div class="menu-panel__secondary"><a href="/treby">Требы и записки</a><a href="/news">Новости</a><a href="/gallery">Фотогалерея</a><a href="/leaflet">Иннокентиевский листок</a>{% if contact.available and contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}</div>
           </aside>
         </div>
       </div>
@@ -83,7 +83,7 @@
   <footer class="site-footer">
     <div class="shell site-footer__grid">
       <div><div class="brand brand--footer"><span class="brand__mark" aria-hidden="true">✣</span><span class="brand__name">Храм святителя Иннокентия<br><small>в Бескудникове</small></span></div><p>Патриаршее подворье Русской Православной Церкви.</p></div>
-      <div><h2>Быстрые ссылки</h2><button class="footer-button" type="button" data-note-open>Подать записку</button><a href="/search">Поиск</a><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a><a href="/rss.xml">RSS новостей</a></div>
+      <div><h2>Быстрые ссылки</h2><button class="footer-button" type="button" data-note-open>Подать записку</button><a href="/treby">Требы и записки</a><a href="/search">Поиск</a><a href="/schedule">Расписание</a><a href="/news">Новости</a><a href="/leaflet">Иннокентиевский листок</a><a href="/rss.xml">RSS новостей</a></div>
       <div><h2>Контакты</h2>{% if contact.available %}{% if contact.phone %}<a href="{{ contact.phone_href }}">{{ contact.phone }}</a>{% endif %}{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}{% if contact.address %}<p>{{ contact.address }}</p>{% endif %}{% else %}<p>Контакты готовятся к публикации.</p>{% endif %}</div>
       <div><h2>Мы на связи</h2>{% if contact.links %}{% for link in contact.links %}<a href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }} ↗</a>{% endfor %}{% else %}<a href="/about#contacts">Раздел контактов</a>{% endif %}</div>
     </div>
@@ -95,6 +95,7 @@
       <button class="modal__close" type="button" aria-label="Закрыть" data-note-close>×</button>
       <div class="eyebrow">Записка в храм</div>
       <h2 id="note-dialog-title">Подать записку</h2>
+      <p class="form-hint">Перечень треб и условия смотрите в разделе <a href="/treby">«Требы и записки»</a>.</p>
       <div class="visitor-progress" aria-label="Шаг формы"><span class="is-active" data-note-progress="1">1</span><span data-note-progress="2">2</span><span data-note-progress="3">3</span></div>
       <section class="form-step" data-note-step="1">
         <fieldset><legend>Выберите вид записки</legend>

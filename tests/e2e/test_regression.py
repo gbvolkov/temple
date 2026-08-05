@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -213,6 +214,113 @@ def test_material_lifecycle(page, live_cms):
     assert item["status"] == "trash"
     item = transition("restore", item)
     assert item["status"] == "draft"
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_public_treby_section(page, live_cms, coverage_steps):
+    editor_auth = page.request.post(
+        f"{live_cms.base_url}/api/admin/login",
+        data={"username": "e2e_editor", "password": "Strong-Password-2026!"},
+    )
+    assert editor_auth.ok
+    editor_headers = {"X-CSRF-Token": editor_auth.json()["csrf_token"]}
+    created_response = page.request.post(
+        f"{live_cms.base_url}/api/admin/contents",
+        headers=editor_headers,
+        data={
+            "content_type": "page",
+            "title": "E2E Требы и записки",
+            "data": {
+                "placement": "treby_info",
+                "summary": "Проверенный перечень для E2E.",
+                "body": [
+                    {
+                        "type": "list",
+                        "data": {
+                            "style": "bulleted",
+                            "items": [
+                                {"runs": [{"text": "Панихида E2E", "marks": []}]},
+                                {"runs": [{"text": "Записка о здравии E2E", "marks": []}]},
+                            ],
+                        },
+                    }
+                ],
+            },
+        },
+    )
+    assert created_response.status == 201, created_response.text()
+    item = created_response.json()
+    draft_page = page.request.get(f"{live_cms.base_url}/treby")
+    coverage_steps.check("treby.draft-hidden", "Панихида E2E" not in draft_page.text())
+
+    review = page.request.post(
+        f"{live_cms.base_url}/api/admin/contents/{item['id']}/submit-review",
+        headers=editor_headers,
+        data={"version": item["version"]},
+    )
+    assert review.ok
+    item = review.json()
+    forbidden = page.request.post(
+        f"{live_cms.base_url}/api/admin/contents/{item['id']}/publish",
+        headers=editor_headers,
+        data={"version": item["version"]},
+    )
+    coverage_steps.check("treby.editor-publish-forbidden", forbidden.status == 403)
+
+    admin_auth = page.request.post(
+        f"{live_cms.base_url}/api/admin/login",
+        data={"username": "admin", "password": "test-password"},
+    )
+    assert admin_auth.ok
+    admin_headers = {"X-CSRF-Token": admin_auth.json()["csrf_token"]}
+    published = page.request.post(
+        f"{live_cms.base_url}/api/admin/contents/{item['id']}/publish",
+        headers=admin_headers,
+        data={"version": item["version"]},
+    )
+    assert published.ok, published.text()
+    item = published.json()
+
+    response = page.goto(f"{live_cms.base_url}/treby", wait_until="domcontentloaded")
+    coverage_steps.check("treby.public-route", bool(response and response.ok))
+    coverage_steps.check("treby.published-list", page.get_by_text("Панихида E2E").is_visible())
+    coverage_steps.check(
+        "treby.section-navigation",
+        page.get_by_role("link", name="Расписание").count() > 0
+        and page.get_by_role("link", name="Трансляции и видео").count() > 0,
+    )
+    page.get_by_role("button", name="Подать записку").last.click()
+    dialog = page.locator("[data-note-dialog]")
+    coverage_steps.check("treby.note-form", dialog.is_visible())
+    coverage_steps.check(
+        "treby.form-details-link",
+        dialog.get_by_role("link", name="«Требы и записки»").get_attribute("href") == "/treby",
+    )
+    dialog.locator("[data-note-close]").first.click()
+
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute(
+            "INSERT OR REPLACE INTO redirects(old_path,new_path,status_code,created_at) VALUES(?,?,301,'now')",
+            ("/требы-онлайн.html", "/treby"),
+        )
+    legacy = page.request.get(
+        f"{live_cms.base_url}/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html",
+        max_redirects=0,
+    )
+    coverage_steps.check(
+        "treby.legacy-redirect",
+        legacy.status == 301 and legacy.headers.get("location") == "/treby",
+    )
+
+    archived = page.request.post(
+        f"{live_cms.base_url}/api/admin/contents/{item['id']}/archive",
+        headers=admin_headers,
+        data={"version": item["version"]},
+    )
+    assert archived.ok
+    hidden = page.request.get(f"{live_cms.base_url}/treby")
+    coverage_steps.check("treby.archive-hidden", "Панихида E2E" not in hidden.text())
 
 
 def test_coverage_contract():

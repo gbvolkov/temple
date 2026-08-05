@@ -191,7 +191,7 @@ validate_database() {
   require_equal "$label Pavel pointer" "$(database_value "$database" "SELECT status||'|'||version||'|'||published_version||'|'||(published_slug=slug) FROM contents WHERE id='$PAVEL_ID';")" "published|8|8|1"
   require_equal "$label published contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND status NOT IN ('archived','trash');")" "1"
   require_equal "$label unreviewed public contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND migration_review_required!=0;")" "0"
-  require_equal "$label duplicate singleton placements" "$(database_value "$database" "SELECT COUNT(*) FROM (SELECT json_extract(r.snapshot_json,'$.data.placement') placement,COUNT(*) amount FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='page' AND c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash') AND json_extract(r.snapshot_json,'$.data.placement') IN ('about_history','school_home','schedule_info') GROUP BY placement HAVING amount>1);")" "0"
+  require_equal "$label duplicate singleton placements" "$(database_value "$database" "SELECT COUNT(*) FROM (SELECT json_extract(r.snapshot_json,'$.data.placement') placement,COUNT(*) amount FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='page' AND c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash') AND json_extract(r.snapshot_json,'$.data.placement') IN ('about_history','school_home','schedule_info','treby_info') GROUP BY placement HAVING amount>1);")" "0"
   require_equal "$label invalid related sections" "$(database_value "$database" "SELECT COUNT(*) FROM contents c WHERE c.content_type IN ('news','gallery') AND COALESCE(json_extract(c.data_json,'$.related_section'),'')!='' AND NOT EXISTS (SELECT 1 FROM contents s WHERE s.content_type='parish_section' AND (s.id=json_extract(c.data_json,'$.related_section') OR s.slug=json_extract(c.data_json,'$.related_section')));")" "0"
   if (( expected_schema >= 7 )); then
     require_equal "$label submission table" "$(database_value "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='submissions';")" "1"
@@ -223,6 +223,9 @@ validate_database() {
     for column in identity_hash recovered recovery_reason error_json; do
       require_equal "$label stage 13 preparation column $column" "$(database_value "$database" "SELECT COUNT(*) FROM pragma_table_info('migration_preparation_runs') WHERE name='$column';")" "1"
     done
+  fi
+  if (( expected_schema >= 14 )); then
+    require_equal "$label treby legacy redirect" "$(database_value "$database" "SELECT COUNT(*) FROM redirects WHERE old_path='/требы-онлайн.html' AND new_path='/treby' AND status_code=301;")" "1"
   fi
 }
 
@@ -449,7 +452,7 @@ if (( DEPLOYMENT_STAGE >= 12 )); then
   test -z "$(database_value "$TEST_DATA/data/cms.sqlite3" 'PRAGMA foreign_key_check;')"
 fi
 
-for route in / /schedule /about /parish /school /news /gallery /leaflet /media; do
+for route in / /schedule /treby /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
 done
 PAVEL_SLUG="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT published_slug FROM contents WHERE id='$PAVEL_ID';")"
@@ -717,9 +720,17 @@ PY
 fi
 curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_ADDRESS" >/dev/null
 curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_PHONE" >/dev/null
+if (( DEPLOYMENT_STAGE >= 14 )); then
+  require_equal "production treby status" "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/treby)" "200"
+  require_equal "production treby legacy status" "$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8000/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html')" "301"
+fi
 
 require_equal "external site status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/")" "200"
 require_equal "external school status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/school")" "200"
+if (( DEPLOYMENT_STAGE >= 14 )); then
+  require_equal "external treby status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/treby")" "200"
+  require_equal "external treby legacy status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html")" "301"
+fi
 require_equal "external Pavel status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN")" "200"
 require_equal "public-domain CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/cms.html")" "404"
 require_equal "external CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' 'https://cms.temple.gbvolkoff.name:8443/cms.html')" "200"

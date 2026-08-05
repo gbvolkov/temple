@@ -156,7 +156,7 @@ def test_clean_database_matches_source_bundle(tmp_path: Path):
 
     result = verify_database(database, root)
     assert result["ok"] is True
-    assert result["schema_version"] == 13
+    assert result["schema_version"] == 14
     assert result["contents"] == 1
     assert result["redirects"] == 1
     assert result["review_required"] == 1

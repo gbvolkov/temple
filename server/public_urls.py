@@ -83,6 +83,13 @@ def legacy_index_target(old_path: str) -> str:
     return "/"
 
 
+def current_legacy_index_target(old_path: str) -> str:
+    """Return current public targets without changing the frozen schema-4 rules."""
+    if old_path == "/требы-онлайн.html":
+        return "/treby"
+    return legacy_index_target(old_path)
+
+
 def is_legacy_index(old_path: str) -> bool:
     if old_path in LEGACY_INDEX_PATHS:
         return True
@@ -90,7 +97,7 @@ def is_legacy_index(old_path: str) -> bool:
 
 
 def legacy_redirect_target(old_path: str, content_type: str, slug: str) -> str:
-    return legacy_index_target(old_path) if is_legacy_index(old_path) else content_path(content_type, slug)
+    return current_legacy_index_target(old_path) if is_legacy_index(old_path) else content_path(content_type, slug)
 
 
 def clean_hash_target(new_path: str, *, content_type: str | None = None, slug: str | None = None) -> str:

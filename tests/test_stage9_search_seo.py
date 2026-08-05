@@ -107,7 +107,7 @@ def test_migration_8_backfill_verify_and_reindex_are_idempotent(tmp_path: Path) 
     assert settings.database_path.read_bytes() == before
     with sqlite3.connect(settings.database_path) as connection:
         connection.row_factory = sqlite3.Row
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 13
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
         assert "fts5" in connection.execute(
             "SELECT sql FROM sqlite_master WHERE name='content_search'"
         ).fetchone()[0].lower()
@@ -241,9 +241,24 @@ def test_seo_social_preview_sitemap_rss_robots_and_errors(tmp_path: Path) -> Non
         assert site_card.status_code == 200
         assert "immutable" in site_card.headers["cache-control"]
 
+        treby = publish(
+            client,
+            headers,
+            create_content(
+                client,
+                headers,
+                "page",
+                "Требы и записки",
+                "Перечень треб для проверки sitemap.",
+                placement="treby_info",
+            ),
+        )
+
         sitemap = client.get("/sitemap.xml")
         assert sitemap.status_code == 200
         assert PUBLIC_BASE_URL + url in sitemap.text
+        assert sitemap.text.count(PUBLIC_BASE_URL + "/treby") == 1
+        assert f"/pages/{treby['published_slug']}" not in sitemap.text
         assert "/search" not in sitemap.text and "#/" not in sitemap.text
         robots = client.get("/robots.txt")
         assert robots.status_code == 200

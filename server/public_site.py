@@ -35,9 +35,9 @@ CONTENT_TYPE_LABELS = {
     "video": "Видео и трансляции",
 }
 PAGE_PLACEMENTS = {
-    "standalone", "about_history", "about_shrine", "school_home", "schedule_info",
+    "standalone", "about_history", "about_shrine", "school_home", "schedule_info", "treby_info",
 }
-SINGLETON_PAGE_PLACEMENTS = {"about_history", "school_home", "schedule_info"}
+SINGLETON_PAGE_PLACEMENTS = {"about_history", "school_home", "schedule_info", "treby_info"}
 SERVICE_TYPE_LABELS = {
     "liturgy": "Литургия", "vigil": "Всенощное бдение", "vespers": "Вечерня",
     "matins": "Утреня", "moleben": "Молебен", "panikhida": "Панихида",

@@ -24,11 +24,12 @@ DEFAULT_DESCRIPTION = "Официальный сайт храма святите
 DETAIL_TYPES = {"news", "gallery", "parish_section", "page", "clergy"}
 STATIC_SITEMAP_PATHS = (
     "/", "/schedule", "/about", "/parish", "/school", "/news", "/gallery",
-    "/leaflet", "/media",
+    "/leaflet", "/media", "/treby",
 )
 PATH_DESCRIPTIONS = {
     "/": DEFAULT_DESCRIPTION,
     "/schedule": "Расписание богослужений храма святителя Иннокентия в Бескудникове.",
+    "/treby": "Информация о требах и подаче записок в храме святителя Иннокентия в Бескудникове.",
     "/about": "История, святыни, духовенство и контакты храма святителя Иннокентия.",
     "/parish": "Направления приходской жизни храма святителя Иннокентия.",
     "/school": "Воскресная школа храма святителя Иннокентия в Бескудникове.",
@@ -420,7 +421,12 @@ def sitemap_xml(settings: Settings) -> bytes:
             "id": row["id"], "content_type": row["content_type"],
             "slug": row["published_slug"] or snapshot.get("slug") or row["slug"],
         })
-        path = public_content_url(snapshot).split("#", 1)[0].split("?", 1)[0]
+        data = snapshot.get("data") if isinstance(snapshot.get("data"), dict) else {}
+        path = (
+            "/treby"
+            if row["content_type"] == "page" and data.get("placement") == "treby_info"
+            else public_content_url(snapshot).split("#", 1)[0].split("?", 1)[0]
+        )
         if path in STATIC_SITEMAP_PATHS and row["content_type"] == "page":
             continue
         entries[path] = snapshot.get("updated_at") or row["revision_created_at"]

@@ -9,7 +9,8 @@
 - `outputs/cms-current-shortcomings.md` — полный перечень текущих недостатков;
 - `outputs/cms-full-test-report.md` — отчёт о тестировании;
 - `outputs/cms-solution-description.md` — описание решения;
-- `outputs/cms-user-guide.md` — руководство пользователя.
+- `outputs/cms-user-guide.md` — руководство пользователя;
+- `outputs/cms-editorial-assessment-guide.md` — детальная инструкция этапа 7.
 
 ## Основные правила выполнения
 
@@ -138,7 +139,7 @@
 
 ## Этап 6. Автоматическая подготовка мигрированных материалов
 
-**Статус: реализация и автоматическая приёмка завершены 30 июля 2026 года; требуется production rollout schema 13 перед началом этапа 7.** `CMS-19` и `CMS-20` исправлены и переведены из strict XFAIL в положительные source-data regressions. На изолированной копии текущего runtime-источника final NFKC устранил все `unicode_not_nfkc`, post-apply audit связан с конкретным apply run, а fail-closed semantic verify успешно принимает только полностью сопоставленные редакционные вопросы.
+**Статус: выполнен. Реализация и автоматическая приёмка завершены 30 июля 2026 года; clean production rollout schema 13 и повторный post-activation verify завершены 4 августа 2026 года.** `CMS-19` и `CMS-20` исправлены и переведены из strict XFAIL в положительные source-data regressions. На изолированной копии текущего runtime-источника final NFKC устранил все `unicode_not_nfkc`, post-apply audit связан с конкретным apply run, а fail-closed semantic verify успешно принимает только полностью сопоставленные редакционные вопросы.
 
 Schema 13 и контракт 1.1 добавляют устойчивые identity, active-run dedup/conflict, recovery того же run после restart, структурированные API/CLI errors, freshness полного audit, stale-hash preflight, latest-only/replayed rollback, 24-часовой fail-closed external evidence cache и append-only provenance generated media. UI раздельно показывает display/actionable/rollback targets, полное досье причин и последствий и не открывает pilot до `editorial_gate.ready`. Production gate перенесён на `scripts/production_apply_stage13.sh`.
 
@@ -152,6 +153,8 @@ Schema 13 и контракт 1.1 добавляют устойчивые identi
 2. Получить production evidence успешных restore drill, audit → preview → apply → post-audit → verify и неизменности workflow/migration-флагов.
 3. Убедиться через API/UI, что `preparation.editorial_gate.ready=true`.
 4. Только после этого создать малую пилотную редакционную партию. Дополнительного решения человека для технического gate не требуется.
+
+Все четыре production-условия выполнены 4 августа 2026 года: schema 13 активна, clean bootstrap и оба post-activation verify успешны, `editorial_gate.ready=true`, media reconciliation имеет `status=ok` и `unexplained_count=0`. Пилотная партия ещё не создавалась.
 
 Для чистой production-установки без существующей runtime-БД используется отдельный fail-closed процесс из `outputs/cms-production-clean-migration-guide.md`: `build_public_source_bundle.ps1` собирает свежий read-only snapshot на Windows, а `production_bootstrap_clean.sh` выполняет полный импорт schema 13 в staging на Ubuntu. Он не заменяет upgrade-скрипт `production_apply_stage13.sh` для уже работающей CMS и отказывается запускаться поверх непустого `data/`.
 
@@ -172,6 +175,12 @@ bundle и staging-БД перенесён из host Python в application image;
 server 130/130; production rollout считается окончательно завершённым только
 после повторного clean gate с нулём необъяснённых media-расхождений.
 
+Повторный clean gate успешно завершён: deployment
+`public-source-20260804T185700Z`, implementation
+`18d6728cb63d4f8e3bf2297b0ebf2b5e4a8ba929`, reconciliation `status=ok`,
+`invalid_files=0`, `unexplained_count=0`; внутренний и внешний verify вернули
+`CLEAN_DEPLOYMENT_VERIFIED=true`.
+
 Цель: максимально сократить очередь материалов, требующих редакционного решения.
 
 - Сгруппировать проблемы по типу и причине.
@@ -187,7 +196,14 @@ server 130/130; production rollout считается окончательно �
 
 ## Этап 7. Редакционная проверка спорных материалов
 
-**Статус: технически подготовлен; содержательную работу НЕ НАЧИНАТЬ до успешного production rollout schema 13 и `editorial_gate.ready=true`.**
+**Статус: временно ожидает технический rollout schema 14. Production rollout schema 13 и прежний `editorial_gate.ready=true` подтверждены 4 августа 2026 года, но обнаруженный затем `CMS-29` изменил правила подготовки до 1.2.0. Разработка завершена 5 августа; до создания редакционной партии необходимо развернуть schema 14 и повторить audit → preview → apply → post-audit → semantic verify. Пошаговый редакционный порядок остаётся в `outputs/cms-editorial-assessment-guide.md`.**
+
+Дополнение `CMS-29` не перекладывает техническую работу на редактора. Разработка
+добавила публичный `/treby`, placement `treby_info`, сохранение импортированных
+документов, исправление legacy redirect и автоматическое назначение существующего
+черновика. Человек принимает только содержательное решение: актуальны ли виды
+треб, пожертвования, сроки и реквизиты, после чего материал проходит обычный
+workflow публикации.
 
 Цель: принять решения, которые могут изменить смысл, историческую достоверность или редакционную политику.
 

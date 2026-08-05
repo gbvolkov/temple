@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import hero, empty_state, content_blocks %}
+{% block content %}
+{{ hero(info.title if info else 'Требы и записки', info.summary if info and info.summary else 'Информация о требах и подаче записок в храме.', 'Богослужения') }}
+<section class="section section--white">
+  <div class="shell">
+    <nav class="subnav" aria-label="Разделы богослужений">
+      <a class="filter-button" href="/schedule">Расписание</a>
+      <a class="filter-button is-active" href="/treby" aria-current="page">Требы и записки</a>
+      <a class="filter-button" href="/media">Трансляции и видео</a>
+    </nav>
+    <div class="article-layout">
+      <article class="article-body">
+        {% if info %}
+          {{ content_blocks(info.blocks) }}
+          {% if info.pdf %}<p><a class="button button--primary" href="{{ info.pdf }}" target="_blank" rel="noopener">Открыть PDF ↗</a></p>{% endif %}
+        {% else %}
+          {{ empty_state('Информация готовится к публикации','Перечень треб появится здесь после проверки и публикации редактором.') }}
+        {% endif %}
+      </article>
+      <aside class="aside-card">
+        <div class="eyebrow">Записка в храм</div>
+        <h2>Передать имена</h2>
+        <p>Форма принимает записки без онлайн-оплаты. Полный перечень и условия публикуются на этой странице.</p>
+        <div class="aside-action"><button class="button button--primary" type="button" data-note-open>Подать записку</button><small>Без онлайн-оплаты</small></div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

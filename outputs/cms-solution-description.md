@@ -40,7 +40,7 @@ application image с зафиксированными Python-зависимос�
 | HTTP-приложение | FastAPI | API, авторизация, workflow, публичные маршруты, фоновые задачи |
 | Публичный render | Jinja2 | SSR-страницы с настоящими 200/404 и чистыми URL |
 | CMS UI | HTML/CSS/vanilla JavaScript | Формы, блоки, preview, панели управления |
-| Контентная схема | `site/cms-schema.json`, версия 1.6.0 | Типы, поля, блоки, порядок навигации |
+| Контентная схема | `site/cms-schema.json`, версия 1.7.0 | Типы, поля, блоки, порядок навигации |
 | Хранилище | SQLite | Контент, ревизии, пользователи, заявки, медиа, аудит, редиректы |
 | Файлы | `data/media` и `data/media-derivatives` | Оригиналы, thumbnails и WebP |
 | Фоновые процессы | asyncio scheduler | Отложенные публикации, email-outbox, migration audit |
@@ -343,16 +343,33 @@ uv run python -m server.migration_preparation rollback --run-id <apply-id>
 
 Production rollout схемы 11/12 → 13 выполняет `scripts/production_apply_stage13.sh`. Скрипт требует нулевые `technical_blocker`, неизменность количества материалов, workflow-состояний и migration-флагов, SQLite quick/FK checks; audit → preview → apply → post-audit → semantic verify сначала выполняются на восстановленной копии.
 
+Schema 14 и контентная схема 1.7.0 добавляют специальное singleton-размещение
+страницы `treby_info`. Публичный SSR-маршрут `/treby` читает только published
+revision, `/pages/{slug}` для такого материала канонически перенаправляет на
+`/treby`, а legacy `/требы-онлайн.html` получает прямой 301. Preparation rules
+1.2.0 назначают размещение уже импортированному черновику и преобразуют локальные
+legacy-документы в файловые блоки. Содержимое не публикуется автоматически:
+изменяемые финансовые и пастырские сведения помечены причиной
+`treby_details_require_editor`.
+
+Production rollout 13 → 14 выполняет `scripts/production_apply_stage14.sh` тем же
+restore-first контуром. После него обязателен новый preparation cycle, потому что
+rules version изменилась.
+
 Schema 13 добавляет identity-дедупликацию, restart recovery, structured API/CLI errors, 24-часовой external evidence cache, latest-only idempotent rollback и append-only provenance generated media. `CMS-19/CMS-20` закрыты на полной source-copy: Unicode issues равны нулю, а semantic verify проходит только на свежем post-apply audit с полностью сопоставленными editorial reasons.
 
 Production deployment должен включать согласованный SQLite backup, копию `data/media`, проверку восстановления, миграции схемы, readiness и smoke-тест. Порт приложения предназначен для loopback; наружу сайт публикуется через HTTPS reverse proxy.
 
 ## 14. Текущая граница готовности
 
-Техническая платформа, автоматическая подготовка и ключевые workflow готовы на restore/source-copy. До содержательного этапа 7 требуется:
+Техническая платформа, автоматическая подготовка и ключевые workflow развернуты в production. Clean deployment `public-source-20260804T185700Z`, schema 13, media reconciliation, внутренний и внешний post-activation verify завершены. Разработка schema 14 для `CMS-29` готова и прошла локальную приёмку, но ещё не развернута; прежний editorial gate необходимо обновить после rollout.
 
-- выполнить production rollout schema 13 и сохранить evidence;
-- подтвердить `editorial_gate.ready=true`;
-- завершить редакционную приёмку оставшихся спорных материалов;
-- настроить production secrets, SMTP, backup/restore и HTTPS;
-- начинать с малой пилотной партии и не передавать человеку технические коды.
+Остаётся:
+
+- выполнить редакционную приёмку 1 261 содержательно неоднозначного материала;
+- начать с малой пилотной партии и по её решениям повторно сократить очередь автоматическими правилами;
+- не передавать человеку технические коды и программные решения;
+- после каждой волны выполнять audit, применимый regression и проверку неизменности источника;
+- поддерживать production secrets, SMTP, backup/restore и HTTPS как эксплуатационный контур.
+
+Нормативный пользовательский порядок этапа 7: `outputs/cms-editorial-assessment-guide.md`.

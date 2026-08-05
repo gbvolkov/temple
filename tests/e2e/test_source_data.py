@@ -54,7 +54,7 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
         source.backup(destination)
     init_database(target)
     migrated = database_report(target)
-    assert migrated["schema_version"] == 13
+    assert migrated["schema_version"] == 14
     assert migrated["quick_check"] == ["ok"]
     assert migrated["foreign_key_error_count"] == 0
     after = stable_database_metrics(database_report(source_db))

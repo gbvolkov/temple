@@ -941,6 +941,27 @@ def apply_migration_preparation_hardening(connection: sqlite3.Connection) -> str
     return "migration preparation contracts, evidence, and provenance hardened"
 
 
+def validate_treby_public_route(connection: sqlite3.Connection) -> None:
+    row = connection.execute(
+        "SELECT new_path,status_code FROM redirects WHERE old_path='/требы-онлайн.html'"
+    ).fetchone()
+    if row and (row["new_path"] != "/treby" or row["status_code"] != 301):
+        raise MigrationError("Legacy URL страницы треб не ведёт на /treby со статусом 301")
+
+
+def apply_treby_public_route(connection: sqlite3.Connection) -> str:
+    before = connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0]
+    changed = connection.execute(
+        "UPDATE redirects SET new_path='/treby',status_code=301 "
+        "WHERE old_path='/требы-онлайн.html'"
+    ).rowcount
+    after = connection.execute("SELECT COUNT(*) FROM redirects").fetchone()[0]
+    if before != after:
+        raise MigrationError(f"Schema 14 changed redirect count: {before} -> {after}")
+    validate_treby_public_route(connection)
+    return f"treby legacy redirect normalized; updated rows: {changed}"
+
+
 MIGRATIONS = (
     Migration(1, "baseline_schema", apply_baseline_schema, SCHEMA),
     Migration(
@@ -1082,6 +1103,15 @@ MIGRATIONS = (
             )),
             repr(sorted(MIGRATION_PREPARATION_HARDENING_INDEXES)),
             inspect.getsource(validate_migration_preparation_hardening),
+        )),
+    ),
+    Migration(
+        14,
+        "treby_public_route",
+        apply_treby_public_route,
+        "\n".join((
+            "/требы-онлайн.html -> /treby (301)",
+            inspect.getsource(validate_treby_public_route),
         )),
     ),
 )

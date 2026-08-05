@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.6.0",
+  "schema_version": "1.7.0",
   "locale": "ru-RU",
   "ui": {
     "groups": {
@@ -140,7 +140,7 @@
         "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "По умолчанию используется заголовок страницы."},
         "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "По умолчанию используется вводный текст или начало страницы."},
         "social_image": {"label": "Изображение для соцсетей", "type": "image", "group": "seo", "help": "По умолчанию используется главное изображение."},
-        "placement": {"label": "Размещение", "type": "enum", "group": "publication", "default": "standalone", "values": [{"value": "standalone", "label": "Отдельная страница"}, {"value": "about_history", "label": "О храме — история"}, {"value": "about_shrine", "label": "О храме — святыня"}, {"value": "school_home", "label": "Воскресная школа"}, {"value": "schedule_info", "label": "Расписание — пояснение"}]},
+        "placement": {"label": "Размещение", "type": "enum", "group": "publication", "default": "standalone", "values": [{"value": "standalone", "label": "Отдельная страница"}, {"value": "about_history", "label": "О храме — история"}, {"value": "about_shrine", "label": "О храме — святыня"}, {"value": "school_home", "label": "Воскресная школа"}, {"value": "schedule_info", "label": "Расписание — пояснение"}, {"value": "treby_info", "label": "Богослужения — требы и записки"}]},
         "navigation_order": {"label": "Порядок в навигации", "type": "integer", "group": "publication", "default": 100}
       }
     },

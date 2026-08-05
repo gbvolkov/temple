@@ -104,7 +104,7 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
             table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("contents", "revisions", "users", "media", "redirects", "submissions")
         }
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 13
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:

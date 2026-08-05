@@ -258,8 +258,8 @@ def verify_database(database: Path, bundle_root: Path) -> dict:
         problems.append("SQLite quick_check failed")
     if foreign_keys:
         problems.append("SQLite foreign_key_check failed")
-    if schema_version != 13:
-        problems.append(f"schema version is {schema_version}, expected 13")
+    if schema_version != 14:
+        problems.append(f"schema version is {schema_version}, expected 14")
     if contents != expected_contents:
         problems.append(f"contents={contents}, expected {expected_contents}")
     if review_required != expected_contents:

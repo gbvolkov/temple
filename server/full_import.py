@@ -14,7 +14,7 @@ from .importer import canonical_target, fingerprint, media_mapping, rewrite_medi
 from .legacy_crawl import atomic_json
 from .legacy_inventory import classify_path
 from .media_mirror import canonical_asset_url
-from .public_urls import content_path, legacy_index_target
+from .public_urls import content_path, current_legacy_index_target
 
 
 IMAGE_RE = re.compile(r"\.(?:jpe?g|png|webp|gif)(?:\?|$)", re.I)
@@ -192,6 +192,8 @@ def record_from_page(page: dict) -> dict | None:
         data = {**common, "summary": "", "cover": gallery_images[0]["image"] if gallery_images else ""}
     else:
         data = {**common, "summary": "", "body": [{"type": "legacy_text", "text": raw_text}], "cover": gallery_images[0]["image"] if gallery_images else ""}
+        if path == "/требы-онлайн.html":
+            data["placement"] = "treby_info"
     return {
         "content_type": content_type,
         "slug": slugify(path.strip("/").replace("/", "-").removesuffix(".html") or "glavnaya"),
@@ -237,7 +239,7 @@ def execute_plan(database: Path, source: Path, plan: dict, *, actor_id: str | No
             counters[upsert_record(connection, record, actor_id)] += 1
             legacy_type = classify_path(record["legacy_url"], 200)
             redirect_target = (
-                legacy_index_target(record["legacy_url"])
+                current_legacy_index_target(record["legacy_url"])
                 if is_index(record["legacy_url"], legacy_type)
                 else content_path(record["content_type"], record["slug"])
             )

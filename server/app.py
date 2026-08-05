@@ -2328,6 +2328,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request, "schedule.html",
                 public_context("schedule", "Предпросмотр · Расписание", service_groups=groups, info=item, **common),
             )
+        if content_type == "page" and placement == "treby_info":
+            return render_public(
+                request, "treby.html",
+                public_context("schedule", "Предпросмотр · Требы и записки", info=item, **common),
+            )
 
         related = [content_view(candidate) for candidate in published_related_content(settings.database_path, raw)]
         if content_type == "parish_section":
@@ -2495,6 +2500,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             public_context("schedule", "Расписание богослужений", service_groups=groups, info=info),
         )
 
+    @app.get("/treby", response_class=HTMLResponse, include_in_schema=False)
+    def public_treby(request: Request):
+        info_items = pages_by_placement(settings.database_path, "treby_info")
+        info = content_view(info_items[0]) if info_items else None
+        return render_public(
+            request,
+            "treby.html",
+            public_context("schedule", "Требы и записки", info=info),
+        )
+
     @app.get("/about", response_class=HTMLResponse, include_in_schema=False)
     def public_about(request: Request):
         clergy = [content_view(item) for item in published_items(settings.database_path, "clergy")]
@@ -2655,6 +2670,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "about_shrine": "/about",
             "school_home": "/school",
             "schedule_info": "/schedule",
+            "treby_info": "/treby",
         }.get(placement)
         if target:
             return RedirectResponse(target, status_code=301)

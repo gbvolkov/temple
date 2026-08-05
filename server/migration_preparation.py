@@ -35,7 +35,7 @@ from .search import sync_content_search
 from .workflow import admin_content, record_audit
 
 
-PREPARATION_RULES_VERSION = "1.1.0"
+PREPARATION_RULES_VERSION = "1.2.0"
 CONTRACT_VERSION = "1.1"
 PREPARATION_NAMESPACE = uuid.UUID("57f5b2b9-c1c2-4f5e-9f7e-2a33e35d2782")
 RUN_STATUSES = ("queued", "running", "completed", "failed", "rolled_back")
@@ -264,6 +264,31 @@ def _paragraph_blocks(content_id: str, text: str) -> list[dict[str, Any]]:
     ]
 
 
+def _legacy_document_blocks(content_id: str, value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    blocks: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, document in enumerate(value):
+        if not isinstance(document, dict):
+            continue
+        url = str(document.get("href") or document.get("url") or "").strip()
+        if not url.startswith(("/media/", "/assets/")) or url in seen:
+            continue
+        seen.add(url)
+        label = str(document.get("text") or document.get("label") or "Документ").strip()
+        blocks.append({
+            "id": str(uuid.uuid5(PREPARATION_NAMESPACE, f"{content_id}:document:{index}:{url}")),
+            "type": "file",
+            "data": {
+                "url": url,
+                "label": label or "Документ",
+                "description": "Документ со старой страницы",
+            },
+        })
+    return blocks
+
+
 def _summary(text: str, maximum: int) -> str:
     compact = re.sub(r"\s+", " ", text).strip()
     if len(compact) <= maximum:
@@ -435,6 +460,13 @@ def propose_content(
     clean_text, confident = _clean_crawl_text(raw, proposed["title"]) if raw else ("", False)
     if raw and confident:
         blocks = _paragraph_blocks(content["id"], clean_text)
+        documents = _legacy_document_blocks(content["id"], data.get("legacy_documents"))
+        if documents:
+            blocks.extend(documents)
+            transformations.append({
+                "rule": "legacy_documents_to_blocks",
+                "label": "Документы старой страницы добавлены как файловые блоки",
+            })
         if blocks and data.get(body_field) != blocks:
             data[body_field] = blocks
             transformations.append({"rule": "legacy_text_to_blocks", "label": "Служебный chrome удалён, текст преобразован в блоки"})
@@ -448,6 +480,19 @@ def propose_content(
         maximum = int(fields["summary"].get("max_length") or 420)
         data["summary"] = _summary(clean_text, maximum)
         transformations.append({"rule": "summary_from_body", "label": "Краткое описание сформировано из первого содержательного текста"})
+
+    if content["content_type"] == "page" and content.get("legacy_url") == "/требы-онлайн.html":
+        if data.get("placement") != "treby_info":
+            data["placement"] = "treby_info"
+            transformations.append({
+                "rule": "legacy_treby_placement",
+                "label": "Страница размещена в разделе «Богослужения — требы и записки»",
+            })
+        editorial.append({
+            "code": "treby_details_require_editor",
+            "field_path": "body",
+            "message": "Перед публикацией подтвердите актуальность видов треб, пожертвований, сроков и реквизитов.",
+        })
 
     for date_field in ("publication_date", "event_date"):
         if str(data.get(date_field) or "").startswith("2000-"):
@@ -1481,7 +1526,7 @@ def verify_preparation(database_path: Path) -> dict[str, Any]:
     return {
         "ok": True,
         "contract_version": CONTRACT_VERSION,
-        "schema": 13,
+        "schema": 14,
         "rules_version": PREPARATION_RULES_VERSION,
         **result,
     }
