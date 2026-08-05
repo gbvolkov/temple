@@ -43,6 +43,14 @@ def test_cms_30_rollout_supports_direct_docker_without_passwordless_sudo() -> No
     assert '\"${DOCKER[@]}\" run --rm' in rollout
 
 
+def test_cms_32_baseline_checkpoints_database_with_runtime_permissions() -> None:
+    baseline = script("production_baseline.sh")
+    assert "checkpoint_database" in baseline
+    assert '"${DOCKER[@]}" run --rm' in baseline
+    assert "PRAGMA wal_checkpoint(TRUNCATE)" in baseline
+    assert 'sqlite3 data/cms.sqlite3 "PRAGMA wal_checkpoint(TRUNCATE);"' not in baseline
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(

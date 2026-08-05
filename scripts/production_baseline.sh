@@ -103,6 +103,16 @@ if [[ -z "$IMAGE_ID" ]]; then
   exit 1
 fi
 
+checkpoint_database() {
+  "${DOCKER[@]}" run --rm \
+    --network none \
+    --user 0:0 \
+    -v "$PROJECT_DIR/data:/data" \
+    --entrypoint python \
+    "$IMAGE_ID" \
+    -c 'import sqlite3; connection=sqlite3.connect("/data/cms.sqlite3"); result=connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone(); connection.close(); print("|".join(map(str, result)))'
+}
+
 CMS_STOPPED=0
 RESTORE_STARTED=0
 cleanup() {
@@ -121,7 +131,12 @@ DOWNTIME_STARTED="$(date +%s)"
 "${DOCKER[@]}" compose stop "$SERVICE"
 CMS_STOPPED=1
 
-sqlite3 data/cms.sqlite3 "PRAGMA wal_checkpoint(TRUNCATE);" >"$STAGING/sqlite-checkpoint.txt"
+CHECKPOINT_RESULT="$(checkpoint_database)"
+printf '%s\n' "$CHECKPOINT_RESULT" >"$STAGING/sqlite-checkpoint.txt"
+if [[ "$CHECKPOINT_RESULT" != "0|0|0" ]]; then
+  echo "SQLite WAL checkpoint failed: $CHECKPOINT_RESULT" >&2
+  exit 1
+fi
 QUICK_CHECK="$(sqlite3 -readonly data/cms.sqlite3 "PRAGMA quick_check;")"
 FOREIGN_KEY_ERRORS="$(sqlite3 -readonly data/cms.sqlite3 "PRAGMA foreign_key_check;")"
 printf '%s\n' "$QUICK_CHECK" >"$STAGING/sqlite-quick-check.txt"
