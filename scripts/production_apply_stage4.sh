@@ -258,6 +258,7 @@ PUBLISHED="$(report_value database.metrics.published)"
 REVIEW_REQUIRED="$(report_value database.review_required)"
 BACKUP_USERS="$(report_value database.metrics.users)"
 BACKUP_MEDIA="$(report_value database.metrics.media)"
+BACKUP_MISSING_MEDIA="$(report_value database.metrics.missing_media_issues)"
 PUBLISHED_CONTACTS="$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND status NOT IN ('archived','trash');")"
 PUBLIC_CLERGY_POINTER="$(database_value data/cms.sqlite3 "SELECT id||'|'||published_version||'|'||published_slug FROM contents WHERE content_type='clergy' AND published_version IS NOT NULL AND status NOT IN ('archived','trash') ORDER BY id LIMIT 1;")"
 CURRENT_SHA="$(git rev-parse HEAD)"
@@ -428,7 +429,7 @@ if (( DEPLOYMENT_STAGE >= 6 )); then
   TEST_MEDIA_FILES="$(find "$TEST_DATA/data/media" -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "restored media index" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status='ready';")" "$TEST_MEDIA_FILES"
   require_equal "restored invalid media" "$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
-  require_equal "restored missing legacy queue" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+  require_equal "restored missing legacy queue" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM missing_media_issues;')" "$BACKUP_MISSING_MEDIA"
 fi
 if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
   require_equal "restored users after isolated admin" "$(database_value "$TEST_DATA/data/cms.sqlite3" 'SELECT COUNT(*) FROM users;')" "$((BACKUP_USERS + 1))"
@@ -671,7 +672,7 @@ if (( DEPLOYMENT_STAGE >= 6 )); then
   PRODUCTION_MEDIA_FILES="$(find data/media -type f ! -path '*/.*' | wc -l | tr -d ' ')"
   require_equal "production media index" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status='ready';")" "$PRODUCTION_MEDIA_FILES"
   require_equal "production invalid media" "$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM media WHERE status!='ready';")" "0"
-  require_equal "production missing legacy queue" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM missing_media_issues;')" "201"
+  require_equal "production missing legacy queue" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM missing_media_issues;')" "$BACKUP_MISSING_MEDIA"
 fi
 if [[ "$DEPLOYMENT_STAGE" == "7" ]]; then
   require_equal "production users" "$(database_value data/cms.sqlite3 'SELECT COUNT(*) FROM users;')" "$BACKUP_USERS"

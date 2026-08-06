@@ -66,6 +66,16 @@ def test_cms_34_rollout_derives_optional_public_checks_from_production() -> None
     assert 'if (( PUBLISHED_CONTACTS > 0 ))' in rollout
 
 
+def test_cms_35_rollout_uses_baseline_missing_media_total() -> None:
+    rollout = script("production_apply_stage4.sh")
+    assert "BACKUP_MISSING_MEDIA" in rollout
+    assert "database.metrics.missing_media_issues" in rollout
+    assert '"$BACKUP_MISSING_MEDIA"' in rollout
+    assert 'restored missing legacy queue"' in rollout
+    assert 'production missing legacy queue"' in rollout
+    assert rollout.count('"$BACKUP_MISSING_MEDIA"') >= 2
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(

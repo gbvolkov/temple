@@ -25,6 +25,7 @@ def test_baseline_report_counts_public_materials_by_published_pointer(tmp_path):
     report = build_report(database, media)
 
     assert report["database"]["metrics"]["published"] == 1
+    assert report["database"]["metrics"]["missing_media_issues"] == 0
 
 
 def test_baseline_report_never_contains_environment_values(tmp_path):
