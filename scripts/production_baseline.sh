@@ -121,7 +121,7 @@ cleanup() {
     "${DOCKER[@]}" stop "$RESTORE_CONTAINER" >/dev/null 2>&1 || true
   fi
   if [[ "$CMS_STOPPED" -eq 1 ]]; then
-    "${DOCKER[@]}" compose up -d "$SERVICE" >/dev/null 2>&1 || true
+    "${DOCKER[@]}" start "$CONTAINER_ID" >/dev/null 2>&1 || true
   fi
   exit "$exit_code"
 }
@@ -163,7 +163,7 @@ printf '%s\n' "$CURRENT_SHA" >"$STAGING/checkout-git-sha.txt"
 printf '%s\n' "$IMAGE_ID" >"$STAGING/docker-image-id.txt"
 "${DOCKER[@]}" compose ps >"$STAGING/docker-compose-ps-before.txt"
 
-"${DOCKER[@]}" compose up -d "$SERVICE"
+"${DOCKER[@]}" start "$CONTAINER_ID"
 for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
     CMS_STOPPED=0

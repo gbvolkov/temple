@@ -18,11 +18,11 @@ def test_stage13_wrapper_accepts_only_schema_11_or_12_and_targets_13() -> None:
     assert "production_apply_stage4.sh" in wrapper
 
 
-def test_stage14_wrapper_accepts_schema_13_and_targets_14() -> None:
+def test_stage14_wrapper_accepts_schema_13_or_14_and_targets_14() -> None:
     wrapper = script("production_apply_stage14.sh")
     rollout = script("production_apply_stage4.sh")
     assert "export DEPLOYMENT_STAGE=14" in wrapper
-    assert '13)' in wrapper
+    assert '13|14)' in wrapper
     assert "export EXPECTED_SCHEMA=14" in wrapper
     assert "export EXPECTED_CONTENT_SCHEMA=1.7.0" in wrapper
     assert "production_apply_stage4.sh" in wrapper
@@ -74,6 +74,15 @@ def test_cms_35_rollout_uses_baseline_missing_media_total() -> None:
     assert 'restored missing legacy queue"' in rollout
     assert 'production missing legacy queue"' in rollout
     assert rollout.count('"$BACKUP_MISSING_MEDIA"') >= 2
+
+
+def test_cms_36_baseline_restarts_exact_container_and_stage14_can_resume() -> None:
+    baseline = script("production_baseline.sh")
+    wrapper = script("production_apply_stage14.sh")
+    assert baseline.count('"${DOCKER[@]}" start "$CONTAINER_ID"') >= 2
+    assert '"${DOCKER[@]}" compose up -d "$SERVICE"' not in baseline
+    assert "13|14)" in wrapper
+    assert "supports source schema 13 or idempotent recovery from 14" in wrapper
 
 
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:

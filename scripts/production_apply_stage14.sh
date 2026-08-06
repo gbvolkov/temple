@@ -6,8 +6,8 @@ set -Eeuo pipefail
 export DEPLOYMENT_STAGE=14
 export SOURCE_SCHEMA="${SOURCE_SCHEMA:-13}"
 case "$SOURCE_SCHEMA" in
-  13) ;;
-  *) echo "Stage 14 supports only source schema 13" >&2; exit 1 ;;
+  13|14) ;;
+  *) echo "Stage 14 supports source schema 13 or idempotent recovery from 14" >&2; exit 1 ;;
 esac
 export EXPECTED_SCHEMA=14
 export EXPECTED_CONTENT_SCHEMA=1.7.0
