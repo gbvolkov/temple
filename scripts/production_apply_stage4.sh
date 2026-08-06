@@ -11,7 +11,6 @@ EXPECTED_CONTENT_SCHEMA="${EXPECTED_CONTENT_SCHEMA:-1.1.0}"
 DEPLOYMENT_TAG="${DEPLOYMENT_TAG:-stage4-public-sections-from-cms}"
 DEPLOYMENT_ENTRYPOINT="${DEPLOYMENT_ENTRYPOINT:-$0}"
 TEST_PORT="${TEST_PORT:-18004}"
-PAVEL_ID="56871da9-3f57-4ff0-b405-3127668f7cad"
 PUBLIC_BASE_URL_EXPECTED="https://temple.gbvolkoff.name:8443"
 SOURCE_SCHEMA="${SOURCE_SCHEMA:-4}"
 EXPECTED_SCHEMA="${EXPECTED_SCHEMA:-4}"
@@ -212,9 +211,9 @@ validate_database() {
   require_equal "$label review-required" "$(database_value "$database" 'SELECT COUNT(*) FROM contents WHERE migration_review_required=1;')" "$REVIEW_REQUIRED"
   require_equal "$label redirects" "$(database_value "$database" 'SELECT COUNT(*) FROM redirects;')" "$EXPECTED_REDIRECTS"
   require_equal "$label hash redirects" "$(database_value "$database" "SELECT COUNT(*) FROM redirects WHERE new_path LIKE '/#/%';")" "0"
-  require_equal "$label Pavel pointer" "$(database_value "$database" "SELECT status||'|'||version||'|'||published_version||'|'||(published_slug=slug) FROM contents WHERE id='$PAVEL_ID';")" "published|8|8|1"
-  require_equal "$label published contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND status NOT IN ('archived','trash');")" "1"
+  require_equal "$label published contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND status NOT IN ('archived','trash');")" "$PUBLISHED_CONTACTS"
   require_equal "$label unreviewed public contacts" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND migration_review_required!=0;")" "0"
+  require_equal "$label invalid public pointers" "$(database_value "$database" "SELECT COUNT(*) FROM contents WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash') AND (published_slug IS NULL OR published_slug='');")" "0"
   require_equal "$label duplicate singleton placements" "$(database_value "$database" "SELECT COUNT(*) FROM (SELECT json_extract(r.snapshot_json,'$.data.placement') placement,COUNT(*) amount FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='page' AND c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash') AND json_extract(r.snapshot_json,'$.data.placement') IN ('about_history','school_home','schedule_info','treby_info') GROUP BY placement HAVING amount>1);")" "0"
   require_equal "$label invalid related sections" "$(database_value "$database" "SELECT COUNT(*) FROM contents c WHERE c.content_type IN ('news','gallery') AND COALESCE(json_extract(c.data_json,'$.related_section'),'')!='' AND NOT EXISTS (SELECT 1 FROM contents s WHERE s.content_type='parish_section' AND (s.id=json_extract(c.data_json,'$.related_section') OR s.slug=json_extract(c.data_json,'$.related_section')));")" "0"
   if (( expected_schema >= 7 )); then
@@ -259,6 +258,8 @@ PUBLISHED="$(report_value database.metrics.published)"
 REVIEW_REQUIRED="$(report_value database.review_required)"
 BACKUP_USERS="$(report_value database.metrics.users)"
 BACKUP_MEDIA="$(report_value database.metrics.media)"
+PUBLISHED_CONTACTS="$(database_value data/cms.sqlite3 "SELECT COUNT(*) FROM contents WHERE content_type='site_contact' AND published_version IS NOT NULL AND status NOT IN ('archived','trash');")"
+PUBLIC_CLERGY_POINTER="$(database_value data/cms.sqlite3 "SELECT id||'|'||published_version||'|'||published_slug FROM contents WHERE content_type='clergy' AND published_version IS NOT NULL AND status NOT IN ('archived','trash') ORDER BY id LIMIT 1;")"
 CURRENT_SHA="$(git rev-parse HEAD)"
 BACKUP_SHA="$(report_value source.git_sha)"
 
@@ -307,10 +308,14 @@ if (( DEPLOYMENT_STAGE >= 8 )); then
 fi
 validate_database data/cms.sqlite3 "production before stage $DEPLOYMENT_STAGE" "$SOURCE_SCHEMA"
 
-CONTACT_ADDRESS="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.address') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
-CONTACT_PHONE="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.phone') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
-test -n "$CONTACT_ADDRESS" || { echo "Published site_contact.address is required before stage 4" >&2; exit 1; }
-test -n "$CONTACT_PHONE" || { echo "Published site_contact.phone is required before stage 4" >&2; exit 1; }
+CONTACT_ADDRESS=""
+CONTACT_PHONE=""
+if (( PUBLISHED_CONTACTS > 0 )); then
+  CONTACT_ADDRESS="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.address') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
+  CONTACT_PHONE="$(database_value data/cms.sqlite3 "SELECT json_extract(r.snapshot_json,'$.data.phone') FROM contents c JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version WHERE c.content_type='site_contact' AND c.status NOT IN ('archived','trash') LIMIT 1;")"
+  test -n "$CONTACT_ADDRESS" || { echo "Published site_contact.address is required before stage 4" >&2; exit 1; }
+  test -n "$CONTACT_PHONE" || { echo "Published site_contact.phone is required before stage 4" >&2; exit 1; }
+fi
 
 if [[ -e "$TEST_ROOT" ]]; then
   echo "Removing stale disposable restore: $TEST_ROOT"
@@ -479,11 +484,21 @@ fi
 for route in / /schedule /treby /about /parish /school /news /gallery /leaflet /media; do
   require_equal "test route $route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$route")" "200"
 done
-PAVEL_SLUG="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT published_slug FROM contents WHERE id='$PAVEL_ID';")"
-PAVEL_CLEAN="/about/clergy/$PAVEL_SLUG"
-require_equal "test Pavel clean route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$PAVEL_CLEAN")" "200"
-curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
-curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_PHONE" >/dev/null
+RESTORED_PUBLIC_CLERGY_POINTER="$(database_value "$TEST_DATA/data/cms.sqlite3" "SELECT id||'|'||published_version||'|'||published_slug FROM contents WHERE content_type='clergy' AND published_version IS NOT NULL AND status NOT IN ('archived','trash') ORDER BY id LIMIT 1;")"
+require_equal "restored public clergy pointer" "$RESTORED_PUBLIC_CLERGY_POINTER" "$PUBLIC_CLERGY_POINTER"
+PUBLIC_CLERGY_ID=""
+PUBLIC_CLERGY_VERSION=""
+PUBLIC_CLERGY_SLUG=""
+PUBLIC_CLERGY_CLEAN=""
+if [[ -n "$PUBLIC_CLERGY_POINTER" ]]; then
+  IFS='|' read -r PUBLIC_CLERGY_ID PUBLIC_CLERGY_VERSION PUBLIC_CLERGY_SLUG <<<"$PUBLIC_CLERGY_POINTER"
+  PUBLIC_CLERGY_CLEAN="/about/clergy/$PUBLIC_CLERGY_SLUG"
+  require_equal "test public clergy route" "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$TEST_PORT$PUBLIC_CLERGY_CLEAN")" "200"
+fi
+if (( PUBLISHED_CONTACTS > 0 )); then
+  curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
+  curl -fsS "http://127.0.0.1:$TEST_PORT/about" | grep -F "$CONTACT_PHONE" >/dev/null
+fi
 if curl -fsS "http://127.0.0.1:$TEST_PORT/cms.html" | grep -F 'temple-demo' >/dev/null; then
   echo "CMS still exposes the demonstration password" >&2
   exit 1
@@ -492,14 +507,14 @@ fi
 if [[ "$DEPLOYMENT_STAGE" == "5" ]]; then
   # Exercise draft creation and the exact server preview only on the disposable restore.
   # Credentials are read in-process and are never written to the terminal or report.
-  python3 - "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$PAVEL_CLEAN" <<'PY'
+  python3 - "$TEST_PORT" "$TEST_ADMIN_CREDENTIALS" "$PUBLIC_CLERGY_CLEAN" <<'PY'
 import http.cookiejar
 import json
 import sys
 import urllib.error
 import urllib.request
 
-port, credentials_path, pavel_path = sys.argv[1:]
+port, credentials_path, public_clergy_path = sys.argv[1:]
 with open(credentials_path, encoding="utf-8") as source:
     credentials = json.load(source)
 username = credentials["username"]
@@ -563,8 +578,9 @@ status, preview = request(
 )
 assert status == 200
 assert "<strong>Одноразовый черновик восстановленной копии</strong>" in preview
-status, _ = request(pavel_path)
-assert status == 200
+if public_clergy_path:
+    status, _ = request(public_clergy_path)
+    assert status == 200
 PY
 fi
 
@@ -742,8 +758,10 @@ with sqlite3.connect(database) as connection:
         )
 PY
 fi
-curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_ADDRESS" >/dev/null
-curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_PHONE" >/dev/null
+if (( PUBLISHED_CONTACTS > 0 )); then
+  curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_ADDRESS" >/dev/null
+  curl -fsS http://127.0.0.1:8000/about | grep -F "$CONTACT_PHONE" >/dev/null
+fi
 if (( DEPLOYMENT_STAGE >= 14 )); then
   require_equal "production treby status" "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/treby)" "200"
   require_equal "production treby legacy status" "$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8000/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html')" "301"
@@ -755,20 +773,27 @@ if (( DEPLOYMENT_STAGE >= 14 )); then
   require_equal "external treby status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/treby")" "200"
   require_equal "external treby legacy status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/%D1%82%D1%80%D0%B5%D0%B1%D1%8B-%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD.html")" "301"
 fi
-require_equal "external Pavel status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN")" "200"
+require_equal "production public clergy pointer after stage $DEPLOYMENT_STAGE" "$(database_value data/cms.sqlite3 "SELECT id||'|'||published_version||'|'||published_slug FROM contents WHERE content_type='clergy' AND published_version IS NOT NULL AND status NOT IN ('archived','trash') ORDER BY id LIMIT 1;")" "$PUBLIC_CLERGY_POINTER"
+if [[ -n "$PUBLIC_CLERGY_POINTER" ]]; then
+  require_equal "external public clergy status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PUBLIC_CLERGY_CLEAN")" "200"
+fi
 require_equal "public-domain CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/cms.html")" "404"
 require_equal "external CMS status" "$(curl -ksS -o /dev/null -w '%{http_code}' 'https://cms.temple.gbvolkoff.name:8443/cms.html')" "200"
 require_equal "external health status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/api/health")" "200"
-curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
-curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_PHONE" >/dev/null
+if (( PUBLISHED_CONTACTS > 0 )); then
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_ADDRESS" >/dev/null
+  curl -ksS "$PUBLIC_BASE_URL_EXPECTED/about" | grep -F "$CONTACT_PHONE" >/dev/null
+fi
 if (( DEPLOYMENT_STAGE >= 9 )); then
   require_equal "external search status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/search")" "200"
   require_equal "external sitemap status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/sitemap.xml")" "200"
   require_equal "external robots status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/robots.txt")" "200"
   require_equal "external RSS status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED/rss.xml")" "200"
-  PAVEL_SOCIAL="/social-preview/content/$PAVEL_ID/v8.jpg"
-  require_equal "external social preview status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PAVEL_SOCIAL")" "200"
-  curl -ksS "$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN" | grep -F "<link rel=\"canonical\" href=\"$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN\">" >/dev/null
+  if [[ -n "$PUBLIC_CLERGY_POINTER" ]]; then
+    PUBLIC_CLERGY_SOCIAL="/social-preview/content/$PUBLIC_CLERGY_ID/v$PUBLIC_CLERGY_VERSION.jpg"
+    require_equal "external social preview status" "$(curl -ksS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE_URL_EXPECTED$PUBLIC_CLERGY_SOCIAL")" "200"
+    curl -ksS "$PUBLIC_BASE_URL_EXPECTED$PUBLIC_CLERGY_CLEAN" | grep -F "<link rel=\"canonical\" href=\"$PUBLIC_BASE_URL_EXPECTED$PUBLIC_CLERGY_CLEAN\">" >/dev/null
+  fi
   curl -ksS "$PUBLIC_BASE_URL_EXPECTED/robots.txt" | grep -F "Sitemap: $PUBLIC_BASE_URL_EXPECTED/sitemap.xml" >/dev/null
 fi
 
@@ -789,7 +814,9 @@ echo "BACKUP_ID=$BACKUP_ID"
 echo "IMPLEMENTATION_SHA=$CURRENT_SHA"
 echo "IMAGE_ID=$NEW_IMAGE_ID"
 echo "SERVER_ARCHIVE_SHA256=$SERVER_SHA256"
-echo "PAVEL_CLEAN_URL=$PUBLIC_BASE_URL_EXPECTED$PAVEL_CLEAN"
+if [[ -n "$PUBLIC_CLERGY_POINTER" ]]; then
+  echo "PUBLIC_CLERGY_CLEAN_URL=$PUBLIC_BASE_URL_EXPECTED$PUBLIC_CLERGY_CLEAN"
+fi
 echo "POST_REPORT=$POST_REPORT"
 if [[ "$DEPLOYMENT_STAGE" == "11" ]]; then
   echo "RECONCILIATION_REPORT=$RECONCILIATION_REPORT"

@@ -57,6 +57,15 @@ def test_cms_33_rollout_uses_explicit_published_pointer_metric() -> None:
     assert "database.by_status.published" not in rollout
 
 
+def test_cms_34_rollout_derives_optional_public_checks_from_production() -> None:
+    rollout = script("production_apply_stage4.sh")
+    assert "PAVEL_ID" not in rollout
+    assert "PUBLIC_CLERGY_POINTER" in rollout
+    assert "restored public clergy pointer" in rollout
+    assert 'if [[ -n "$PUBLIC_CLERGY_POINTER" ]]' in rollout
+    assert 'if (( PUBLISHED_CONTACTS > 0 ))' in rollout
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(
