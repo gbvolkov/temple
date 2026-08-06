@@ -51,6 +51,19 @@ def database_report(database: Path) -> dict:
             "submission_events",
         ):
             metrics[table] = scalar(connection, f"SELECT COUNT(*) FROM {table}") if table_exists(connection, table) else None
+        content_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(contents)")
+        } if table_exists(connection, "contents") else set()
+        metrics["published"] = (
+            scalar(
+                connection,
+                """SELECT COUNT(*) FROM contents
+                   WHERE published_version IS NOT NULL
+                     AND status NOT IN ('archived','trash')""",
+            )
+            if "published_version" in content_columns
+            else None
+        )
         by_status = {}
         by_type = {}
         by_type_status = []

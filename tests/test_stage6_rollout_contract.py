@@ -51,6 +51,12 @@ def test_cms_32_baseline_checkpoints_database_with_runtime_permissions() -> None
     assert 'sqlite3 data/cms.sqlite3 "PRAGMA wal_checkpoint(TRUNCATE);"' not in baseline
 
 
+def test_cms_33_rollout_uses_explicit_published_pointer_metric() -> None:
+    rollout = script("production_apply_stage4.sh")
+    assert "PUBLISHED=\"$(report_value database.metrics.published)\"" in rollout
+    assert "database.by_status.published" not in rollout
+
+
 def test_stage13_restore_and_semantic_gate_precede_production_workflow() -> None:
     rollout = script("production_apply_stage4.sh")
     restore_gate = rollout.index(

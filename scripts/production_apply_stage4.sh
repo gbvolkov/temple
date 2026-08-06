@@ -255,7 +255,7 @@ validate_database() {
 
 CONTENTS="$(report_value database.metrics.contents)"
 REVISIONS="$(report_value database.metrics.revisions)"
-PUBLISHED="$(report_value database.by_status.published)"
+PUBLISHED="$(report_value database.metrics.published)"
 REVIEW_REQUIRED="$(report_value database.review_required)"
 BACKUP_USERS="$(report_value database.metrics.users)"
 BACKUP_MEDIA="$(report_value database.metrics.media)"

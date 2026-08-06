@@ -1,10 +1,30 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 from server.baseline import build_report, verify_restore, write_media_manifest
 from server.migrations import migrate
+
+
+def test_baseline_report_counts_public_materials_by_published_pointer(tmp_path):
+    database = tmp_path / "cms.sqlite3"
+    media = tmp_path / "media"
+    media.mkdir()
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """INSERT INTO contents(
+                 id,content_type,slug,title,status,data_json,migration_review_required,
+                 version,created_at,updated_at,published_version,published_slug
+               ) VALUES('published-draft','page','draft','Draft','draft','{}',1,2,
+                        'created','updated',1,'public')"""
+        )
+
+    report = build_report(database, media)
+
+    assert report["database"]["metrics"]["published"] == 1
 
 
 def test_baseline_report_never_contains_environment_values(tmp_path):
