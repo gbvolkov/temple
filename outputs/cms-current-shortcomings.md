@@ -1,10 +1,10 @@
 # Текущие недоработки CMS
 
-Дата актуализации: 5 августа 2026 года
+Дата актуализации: 6 августа 2026 года
 
-Источник: серверный regression 135/135, Playwright smoke 3/3 и full 43/43 с 343 assertion ID, source-data подготовка schema 14 на безопасной копии (7 тестов, `source_unchanged=true`) и успешный исторический clean production deployment schema 13 `public-source-20260804T185700Z`
+Источник: серверный regression 142/142, Playwright smoke 3/3 и full 43/43 с 343 assertion ID, source-data 7/7 (`source_unchanged=true`) и успешный production rollout schema 14 по baseline `baseline-20260806T091802Z`
 
-На этапах 2–6 и при clean production migration исправлены зарегистрированные недостатки `CMS-01`–`CMS-28`, а 5 августа разработкой закрыт `CMS-29`; `GAP-02` и `GAP-03` также выполняются как положительная регрессия. Открыта только содержательная очередь `GAP-01`. Production остаётся на schema 13: перед редакционной партией необходимо развернуть schema 14, повторить audit → preview → apply → post-audit → semantic verify и получить новый `editorial_gate.ready=true`.
+На этапах 2–6 и production rollout исправлены зарегистрированные недостатки `CMS-01`–`CMS-36`; `GAP-02` и `GAP-03` также выполняются как положительная регрессия. Открыта только содержательная очередь `GAP-01`. Production работает на schema 14, а audit → preview → apply → post-audit → semantic verify завершён с `technical_items=0` и `semantic_failure_count=0`.
 
 ## Приоритеты
 
@@ -17,7 +17,7 @@
 
 ### CMS-29 — импортированный перечень треб недоступен публично — исправлено
 
-**Приоритет:** P1. **Статус:** исправлено разработкой 5 августа 2026 года; production rollout schema 14 ещё не выполнялся.
+**Приоритет:** P1. **Статус:** исправлено и развернуто в production 6 августа 2026 года; `/treby` отвечает 200, старый URL — 301 на `/treby`.
 
 Старая страница `/требы-онлайн.html` полностью присутствует в read-only crawl и
 импортирована как страница-черновик вместе с перечнем треб и документами. Однако
@@ -58,9 +58,9 @@ Playwright подтвердил, что механизм партий работ
 
 **Риск:** непроверенный архив нельзя безопасно публиковать, хотя технический cutover уже завершён.
 
-**Автоматически выполнено на этапе 6:** schema 13, contract 1.1, preview/apply/post-audit/verify/rollback, recovery, external evidence, generated-media provenance, полное досье и ролевой UI. Source-data прогон подготовил все 1 757 записей на копии и классифицировал их как `496 auto_ready`, `1 261 editorial_review`, `0 technical_blocker`; сохранил migration-флаги и подтвердил неизменность оригинальной БД и медиатеки.
+**Автоматически выполнено:** schema 14, contract 1.1, rules 1.2.0, preview/apply/post-audit/verify/rollback, recovery, external evidence, generated-media provenance, полное досье и ролевой UI. Production preparation классифицировал 1 757 записей как `787 auto_ready`, `970 editorial_review`, `0 technical_blocker`; сохранил migration-флаги и подтвердил целостность БД и медиатеки.
 
-**Production-приёмка schema 13:** post-apply audit содержит `589 blocker / 530 warning`; все blocker формально сопоставлены конкретным содержательным причинам `date_requires_editor` или `required_field_requires_editor`, `unicode_not_nfkc=0`, неизвестных и технических кодов нет, semantic verify успешен. Автоматическая подготовка классифицировала `496 auto_ready / 1 261 editorial_review / 0 technical_blocker`. Остаётся выполнить только содержательную оценку класса `editorial_review` по `outputs/cms-editorial-assessment-guide.md`.
+**Production-приёмка schema 14:** post-apply audit содержит `589 blocker / 530 warning`; все blocker формально сопоставлены содержательным причинам, `unicode_not_nfkc=0`, неизвестных и технических кодов нет, semantic verify успешен. Автоматическая подготовка классифицировала `787 auto_ready / 970 editorial_review / 0 technical_blocker`. Остаётся выполнить только содержательную оценку класса `editorial_review` по `outputs/cms-editorial-assessment-guide.md`.
 
 ## Исправлено на этапе 2
 
@@ -357,10 +357,9 @@ post-activation проверке обязательно выполняется r
 
 ## Рекомендуемый порядок исправления
 
-1. Выполнить production rollout schema 14 через `scripts/production_apply_stage14.sh` и restore drill.
-2. Повторить подготовку по rules 1.2.0 и проверить новый `editorial_gate.ready=true`.
-3. Редактору подтвердить актуальность страницы треб, затем publisher/admin публикует её обычным workflow.
-4. Завершить содержательную часть `GAP-01` редакционными партиями (этапы 7–8).
+1. Редактору подтвердить актуальность страницы треб, затем publisher/admin публикует её обычным workflow.
+2. Завершить содержательную часть `GAP-01` редакционными партиями (этапы 7–8).
+3. После каждой партии повторять audit и semantic verify по нормативной инструкции.
 
 ## Минимальные release-критерии
 

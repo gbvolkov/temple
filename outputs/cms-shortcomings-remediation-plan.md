@@ -196,7 +196,7 @@ server 130/130; production rollout считается окончательно �
 
 ## Этап 7. Редакционная проверка спорных материалов
 
-**Статус: временно ожидает технический rollout schema 14. Production rollout schema 13 и прежний `editorial_gate.ready=true` подтверждены 4 августа 2026 года, но обнаруженный затем `CMS-29` изменил правила подготовки до 1.2.0. Разработка завершена 5 августа; до создания редакционной партии необходимо развернуть schema 14 и повторить audit → preview → apply → post-audit → semantic verify. Пошаговый редакционный порядок остаётся в `outputs/cms-editorial-assessment-guide.md`.**
+**Статус: технический rollout schema 14 и новый editorial gate завершены 6 августа 2026 года. Baseline `baseline-20260806T091802Z`, restore drill, audit → preview → apply → post-audit → semantic verify, внутренние и внешние smoke-проверки прошли. Этап 7 продолжается по `outputs/cms-editorial-assessment-guide.md`; обязательное участие человека требуется только для содержательных решений по оставшимся материалам.**
 
 Дополнение `CMS-29` не перекладывает техническую работу на редактора. Разработка
 добавила публичный `/treby`, placement `treby_info`, сохранение импортированных

@@ -1,12 +1,13 @@
 # Полный отчёт о тестировании CMS
 
-Дата актуализации: 5 августа 2026 года
+Дата актуализации: 6 августа 2026 года
 
 Дополнение schema 14: `CMS-29` закрыт разработкой. Добавлены публичный `/treby`,
 placement `treby_info`, восстановление локальных документов, специализированный
 preview, singleton-защита и прямой 301 со старого URL. Characterization переведён
-в положительную регрессию. Production остаётся на schema 13 до отдельного rollout;
-публикация перечня выполняется только после подтверждения редактором.
+в положительную регрессию. Production rollout schema 14 завершён 6 августа по
+baseline `baseline-20260806T091802Z`; публикация перечня по-прежнему выполняется
+только после подтверждения редактором.
 
 Дополнение clean migration: свежий read-only public source-bundle на Windows,
 чистый schema 13 bootstrap на Ubuntu и автоматическое сохранение failed runtime
@@ -23,12 +24,12 @@ bundle/database validation в application image, а `CMS-26` разрешает 
 и отсутствие fail-closed проверки reconciliation warning. `CMS-27` сохраняет
 реальный MIME и provenance только для проверенного legacy mismatch, `CMS-28`
 требует `status=ok` и `unexplained_count=0` до и после активации.
-После актуальных исправлений пройдены server 135/135, smoke
+После актуальных исправлений пройдены server 142/142, smoke
 3/3, full 43/43 с 343 assertion ID и source-data 7/7 с
 единственным ожидаемым содержательным `GAP-01`; `contract_ok=true`,
 `source_unchanged=true`. Актуальные артефакты schema 14: full
-`20260805T154550-602481Z`, source-data `20260805T153948-759939Z`, smoke
-`20260805T154159-780859Z`.
+`20260806T091119-510868Z`, source-data `20260806T091345-485476Z`, smoke
+`20260806T091046-459210Z`.
 
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
@@ -37,7 +38,7 @@ bundle/database validation в application image, а `CMS-26` разрешает 
 
 CMS функционально реализует полный базовый цикл: вход, создание и редактирование материалов, ревизии, согласование, немедленную и отложенную публикацию, архив, корзину, восстановление, медиатеку, заявки, пользователей и миграционную приёмку.
 
-Техническая реализация schema 13 прошла повторный clean production rollout. `CMS-01`–`CMS-29` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`. После разработки schema 14 прежний production gate считается устаревшим; этап 7 возобновляется после rollout и повторного semantic verify.
+Техническая реализация schema 14 прошла restore-first production rollout. `CMS-01`–`CMS-36` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`; новый semantic gate пройден, поэтому этап 7 возобновлён.
 
 Нормативный контракт повторной приёмки: `outputs/cms-stage6-functional-requirements.md` версии 3.0 (`ACCEPT` после трёх циклов). `outputs/cms-stage6-functional-test-conclusion.md` фиксирует исторический недопуск до исправления `CMS-19/CMS-28` и успешного production rollout; актуальный допуск к этапу 7 зафиксирован в каноническом плане и редакционной инструкции.
 
@@ -50,8 +51,8 @@ CMS функционально реализует полный базовый ц
 - обе терминальные ветки миграционной партии проверены на отдельных копиях БД: `finalized` и `cancelled`;
 - долговечная очередь медиатеки проверена на 1 000 файлах, включая прогресс, восстановление и запрет параллельного запуска;
 - автоматическая сверка manifest, файлов, реестра, производных, missing-media отчёта и ссылок материалов завершилась без необъяснённых расхождений;
-- schema 13 ожидаемо перевела raw baseline `1 756` флагов в post-schema `1 757`; preview/apply классифицировал их как `496 auto_ready / 1 261 editorial_review / 0 technical_blocker` и сохранил workflow и migration-флаги;
-- повторный post-apply audit содержит `590 blocker / 530 warning`; все blocker сопоставлены содержательным причинам, `unicode_not_nfkc=0`, semantic verify успешен;
+- schema 14 и rules 1.2.0 подготовили все `1 757` материалов как `787 auto_ready / 970 editorial_review / 0 technical_blocker` и сохранили workflow и migration-флаги;
+- production post-apply audit содержит `589 blocker / 530 warning`; все blocker сопоставлены содержательным причинам, `unicode_not_nfkc=0`, semantic verify успешен;
 - server regression, CLI/schema/rollout contract tests прошли без warnings;
 - постоянный Playwright full-профиль содержит 42 положительных теста и не содержит функциональных `XFAIL`;
 - runtime-матрица подтверждает 334 существующие уникальные проверки; dossier assertion усилен проверкой code/field/message/rule/evidence/consequence/focus;
