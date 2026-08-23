@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import subprocess
@@ -383,3 +384,147 @@ def test_cms_17_testclient_deprecation(defect_registry, coverage_steps):
     bad = result.returncode != 0 and "StarletteDeprecationWarning" in output
     coverage_steps.check("stage4.testclient.warning-free", result.returncode == 0 and "StarletteDeprecationWarning" not in output, output[-1000:])
     observe_open_defect(defect_registry, "CMS-17", bad=bad, good=result.returncode == 0, detail=output[-1000:])
+
+
+def test_cms_37_migration_issue_return_context(page, live_cms, defect_registry, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        records = connection.execute(
+            "SELECT id,version,data_json FROM contents WHERE content_type='news' ORDER BY title LIMIT 55"
+        ).fetchall()
+        assert len(records) == 55
+        for index, (content_id, version, raw_data) in enumerate(records):
+            data = json.loads(raw_data or "{}")
+            data["publication_date"] = "2010-01-01"
+            connection.execute(
+                "UPDATE contents SET data_json=? WHERE id=?",
+                (json.dumps(data, ensure_ascii=False), content_id),
+            )
+            if index == 0:
+                continue
+            connection.execute(
+                """INSERT INTO migration_review_issues(
+                     id,audit_run_id,content_id,content_version,code,severity,field_path,fingerprint,
+                     status,message,details_json,detected_at
+                   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    f"cms37-issue-{index:03d}", "e2e-audit", content_id, version,
+                    "required_field_missing", "blocker", "cover", f"cms37-fingerprint-{index:03d}",
+                    "open", "Не заполнено обязательное поле", "{}", "2026-08-23T00:00:00+00:00",
+                ),
+            )
+
+    login(page)
+    page.locator('[data-panel="migration"]').click()
+    page.locator("[data-acceptance-issue-count]").wait_for()
+    page.locator("[data-migration-severity]").select_option("blocker")
+    page.locator("[data-migration-year]").fill("2010")
+    page.locator("[data-migration-type]").select_option("news")
+    page.locator("[data-migration-query]").fill("required_field_missing")
+    with page.expect_response(
+        lambda response: "/migration/issues?" in response.url
+        and "severity=blocker" in response.url
+        and "year=2010" in response.url
+        and "content_type=news" in response.url
+        and "q=required_field_missing" in response.url
+    ) as filtered:
+        page.locator("[data-migration-filter]").click()
+    assert filtered.value.json()["total"] == 55
+    with page.expect_response(
+        lambda response: "/migration/issues?" in response.url and "offset=50" in response.url
+    ):
+        page.locator("[data-migration-issues-next]").click()
+    page.wait_for_function(
+        "() => !document.querySelector('[data-migration-issues-prev]').disabled && document.querySelectorAll('[data-migration-issue]').length === 5"
+    )
+    issue = page.locator("[data-migration-issue]").nth(2)
+    issue.scroll_into_view_if_needed()
+    issue_id = issue.get_attribute("data-migration-issue")
+    origin_scroll = page.locator("[data-cms-panel]").evaluate("node => node.scrollTop")
+    assert origin_scroll > 0
+    issue.locator("[data-migration-open-content]").click()
+    page.locator("[data-editor-pane]").wait_for(state="visible")
+    return_action = page.locator("[data-editor-return]")
+    coverage_steps.check("stage7.issue-return.control", return_action.inner_text() == "← Вернуться к проблемам")
+
+    with page.expect_response(
+        lambda response: "/migration/issues?" in response.url
+        and "offset=50" in response.url
+        and "severity=blocker" in response.url
+        and "year=2010" in response.url
+        and "content_type=news" in response.url
+        and "q=required_field_missing" in response.url
+    ):
+        return_action.click()
+    restored = page.locator(f'[data-migration-issue="{issue_id}"] [data-migration-open-content]')
+    restored.wait_for()
+    filters_restored = (
+        page.locator("[data-migration-severity]").input_value() == "blocker"
+        and page.locator("[data-migration-year]").input_value() == "2010"
+        and page.locator("[data-migration-type]").input_value() == "news"
+        and page.locator("[data-migration-query]").input_value() == "required_field_missing"
+    )
+    coverage_steps.check("stage7.issue-return.filters", filters_restored)
+    coverage_steps.check("stage7.issue-return.pagination", not page.locator("[data-migration-issues-prev]").is_disabled())
+    coverage_steps.check(
+        "stage7.issue-return.origin-focus",
+        restored.evaluate("node => document.activeElement === node")
+        and abs(page.locator("[data-cms-panel]").evaluate("node => node.scrollTop") - origin_scroll) <= 1,
+    )
+
+    restored.click()
+    page.locator("[data-editor-pane]").wait_for(state="visible")
+    title = page.locator('[name="title"]')
+    title.fill(f"{title.input_value()} · проверено")
+    with page.expect_response(
+        lambda response: "/api/admin/contents/" in response.url and response.request.method == "PUT"
+    ):
+        page.locator("[data-save-draft]").first.click()
+    coverage_steps.check("stage7.issue-return.save-preserved", page.locator("[data-editor-return]").is_visible())
+    with page.expect_response(
+        lambda response: "/migration/issues?" in response.url
+        and "offset=50" in response.url
+        and "q=required_field_missing" in response.url
+    ):
+        page.locator('[data-panel="migration"]').click()
+    page.locator("[data-acceptance-issue-count]").filter(has_text="54 проблем").wait_for()
+    coverage_steps.check(
+        "stage7.issue-return.sidebar",
+        page.get_by_role("heading", name="Перенесённые материалы", exact=True).is_visible(),
+    )
+    focused_issue = page.evaluate(
+        "document.activeElement?.closest('[data-migration-issue]')?.dataset.migrationIssue || ''"
+    )
+    coverage_steps.check(
+        "stage7.issue-return.stale-fallback",
+        bool(focused_issue) and focused_issue != issue_id and "54 проблем" in page.locator("[data-acceptance-issue-count]").inner_text(),
+        f"focused={focused_issue!r}; count={page.locator('[data-acceptance-issue-count]').inner_text()!r}",
+    )
+
+    page.locator('[data-content-type="page"]').click()
+    page.locator("[data-editor-pane]").wait_for(state="visible")
+    coverage_steps.check("stage7.issue-return.direct-navigation-clears", page.locator("[data-editor-return]").count() == 0)
+
+    page.locator("[data-logout]").click()
+    page.locator("[data-login-dialog]").wait_for(state="visible")
+    login(page, "e2e_viewer", "Strong-Password-2026!")
+    page.locator('[data-panel="migration"]').click()
+    viewer_issue = page.locator("[data-migration-issue]").first
+    viewer_issue.wait_for()
+    viewer_issue.locator("[data-migration-open-content]").click()
+    page.locator("[data-editor-pane]").wait_for(state="visible")
+    viewer_return = page.locator("[data-editor-return]")
+    viewer_good = viewer_return.is_visible() and page.locator("[data-save-draft]").first.is_hidden()
+    with page.expect_response(lambda response: "/migration/issues?" in response.url and "offset=50" in response.url):
+        viewer_return.click()
+    coverage_steps.check(
+        "stage7.issue-return.viewer",
+        viewer_good and page.get_by_role("heading", name="Перенесённые материалы", exact=True).is_visible(),
+    )
+
+    observe_open_defect(
+        defect_registry,
+        "CMS-37",
+        bad=False,
+        good=filters_restored and viewer_good and bool(focused_issue),
+        detail=f"filters={filters_restored}; viewer={viewer_good}; fallback={focused_issue!r}",
+    )

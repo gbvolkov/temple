@@ -1,6 +1,6 @@
 # Полный отчёт о тестировании CMS
 
-Дата актуализации: 6 августа 2026 года
+Дата актуализации: 23 августа 2026 года
 
 Дополнение schema 14: `CMS-29` закрыт разработкой. Добавлены публичный `/treby`,
 placement `treby_info`, восстановление локальных документов, специализированный
@@ -25,11 +25,11 @@ bundle/database validation в application image, а `CMS-26` разрешает 
 реальный MIME и provenance только для проверенного legacy mismatch, `CMS-28`
 требует `status=ok` и `unexplained_count=0` до и после активации.
 После актуальных исправлений пройдены server 142/142, smoke
-3/3, full 43/43 с 343 assertion ID и source-data 7/7 с
+3/3, full 44/44 с 352 assertion ID и source-data 7/7 с
 единственным ожидаемым содержательным `GAP-01`; `contract_ok=true`,
-`source_unchanged=true`. Актуальные артефакты schema 14: full
-`20260806T091119-510868Z`, source-data `20260806T091345-485476Z`, smoke
-`20260806T091046-459210Z`.
+`source_unchanged=true`. Актуальные артефакты: full
+`20260823T100830-929449Z`, source-data `20260823T095308-579610Z`, smoke
+`20260823T100130-420826Z`.
 
 Объект: новая CMS и связанные публичные workflow сайта храма святителя Иннокентия  
 Метод: реальный Chromium через Playwright; дополнительно — API/unit-тесты и статическая проверка JavaScript
@@ -38,7 +38,7 @@ bundle/database validation в application image, а `CMS-26` разрешает 
 
 CMS функционально реализует полный базовый цикл: вход, создание и редактирование материалов, ревизии, согласование, немедленную и отложенную публикацию, архив, корзину, восстановление, медиатеку, заявки, пользователей и миграционную приёмку.
 
-Техническая реализация schema 14 прошла restore-first production rollout. `CMS-01`–`CMS-36` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`; новый semantic gate пройден, поэтому этап 7 возобновлён.
+Техническая реализация schema 14 прошла restore-first production rollout. `CMS-01`–`CMS-37` и `GAP-02/03` исправлены и защищены положительной регрессией. Единственная открытая недоработка — содержательная приёмка `GAP-01`; новый semantic gate пройден, поэтому этап 7 возобновлён.
 
 Нормативный контракт повторной приёмки: `outputs/cms-stage6-functional-requirements.md` версии 3.0 (`ACCEPT` после трёх циклов). `outputs/cms-stage6-functional-test-conclusion.md` фиксирует исторический недопуск до исправления `CMS-19/CMS-28` и успешного production rollout; актуальный допуск к этапу 7 зафиксирован в каноническом плане и редакционной инструкции.
 
@@ -91,7 +91,7 @@ CMS функционально реализует полный базовый ц
 1. интерактивный CLI-сеанс `cmsqa` для инвентаризации всех экранов, типов полей и блочного редактора;
 2. повторяемый Chromium-runner `output/playwright/cms-full-qa/cms_qa_runner.cjs` для длинных end-to-end workflow.
 
-Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 334 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-28` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидается только один `XFAIL`: содержательный `GAP-01`.
+Исследовательские сценарии включили 111 шагов. Текущая регрессия выполняет 352 уникальных assertion ID из `tests/e2e/coverage.json`, а каждый runtime-сценарий обязан отметить все заявленные им проверки. `CMS-01`–`CMS-37` и `GAP-02/03` выполняются как positive regression. В отдельном source-data профиле строго ожидается только один `XFAIL`: содержательный `GAP-01`.
 
 ## 4. Полная матрица кнопок, переходов и workflow
 
@@ -498,6 +498,18 @@ Inline-форматирование абзаца:
 | Форма | «Подать записку» остаётся без онлайн-оплаты и содержит ссылку на полный перечень |
 | Legacy URL | Schema 14 переводит `/требы-онлайн.html` напрямую на `/treby` со статусом 301 |
 
+### 4.23. Контекстный возврат из редактора в миграционную очередь
+
+| Проверка/workflow | Результат |
+|---|---|
+| «Исправить» → «← Вернуться к проблемам» | Восстановлены severity, год, тип, поиск и offset страницы |
+| Точная строка | Восстановлены прокрутка и клавиатурный фокус исходной issue |
+| После «Сохранить» | Кнопка возврата сохраняется; устаревшая issue исчезает, фокус переходит на ближайшую строку |
+| Боковое «Миграция» | Выполняет тот же контекстный возврат без повторной настройки фильтров |
+| Редакционная партия | Возврат открывает ту же партию и фокусирует исходную карточку материала |
+| Роли | Viewer получает read-only редактор и тот же возврат; сохранение остаётся недоступным |
+| Обычная навигация | Прямой переход к другому типу материала очищает устаревший контекст |
+
 ## 5. Console и сеть
 
 Нормальные сценарии завершились без непредвиденных pageerror. Ошибки были воспроизведены в отрицательных и дефектных сценариях:
@@ -509,24 +521,25 @@ Inline-форматирование абзаца:
 
 ## 6. Автоматические проверки
 
-Серверный контур: 135/135 тестов прошли без warnings.
+Серверный контур: 142/142 теста прошли без warnings.
 
 Постоянный браузерный контур после переноса всех исследовательских групп:
 
 | Профиль | Результат | Контракт |
 |---|---:|---|
 | `smoke` | 3/3 | вход, save/no-op, публичный переход, logout/login |
-| `full` | 43/43 | 43 позитивных, 0 `XFAIL`, 343 coverage assertions |
+| `full` | 44/44 | 44 позитивных, 0 `XFAIL`, 352 coverage assertions |
 | `source-data` | 7/7 | 6 позитивных, 1 ожидаемый `GAP-01`, источник не изменён |
 
 В full-профиле автоматизированы составные поля и rich-editor mutations, основной UI lifecycle и bulk workflow, обе публичные формы и обработка заявок, chooser и lifecycle медиатеки, CRUD/пароль/сессии пользователей, ролевая матрица, migration dashboard/audit, основной happy path автоматической подготовки и обе терминальные ветки партии. `known_gaps` в старой runtime-матрице пуст, но это не закрывает новые обязательные сценарии freshness, semantic verify, dossier, crash/recovery и source rollout из детальных требований.
 
 | Файл | Количество |
 |---|---:|
-| `test_baseline.py` | 4 |
+| `test_baseline.py` | 5 |
 | `test_clean_deploy.py` | 10 |
 | `test_clean_deploy_contract.py` | 8 |
 | `test_clean_migration_rollout.py` | 3 |
+| `test_cms_29_treby_publication.py` | 3 |
 | `test_cms_api.py` | 10 |
 | `test_full_import.py` | 4 |
 | `test_importer.py` | 4 |
@@ -534,13 +547,13 @@ Inline-форматирование абзаца:
 | `test_media_reconciliation.py` | 3 |
 | `test_migration_bundle.py` | 3 |
 | `test_migration_preparation.py` | 10 |
-| `test_migrations.py` | 9 |
+| `test_migrations.py` | 10 |
 | `test_stage10_migration_acceptance.py` | 8 |
 | `test_stage5_editor.py` | 7 |
 | `test_stage4_performance.py` | 2 |
 | `test_stage6_media.py` | 13 |
 | `test_stage6_cli_contract.py` | 2 |
-| `test_stage6_rollout_contract.py` | 3 |
+| `test_stage6_rollout_contract.py` | 10 |
 | `test_stage7_users_workflow.py` | 3 |
 | `test_stage8_submissions.py` | 10 |
 | `test_stage9_search_seo.py` | 5 |
@@ -551,9 +564,15 @@ Inline-форматирование абзаца:
 
 Актуальные воспроизводимые результаты постоянной регрессии:
 
-- `output/playwright/cms-regression/20260804T184838-759593Z/summary.json` — full 42/42, 0 `XFAIL`, 334 проверки;
-- `output/playwright/cms-regression/20260804T184426-667727Z/summary.json` — smoke 3/3;
-- `output/playwright/cms-regression/20260804T185111-333706Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
+- `output/playwright/cms-regression/20260823T100830-929449Z/summary.json` — последовательный full 44/44, 0 `XFAIL`, 352 проверки;
+- `output/playwright/cms-regression/20260823T100130-420826Z/summary.json` — smoke 3/3;
+- `output/playwright/cms-regression/20260823T095308-579610Z/summary.json` — source-data 7/7: 6 positive, один ожидаемый `GAP-01`, источник не изменён;
+
+Параллельный диагностический запуск `20260823T100130-420902Z` выполнил все
+функциональные проверки без failures, но получил teardown `ERROR`: один Uvicorn
+не остановился за 10 секунд при одновременном серверном pytest. Этот прогон не
+принят (`contract_ok=false`); обязательный повтор выполнен последовательно и
+завершён 44/44 с `contract_ok=true`.
 
 Артефакты исходного интерактивного аудита:
 

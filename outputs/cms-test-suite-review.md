@@ -1,23 +1,28 @@
 # Ревью автоматических тестов CMS
 
-Дата актуализации: 4 августа 2026 года.
+Дата актуализации: 23 августа 2026 года.
 
 ## Итог
 
-Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 334 уникальных assertion ID и пустой `known_gaps`. Повторная приёмка этапа 6 расширила нормативный контракт: дополнительные negative/recovery/semantic/rollout ветки перечислены как `MISSING` в `outputs/cms-stage6-functional-requirements.md`; пустой старый `known_gaps` не означает их закрытие.
+Все функциональные группы исходного 111-шагового исследовательского аудита перенесены в постоянную Python/Playwright-регрессию. `tests/e2e/coverage.json` содержит 352 уникальных assertion ID и пустой `known_gaps`. Повторная приёмка этапа 6 расширила нормативный контракт: дополнительные negative/recovery/semantic/rollout ветки перечислены как `MISSING` в `outputs/cms-stage6-functional-requirements.md`; пустой старый `known_gaps` не означает их закрытие.
 
-CMS-01–CMS-28 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить все сценарии без функциональных `XFAIL`. Source-data профиль выполняет шесть положительных сценариев и один зарегистрированный expected `XFAIL`: содержательный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
+CMS-01–CMS-37 и GAP-02/03 переведены в положительную регрессию и имеют статус `fixed`. Full-профиль обязан выполнить все сценарии без функциональных `XFAIL`. Source-data профиль выполняет шесть положительных сценариев и один зарегистрированный expected `XFAIL`: содержательный `GAP-01`. `XPASS`, новый `FAIL`, лишний browser/HTTP error, изменение ожидаемого количества тестов или изменение источника считаются ошибкой контракта.
 
 ## Результаты приёмки
 
 | Контур | Результат | Артефакт |
 |---|---|---|
-| Серверные тесты | 130/130, без failures и warnings | локальный полный pytest-прогон 04.08.2026 |
-| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260804T184426-667727Z` |
-| Playwright full | 42/42: 42 positive, 0 XFAIL, 334 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260804T184838-759593Z` |
-| Source-data schema 13 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260804T185111-333706Z` |
+| Серверные тесты | 142/142, без failures и warnings | локальный полный pytest-прогон 23.08.2026 |
+| Playwright smoke | 3/3, `contract_ok=true` | `output/playwright/cms-regression/20260823T100130-420826Z` |
+| Playwright full | 44/44: 44 positive, 0 XFAIL, 352 assertions, `contract_ok=true` | `output/playwright/cms-regression/20260823T100830-929449Z` |
+| Source-data schema 14 | 7/7: 6 positive + 1 expected `GAP-01`, `source_unchanged=true` | `output/playwright/cms-regression/20260823T095308-579610Z` |
 
 Прежний `StarletteDeprecationWarning` закрыт положительным subprocess-тестом с warnings-as-errors.
+
+Параллельный диагностический full `20260823T100130-420902Z` не принят: при
+одновременном серверном pytest один Uvicorn превысил teardown timeout, хотя
+функциональных failures не было. Последовательный повтор выше прошёл полностью;
+ошибочный JUnit сохранён для диагностики и не используется как evidence приёмки.
 
 ## Что теперь автоматизировано
 

@@ -780,10 +780,15 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
         page.locator("[data-editor-title]").inner_text() == "E2E page",
     )
 
-    _open_panel(page, "migration", "Перенесённые материалы")
-    with page.expect_response(lambda response: response.url.endswith("/api/admin/migration/batches/pilot")) as resumed:
-        page.locator("[data-migration-pilot]").click()
-    coverage_steps.check("migration.batch-pilot-resume", resumed.value.json()["id"] == batch_id)
+    with page.expect_response(lambda response: response.url.endswith(f"/api/admin/migration/batches/{batch_id}")):
+        page.locator("[data-editor-return]").click()
+    page.get_by_role("heading", name="Пилот: ключевые разделы", exact=True).wait_for()
+    coverage_steps.check(
+        "migration.batch-context-return",
+        page.locator(f'[data-batch-content="{source_card.get_attribute("data-batch-content")}"] [data-migration-open-content]').evaluate(
+            "node => document.activeElement === node"
+        ),
+    )
     page.locator("[data-migration-back]").click()
     page.get_by_role("heading", name="Перенесённые материалы", exact=True).wait_for()
     coverage_steps.mark("migration.batch-dashboard-back")

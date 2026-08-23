@@ -9,7 +9,7 @@
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", migration_accept: "Принят после миграции", migration_archive: "Архивирован при приёмке", migration_trash: "Перемещён в корзину при приёмке", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
-  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationDisplayRun: null, preparationItems: new Map(), preparationTimer: null, dossierOpenerId: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
+  const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, issuesTotal: 0, issueFilters: { severity: "", year: "", contentType: "", q: "" }, editorOrigin: null, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationDisplayRun: null, preparationItems: new Map(), preparationTimer: null, dossierOpenerId: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const uuid = () => globalThis.crypto?.randomUUID?.() || `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -338,6 +338,7 @@
     document.querySelector(".editor-head .eyebrow").textContent = record ? "Редактирование материала" : "Новый материал";
     document.querySelector(".editor-head__status span").textContent = record ? statusLabels[record.status] || record.status : "Черновик";
     document.querySelector("[data-migration-warning]")?.remove();
+    document.querySelector("[data-editor-return-context]")?.remove();
 
     const groups = new Map();
     for (const [name, field] of Object.entries(item.fields)) {
@@ -352,6 +353,7 @@
     state.dirty = false;
     clearRequiredValidation();
     renderMigrationWarning(record);
+    renderEditorReturnContext(record);
     renderWorkflow();
     updateEditableState();
     schedulePreview();
@@ -362,6 +364,17 @@
     const legacyLink = record.legacy_url ? `<a class="text-link" href="https://www.sv-innokenty.ru${escapeHtml(record.legacy_url)}" target="_blank" rel="noopener">Сравнить со старой страницей ↗</a>` : "";
     const button = can("editor") ? '<button class="button button--primary button--compact" type="button" data-audit-current>Повторить автоматический аудит</button>' : "";
     document.querySelector(".editor-head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-migration-warning><strong>Черновик перенесён со старого сайта</strong><span>Флаг снимается только при атомарной финализации редакционной партии. Сохранение материала само по себе не означает приёмку.</span><div class="migration-warning__actions">${button}${legacyLink}</div></div>`);
+  }
+
+  function renderEditorReturnContext(record) {
+    const origin = state.migration.editorOrigin;
+    if (!origin || !record || origin.contentId !== record.id) return;
+    const label = origin.kind === "batch" ? "← Вернуться в редакционную партию" : "← Вернуться к проблемам";
+    const note = origin.kind === "batch" ? "Партия, карточка и позиция списка будут восстановлены." : "Фильтры, страница и позиция списка будут восстановлены.";
+    document.querySelector(".editor-head").insertAdjacentHTML(
+      "afterend",
+      `<div class="editor-return-context" data-editor-return-context><button class="button button--ghost button--compact" type="button" data-editor-return>${label}</button><span>${note}</span></div>`,
+    );
   }
 
   function workflowState(record) {
@@ -1059,7 +1072,8 @@
   }
 
   function renderMigrationDashboardShell() {
-    panel.innerHTML = `<div class="acceptance-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><p>Автоматический аудит ничего не публикует и не снимает флаги. Решения применяются только при финализации партии.</p></div><div class="migration-dashboard-actions">${can("publisher") ? '<button class="button button--ghost" type="button" data-migration-run>Запустить аудит</button><button class="button button--primary" type="button" data-migration-pilot disabled aria-describedby="migration-pilot-reason">Создать пилотную партию</button><small id="migration-pilot-reason" data-migration-pilot-reason>Проверяем наличие завершённого полного аудита…</small>' : ""}</div></div><div class="metric-grid" data-acceptance-metrics></div><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Проблемы</h2><p>Фильтры применяются к последнему актуальному аудиту рабочей версии.</p></div></div><div class="acceptance-filters"><select data-migration-severity><option value="">Все уровни</option><option value="blocker">Блокирующие</option><option value="warning">Предупреждения</option><option value="info">Справочные</option></select><input type="text" inputmode="numeric" placeholder="Год" data-migration-year><select data-migration-type><option value="">Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}">${escapeHtml(definition.label)}</option>`).join("")}</select><input type="search" placeholder="Код, заголовок или старый URL" data-migration-query><button class="button button--ghost button--compact" type="button" data-migration-filter>Применить</button></div><div class="acceptance-issues" data-acceptance-issues></div><div class="media-pagination"><span data-acceptance-issue-count></span><button class="button button--ghost button--compact" type="button" data-migration-issues-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-migration-issues-next>Дальше →</button></div></section><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Редакционные партии</h2><p>До 50 зафиксированных версий; обязательная выборка и warnings проверяются до финализации.</p></div></div><div class="acceptance-batches" data-acceptance-batches></div></section><section class="acceptance-section"><h2>Запуски аудита</h2><div class="acceptance-runs" data-acceptance-runs></div></section></div>`;
+    const filters = state.migration.issueFilters;
+    panel.innerHTML = `<div class="acceptance-panel"><div class="workflow-panel__head"><div><div class="eyebrow">Редакторская приёмка</div><h1>Перенесённые материалы</h1><p>Автоматический аудит ничего не публикует и не снимает флаги. Решения применяются только при финализации партии.</p></div><div class="migration-dashboard-actions">${can("publisher") ? '<button class="button button--ghost" type="button" data-migration-run>Запустить аудит</button><button class="button button--primary" type="button" data-migration-pilot disabled aria-describedby="migration-pilot-reason">Создать пилотную партию</button><small id="migration-pilot-reason" data-migration-pilot-reason>Проверяем наличие завершённого полного аудита…</small>' : ""}</div></div><div class="metric-grid" data-acceptance-metrics></div><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Проблемы</h2><p>Фильтры применяются к последнему актуальному аудиту рабочей версии.</p></div></div><div class="acceptance-filters"><select data-migration-severity><option value=""${filters.severity ? "" : " selected"}>Все уровни</option><option value="blocker"${filters.severity === "blocker" ? " selected" : ""}>Блокирующие</option><option value="warning"${filters.severity === "warning" ? " selected" : ""}>Предупреждения</option><option value="info"${filters.severity === "info" ? " selected" : ""}>Справочные</option></select><input type="text" inputmode="numeric" value="${escapeHtml(filters.year)}" placeholder="Год" data-migration-year><select data-migration-type><option value=""${filters.contentType ? "" : " selected"}>Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}"${filters.contentType === type ? " selected" : ""}>${escapeHtml(definition.label)}</option>`).join("")}</select><input type="search" value="${escapeHtml(filters.q)}" placeholder="Код, заголовок или старый URL" data-migration-query><button class="button button--ghost button--compact" type="button" data-migration-filter>Применить</button></div><div class="acceptance-issues" data-acceptance-issues></div><div class="media-pagination"><span data-acceptance-issue-count></span><button class="button button--ghost button--compact" type="button" data-migration-issues-prev>← Назад</button><button class="button button--ghost button--compact" type="button" data-migration-issues-next>Дальше →</button></div></section><section class="acceptance-section"><div class="acceptance-section__head"><div><h2>Редакционные партии</h2><p>До 50 зафиксированных версий; обязательная выборка и warnings проверяются до финализации.</p></div></div><div class="acceptance-batches" data-acceptance-batches></div></section><section class="acceptance-section"><h2>Запуски аудита</h2><div class="acceptance-runs" data-acceptance-runs></div></section></div>`;
     panel.querySelector("[data-acceptance-metrics]").insertAdjacentHTML(
       "afterend",
       `<div class="acceptance-breakdown" data-acceptance-breakdown></div>
@@ -1095,15 +1109,21 @@
 
   function migrationIssueQuery() {
     const params = new URLSearchParams({ limit: "50", offset: String(state.migration.issuesOffset), status: "open" });
-    const severity = panel.querySelector("[data-migration-severity]")?.value;
-    const year = panel.querySelector("[data-migration-year]")?.value;
-    const type = panel.querySelector("[data-migration-type]")?.value;
-    const q = panel.querySelector("[data-migration-query]")?.value.trim();
+    const { severity, year, contentType: type, q } = state.migration.issueFilters;
     if (severity) params.set("severity", severity);
     if (year) params.set("year", year);
     if (type) params.set("content_type", type);
     if (q) params.set("q", q);
     return params;
+  }
+
+  function rememberMigrationIssueFilters() {
+    state.migration.issueFilters = {
+      severity: panel.querySelector("[data-migration-severity]")?.value || "",
+      year: panel.querySelector("[data-migration-year]")?.value.trim() || "",
+      contentType: panel.querySelector("[data-migration-type]")?.value || "",
+      q: panel.querySelector("[data-migration-query]")?.value.trim() || "",
+    };
   }
 
   const preparationClassLabels = {
@@ -1246,7 +1266,8 @@
       const yearRows = (acceptance.by_year || []).slice(0, 12).map(row => `<li><span>${escapeHtml(row.year === "unknown" ? "Без года" : row.year)}</span><b>${Number(row.review_required || 0).toLocaleString("ru-RU")} / ${Number(row.total || 0).toLocaleString("ru-RU")}</b><small>${Number(row.blockers || 0)} блок. · ${Number(row.warnings || 0)} предупр.</small></li>`).join("");
       breakdown.innerHTML = `<section><h2>По типам</h2><ul>${typeRows || "<li>Данных пока нет</li>"}</ul></section><section><h2>По годам</h2><ul>${yearRows || "<li>Данных пока нет</li>"}</ul></section>`;
     }
-    panel.querySelector("[data-acceptance-issues]").innerHTML = issues.items.map(issue => `<article class="acceptance-issue acceptance-issue--${escapeHtml(issue.severity)}"><span class="state-pill">${escapeHtml(migrationSeverityLabels[issue.severity] || issue.severity)}</span><div><strong>${escapeHtml(issue.title)}</strong><p>${escapeHtml(issue.message)}</p><small>${escapeHtml(state.schema.content_types[issue.content_type]?.label || issue.content_type)} · v${issue.content_version} · ${escapeHtml(issue.code)}${issue.field_path ? ` · ${escapeHtml(issue.field_path)}` : ""}</small></div><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(issue.content_id)}" data-content-type="${escapeHtml(issue.content_type)}">Исправить</button></article>`).join("") || '<div class="history-empty">По выбранным фильтрам открытых проблем нет.</div>';
+    panel.querySelector("[data-acceptance-issues]").innerHTML = issues.items.map(issue => `<article class="acceptance-issue acceptance-issue--${escapeHtml(issue.severity)}" data-migration-issue="${escapeHtml(issue.id)}"><span class="state-pill">${escapeHtml(migrationSeverityLabels[issue.severity] || issue.severity)}</span><div><strong>${escapeHtml(issue.title)}</strong><p>${escapeHtml(issue.message)}</p><small>${escapeHtml(state.schema.content_types[issue.content_type]?.label || issue.content_type)} · v${issue.content_version} · ${escapeHtml(issue.code)}${issue.field_path ? ` · ${escapeHtml(issue.field_path)}` : ""}</small></div><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(issue.content_id)}" data-content-type="${escapeHtml(issue.content_type)}">Исправить</button></article>`).join("") || '<div class="history-empty">По выбранным фильтрам открытых проблем нет.</div>';
+    state.migration.issuesTotal = Number(issues.total || 0);
     panel.querySelector("[data-acceptance-issue-count]").textContent = `${issues.total.toLocaleString("ru-RU")} проблем`;
     panel.querySelector("[data-migration-issues-prev]").disabled = state.migration.issuesOffset === 0;
     panel.querySelector("[data-migration-issues-next]").disabled = state.migration.issuesOffset + issues.items.length >= issues.total;
@@ -1289,6 +1310,69 @@
     toast(action === "finalize" ? "Партия финализирована; публикация выполняется отдельно" : "Состояние партии обновлено");
   }
 
+  function captureMigrationEditorOrigin(target) {
+    const issue = target.closest("[data-migration-issue]");
+    if (issue) {
+      const rows = [...panel.querySelectorAll("[data-migration-issue]")];
+      return {
+        kind: "issues",
+        contentId: target.dataset.migrationOpenContent,
+        issueId: issue.dataset.migrationIssue,
+        itemIndex: Math.max(0, rows.indexOf(issue)),
+        issuesOffset: state.migration.issuesOffset,
+        filters: clone(state.migration.issueFilters),
+        panelScrollTop: panel.scrollTop,
+        windowScrollY: window.scrollY,
+      };
+    }
+    const batchItem = target.closest("[data-batch-content]");
+    if (batchItem && state.migration.currentBatch) {
+      return {
+        kind: "batch",
+        batchId: state.migration.currentBatch.id,
+        contentId: target.dataset.migrationOpenContent,
+        panelScrollTop: panel.scrollTop,
+        windowScrollY: window.scrollY,
+      };
+    }
+    return null;
+  }
+
+  function restoreMigrationPosition(origin, opener) {
+    panel.scrollTop = Number(origin.panelScrollTop || 0);
+    window.scrollTo(0, Number(origin.windowScrollY || 0));
+    opener?.focus({ preventScroll: true });
+  }
+
+  async function returnToMigrationOrigin() {
+    const origin = state.migration.editorOrigin;
+    if (!origin) return showPanel("migration");
+    if (origin.kind === "batch") {
+      const loaded = await showPanel("migration");
+      if (!loaded) return false;
+      await openMigrationBatch(origin.batchId);
+      const item = panel.querySelector(`[data-batch-content="${CSS.escape(origin.contentId)}"]`);
+      restoreMigrationPosition(origin, item?.querySelector("[data-migration-open-content]"));
+    } else {
+      state.migration.issueFilters = clone(origin.filters);
+      state.migration.issuesOffset = origin.issuesOffset;
+      let loaded = await showPanel("migration");
+      if (!loaded) return false;
+      if (state.migration.issuesOffset > 0 && state.migration.issuesTotal <= state.migration.issuesOffset) {
+        state.migration.issuesOffset = Math.max(0, Math.floor(Math.max(0, state.migration.issuesTotal - 1) / 50) * 50);
+        renderMigrationDashboardShell();
+        loaded = await refreshMigrationStatus().catch(error => { toast(error.message); return false; });
+        if (!loaded) return false;
+      }
+      const rows = [...panel.querySelectorAll("[data-migration-issue]")];
+      const exact = panel.querySelector(`[data-migration-issue="${CSS.escape(origin.issueId)}"]`);
+      const fallback = rows[Math.min(origin.itemIndex, Math.max(0, rows.length - 1))];
+      restoreMigrationPosition(origin, (exact || fallback)?.querySelector("[data-migration-open-content]") || panel.querySelector("[data-migration-filter]"));
+    }
+    state.migration.editorOrigin = null;
+    return true;
+  }
+
   function showPanel(name) {
     if (name !== "migration") { state.migration.abort?.abort(); clearTimeout(state.migration.preparationTimer); }
     if (name !== "media") clearTimeout(state.media.reindexTimer);
@@ -1303,12 +1387,17 @@
     if (name === "media") renderMediaPanel();
     if (name === "users") renderUsersPanel().catch(error => toast(error.message));
     if (name === "settings") renderSettingsPanel();
-    if (name === "migration") { renderMigrationDashboardShell(); refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (name === "migration") {
+      renderMigrationDashboardShell();
+      return refreshMigrationStatus().catch(error => { toast(error.message); return false; });
+    }
+    return Promise.resolve(true);
   }
 
   function selectContentType(type) {
     state.migration.abort?.abort(); clearTimeout(state.migration.preparationTimer); clearTimeout(state.media.reindexTimer);
     state.activePanel = null;
+    state.migration.editorOrigin = null;
     state.currentType = type; state.current = null; state.dirty = false;
     resetContentPicker();
     document.querySelector("[data-editor-pane]").hidden = false; document.querySelector("[data-preview-pane]").hidden = false; panel.hidden = true;
@@ -1408,8 +1497,13 @@
     if (target.matches("[data-login-open]")) { const dialog = document.querySelector("[data-login-dialog]"); if (!dialog.open) dialog.showModal(); dialog.querySelector('[name="username"]').focus(); return; }
     if (target.matches("[data-diagnostics-refresh]")) { await loadDiagnostics(); return; }
     if (target.dataset.requiredField) { const wrapper = editorForm.querySelector(`[data-schema-field="${CSS.escape(target.dataset.requiredField)}"]`); (wrapper?.querySelector("input,textarea,select,[contenteditable],button") || wrapper)?.focus(); wrapper?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    if (target.matches("[data-editor-return]")) { await guardUnsavedChanges(returnToMigrationOrigin); return; }
     if (target.dataset.contentType && !target.dataset.migrationOpenContent) await guardUnsavedChanges(() => selectContentType(target.dataset.contentType));
-    if (target.dataset.panel) await guardUnsavedChanges(() => showPanel(target.dataset.panel));
+    if (target.dataset.panel) await guardUnsavedChanges(() => {
+      if (target.dataset.panel === "migration" && state.migration.editorOrigin) return returnToMigrationOrigin();
+      state.migration.editorOrigin = null;
+      return showPanel(target.dataset.panel);
+    });
     if (target.matches("[data-open-profile],[data-mobile-open-profile]")) await guardUnsavedChanges(() => document.querySelector("[data-password-dialog]").showModal());
     if (target.matches("[data-password-close]")) closeDialog("[data-password-dialog]");
     if (target.matches("[data-user-create-close]")) closeDialog("[data-user-create-dialog]");
@@ -1529,7 +1623,7 @@
       try { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
       catch (error) { toast(error.status === 409 ? "Полный аудит устарел или ещё не завершён. Обновляем состояние." : error.message); await refreshMigrationStatus().catch(refreshError => toast(refreshError.message)); }
     }
-    if (target.matches("[data-migration-filter]")) { state.migration.issuesOffset = 0; await refreshMigrationStatus().catch(error => toast(error.message)); }
+    if (target.matches("[data-migration-filter]")) { rememberMigrationIssueFilters(); state.migration.issuesOffset = 0; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-prev]")) { state.migration.issuesOffset = Math.max(0, state.migration.issuesOffset - 50); await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-next]")) { state.migration.issuesOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.dataset.migrationBatch) await openMigrationBatch(target.dataset.migrationBatch).catch(error => toast(error.message));
@@ -1540,7 +1634,14 @@
       if (dossierOpenerId) panel.querySelector(`[data-preparation-item="${CSS.escape(dossierOpenerId)}"]`)?.focus();
       state.migration.dossierOpenerId = null;
     }
-    if (target.dataset.migrationOpenContent) await guardUnsavedChanges(async () => { selectContentType(target.dataset.contentType); await openRecord(target.dataset.migrationOpenContent).catch(error => toast(error.message)); });
+    if (target.dataset.migrationOpenContent) {
+      const origin = captureMigrationEditorOrigin(target);
+      await guardUnsavedChanges(async () => {
+        selectContentType(target.dataset.contentType);
+        state.migration.editorOrigin = origin;
+        await openRecord(target.dataset.migrationOpenContent).catch(error => toast(error.message));
+      });
+    }
     if (target.matches("[data-batch-item-save]")) await saveMigrationBatchItem(target).catch(error => toast(error.message));
     if (target.matches("[data-batch-submit]")) await migrationBatchAction("submit").catch(error => toast(error.message));
     if (target.matches("[data-batch-finalize]")) await migrationBatchAction("finalize").catch(error => toast(error.message));
