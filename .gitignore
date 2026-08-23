@@ -5,6 +5,7 @@ __pycache__/
 .playwright-cli/
 .uv-cache/
 work/
+tmp/
 .env
 .env.*
 !.env.example
