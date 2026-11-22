@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 import pytest
@@ -151,6 +152,8 @@ def test_stage7_visible_workflow_to_publication(page, browser, live_cms, coverag
     other_option = other_picker.locator("option").filter(has_text="! Священник E2E")
     other_option.wait_for(state="attached")
     other_picker.select_option(other_option.get_attribute("value"))
+    expect(other.locator("[data-editor-title]")).to_have_text("Священник E2E")
+    expect(other.locator('[data-schema-field="position"] input')).to_have_value("Настоятель")
     other.locator('[data-schema-field="position"] input').fill("Второй редактор")
     other.locator("[data-save-draft]").last.click()
     other.get_by_text("Черновик сохранён").wait_for()
@@ -226,6 +229,35 @@ def test_cms_51_conflict_recovery_ui(page, browser, live_cms, coverage_steps):
     expect(page.locator('[data-schema-field="position"] input')).to_have_value("Другая правка")
     coverage_steps.mark("stage7.conflict.reload")
     second.close()
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_59_card_loading_blocks_editing(page, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('e2e-slow-card','clergy','e2e-slow-card','Медленная карточка','draft','{}',0,1,'2026-01-01','2026-01-01')""")
+    login(page)
+    page.locator('.cms-type[data-content-type="clergy"]').click()
+    picker = page.locator("[data-content-select]")
+    option = picker.locator("option").filter(has_text="Медленная карточка")
+    option.wait_for(state="attached")
+    picker.select_option(option.get_attribute("value"))
+    form = page.locator("[data-editor-form]")
+    expect(form).to_have_attribute("aria-busy", "true")
+    coverage_steps.check("stage7.card-loading.disabled", form.locator('[data-schema-field="rank"] input').is_disabled() and page.locator("[data-save-draft]").first.is_disabled())
+    expect(page.locator("[data-editor-title]")).to_have_text("Медленная карточка")
+    expect(form.locator('[data-schema-field="rank"] input')).to_be_enabled()
+    coverage_steps.mark("stage7.card-loading.ready")
+    fast = picker.locator("option").filter(has_text="E2E clergy")
+    fast.wait_for(state="attached")
+    picker.select_option(fast.get_attribute("value"))
+    expect(page.locator("[data-editor-title]")).to_have_text("E2E clergy")
+    with page.expect_response(lambda response: response.url.endswith("/api/admin/contents/e2e-slow-card")):
+        picker.select_option(option.get_attribute("value"))
+        page.locator('.cms-type[data-content-type="news"]').click()
+    expect(page.locator('.cms-type[data-content-type="news"]')).to_have_class(re.compile("is-active"))
+    coverage_steps.check("stage7.card-loading.latest", page.locator('[data-editor-title]').inner_text() != "Медленная карточка")
 
 
 CREATED_PASSWORD = "Created-Strong-Password-2026!"

@@ -329,6 +329,8 @@ def live_cms(tmp_path: Path, seed_template: Path) -> LiveCms:
 
     @app.middleware("http")
     async def e2e_delay_migration_query(request, call_next):
+        if request.url.path == "/api/admin/contents/e2e-slow-card" and request.method == "GET":
+            await asyncio.sleep(1.5)
         if request.url.path == "/api/admin/migration/issues" and request.query_params.get("q") == "e2e-slow":
             await asyncio.sleep(0.5)
         if request.url.path == "/api/admin/media/reindex" and request.method == "POST":

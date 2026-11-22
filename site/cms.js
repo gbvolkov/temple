@@ -2,6 +2,7 @@
   "use strict";
 
   const editorForm = document.querySelector("[data-editor-form]");
+  let recordLoadId = 0;
   const previewFrame = document.querySelector("[data-content-preview]");
   const panel = document.querySelector("[data-cms-panel]");
   const roleLevel = { viewer: 0, editor: 1, publisher: 2, admin: 3 };
@@ -329,6 +330,8 @@
   }
 
   function renderEditor(type = state.currentType, record = state.current) {
+    recordLoadId += 1;
+    editorForm.removeAttribute("aria-busy");
     state.currentType = type;
     const item = definition();
     renderNavigation();
@@ -610,12 +613,30 @@
   }
 
   async function openRecord(id) {
+    const requestId = ++recordLoadId;
     if (!id) { state.current = null; renderEditor(state.currentType, null); return; }
-    state.current = await apiRequest(`/api/admin/contents/${encodeURIComponent(id)}`);
-    state.currentType = state.current.content_type;
-    state.dirty = false;
-    renderNavigation();
-    renderEditor(state.currentType, state.current);
+    editorForm.setAttribute("aria-busy", "true");
+    editorForm.querySelectorAll("input,textarea,select,button,[contenteditable]").forEach(element => {
+      if (element.matches("[contenteditable]")) element.contentEditable = "false";
+      else element.disabled = true;
+    });
+    document.querySelectorAll("[data-save-draft],[data-workflow-action]").forEach(button => { button.disabled = true; });
+    try {
+      const record = await apiRequest(`/api/admin/contents/${encodeURIComponent(id)}`);
+      if (requestId !== recordLoadId) return;
+      state.current = record;
+      state.currentType = record.content_type;
+      state.dirty = false;
+      renderNavigation();
+      renderEditor(state.currentType, state.current);
+    } catch (error) {
+      if (requestId === recordLoadId) {
+        editorForm.removeAttribute("aria-busy");
+        updateEditableState();
+        renderWorkflow();
+        throw error;
+      }
+    }
   }
 
   function schedulePreview() {

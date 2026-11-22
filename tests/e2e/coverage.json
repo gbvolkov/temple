@@ -63,6 +63,7 @@
     {"id":"stage7_auto_accept","nodeid":"tests/e2e/test_admin_migration.py::test_cms_44_automatic_acceptance_ui","report_sections":["4.23"],"runtime":true,"assertions":["stage7.auto.accepted","stage7.auto.draft","stage7.auto.rollback"]},
     {"id":"stage7_visible_journey","nodeid":"tests/e2e/test_admin_migration.py::test_stage7_visible_workflow_to_publication","report_sections":["4.23"],"runtime":true,"assertions":["stage7.e2e.role","stage7.e2e.correct-audit","stage7.e2e.reload","stage7.e2e.conflict","stage7.e2e.batch","stage7.e2e.accept","stage7.e2e.publish","stage7.e2e.public"]},
     {"id":"stage7_conflict_recovery","nodeid":"tests/e2e/test_admin_migration.py::test_cms_51_conflict_recovery_ui","report_sections":["4.23"],"runtime":true,"assertions":["stage7.conflict.preserved","stage7.conflict.reload"]},
+    {"id":"stage7_card_loading","nodeid":"tests/e2e/test_admin_migration.py::test_cms_59_card_loading_blocks_editing","report_sections":["4.23"],"runtime":true,"assertions":["stage7.card-loading.disabled","stage7.card-loading.ready","stage7.card-loading.latest"]},
     {"id":"coverage","nodeid":"tests/e2e/test_regression.py::test_coverage_contract","assertions":["coverage.integrity"]}
   ]
 }
