@@ -4,7 +4,7 @@
 
 Источник: серверный regression 142/142, Playwright smoke 3/3 и full 44/44 с 352 assertion ID, source-data 7/7 (`source_unchanged=true`) и успешный production rollout schema 14 по baseline `baseline-20260806T091802Z`
 
-На этапах 2–7 и production rollout исправлены зарегистрированные недостатки `CMS-01`–`CMS-37`; `GAP-02` и `GAP-03` также выполняются как положительная регрессия. В рабочем дереве дополнительно реализованы исправления `CMS-38`–`CMS-57` и schema 15; их общая приёмка и rollout ещё не завершены. Открыта содержательная очередь `GAP-01`. Последний подтверждённый production rollout относится к schema 14, где audit → preview → apply → post-audit → semantic verify завершён с `technical_items=0` и `semantic_failure_count=0`.
+На этапах 2–7 и production rollout исправлены зарегистрированные недостатки `CMS-01`–`CMS-37`; `GAP-02` и `GAP-03` также выполняются как положительная регрессия. В рабочем дереве дополнительно реализованы исправления `CMS-38`–`CMS-58` и schema 15; их общая приёмка и rollout ещё не завершены. Открыта содержательная очередь `GAP-01`. Последний подтверждённый production rollout относится к schema 14, где audit → preview → apply → post-audit → semantic verify завершён с `technical_items=0` и `semantic_failure_count=0`.
 
 ## Приоритеты
 
@@ -356,6 +356,11 @@ post-activation проверке обязательно выполняется r
 Добавлены детерминированные правила структурной очистки, защищённый preview/apply с повторной проверкой version/hash, системные ревизии, компенсирующий rollback, фоновые задачи, роли, UI-досье и фильтрация. Apply не публикует материалы, не меняет workflow-статусы и не снимает `migration_review_required`.
 
 ## Исправлено на редакционном этапе 7
+
+### CMS-58 — source-data профиль ищет manifest в checkout
+
+**Приоритет:** P1. **Статус:** исправлено, приёмка продолжается. Профиль берёт
+manifest из каталога источника либо явного параметра и сверяет его SHA-256.
 
 ### CMS-57 — проверка источника не замечает изменение строк при прежних счётчиках
 

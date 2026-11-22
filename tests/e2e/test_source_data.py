@@ -76,6 +76,9 @@ def source_paths(pytestconfig):
 @pytest.fixture(scope="module")
 def reconciled_source(pytestconfig, tmp_path_factory):
     source_db, source_media = source_paths(pytestconfig)
+    source_manifest = pytestconfig.getoption("--cms-source-manifest") or source_db.parent / "legacy-media-manifest.json"
+    if not source_manifest.is_file():
+        raise pytest.UsageError(f"Source media manifest not found: {source_manifest}")
     before_database = stable_database_metrics(database_report(source_db))
     before_media = media_summary(source_media)
     target_root = tmp_path_factory.mktemp("cms-source-reconciliation")
@@ -94,7 +97,7 @@ def reconciled_source(pytestconfig, tmp_path_factory):
         schema_path=ROOT / "site" / "cms-schema.json",
         legacy_sections_path=ROOT / "current-sections.json",
         legacy_crawl_path=None,
-        media_manifest_path=ROOT / "data" / "legacy-media-manifest.json",
+        media_manifest_path=source_manifest.resolve(),
         missing_media_report_path=ROOT / "outputs" / "missing-legacy-media.csv",
         environment="test",
         bootstrap_user="admin",
