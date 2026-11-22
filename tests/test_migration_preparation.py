@@ -18,6 +18,7 @@ from server.migration_preparation import (
     get_preparation_run,
     list_preparation_items,
     queue_preparation,
+    preparation_summary,
     recover_interrupted_preparations,
     rollback_preparation,
     verify_preparation,
@@ -121,6 +122,173 @@ def preview(settings: Settings) -> dict:
     full_audit(settings)
     run = queue_preparation(settings.database_path, actor_id=None)
     return execute_preparation_run(settings, run["id"])
+
+
+def test_cms_40_stale_preview_is_not_actionable(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers)
+        run = preview(settings)
+        assert preparation_summary(settings.database_path)["actionable_preview"]["id"] == run["id"]
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET version=version+1 WHERE id=?", (item["id"],))
+        assert preparation_summary(settings.database_path)["actionable_preview"] is None
+
+
+def test_cms_44_automatic_acceptance_is_replayable_and_rollback_safe(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers)
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        assert verify_preparation(settings.database_path)["ok"]
+        current = client.get(f"/api/admin/contents/{item['id']}").json()
+        current["data"]["summary"] += " Обновлено."
+        edited = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json={"version": current["version"],
+            "title": current["title"], "slug": current["slug"], "data": current["data"]})
+        assert edited.status_code == 200
+        full_audit(settings)
+        assert verify_preparation(settings.database_path)["ok"]
+        current = edited.json()
+        candidates = client.get("/api/admin/migration/automatic-acceptance/candidates").json()
+        assert candidates["ready"] and candidates["items"][0]["id"] == item["id"]
+        payload = {"operation_id": "test-operation-44", "items": [{"id": item["id"], "version": current["version"]}]}
+        assert client.post("/api/admin/users", headers=headers, json={"username": "viewer44", "password": "Strong-Password-2026!", "role": "viewer"}).status_code == 201
+        client.post("/api/admin/logout", headers=headers)
+        viewer = login(client, "viewer44", "Strong-Password-2026!")
+        assert client.get("/api/admin/migration/automatic-acceptance/candidates").status_code == 403
+        assert client.post("/api/admin/migration/automatic-acceptance", headers=viewer, json=payload).status_code == 403
+        client.post("/api/admin/logout", headers=viewer)
+        headers = login(client)
+        response = client.post("/api/admin/migration/automatic-acceptance", headers=headers, json=payload)
+        assert response.status_code == 200, response.text
+        assert not client.get(f"/api/admin/contents/{item['id']}").json()["migration_review_required"]
+        assert client.get(f"/api/admin/contents/{item['id']}").json()["status"] == "draft"
+        replay = client.post("/api/admin/migration/automatic-acceptance", headers=headers, json=payload)
+        assert replay.status_code == 200 and replay.json()["replayed"]
+        rollback = client.post("/api/admin/migration/acceptance-operations/test-operation-44/rollback", headers=headers)
+        assert rollback.status_code == 200, rollback.text
+        assert client.get(f"/api/admin/contents/{item['id']}").json()["migration_review_required"]
+        assert client.post("/api/admin/migration/acceptance-operations/test-operation-44/rollback", headers=headers).json()["replayed"]
+        payload["operation_id"] = "test-operation-44-second"
+        assert client.post("/api/admin/migration/automatic-acceptance", headers=headers, json=payload).status_code == 200
+        accepted = client.get(f"/api/admin/contents/{item['id']}").json()
+        accepted["data"]["summary"] += " Последующая правка."
+        edited = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json={"version": accepted["version"],
+            "title": accepted["title"], "slug": accepted["slug"], "data": accepted["data"]})
+        assert edited.status_code == 200
+        conflict = client.post("/api/admin/migration/acceptance-operations/test-operation-44-second/rollback", headers=headers)
+        assert conflict.status_code == 409
+        assert client.get(f"/api/admin/contents/{item['id']}").json()["data"]["summary"].endswith("Последующая правка.")
+
+
+def test_cms_49_semantic_gate_detects_current_issue_from_later_audit(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers)
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        assert verify_preparation(settings.database_path)["ok"]
+        active = queue_audit(settings.database_path, actor_id=None, scope={"population": "active", "check_external": False})
+        execute_audit_run(settings.database_path, settings.schema_path, settings.media_dir, settings.site_dir, active["id"], check_external=False)
+        with sqlite3.connect(settings.database_path) as connection:
+            version = connection.execute("SELECT version FROM contents WHERE id=?", (item["id"],)).fetchone()[0]
+            connection.execute("""INSERT INTO migration_review_issues(id,audit_run_id,content_id,content_version,code,severity,field_path,fingerprint,status,message,details_json,detected_at)
+                VALUES('unknown-49',?,?,?,'unknown_49','blocker','title','unknown-49','open','Неизвестная проблема','{}','2026-01-01')""", (active["id"], item["id"], version))
+        with pytest.raises(PreparationError):
+            verify_preparation(settings.database_path)
+
+
+def test_cms_52_batch_creation_rejects_stale_global_gate(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        first = create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/a")
+        create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/b")
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        assert verify_preparation(settings.database_path)["ok"]
+        current = client.get(f"/api/admin/contents/{first['id']}").json()
+        current["data"]["summary"] += " Уточнено."
+        saved = client.put(f"/api/admin/contents/{first['id']}", headers=headers, json={"title": current["title"], "slug": current["slug"], "data": current["data"], "version": current["version"]}).json()
+        run = queue_audit(settings.database_path, actor_id=None, scope={"content_id": first["id"], "check_external": False})
+        execute_audit_run(settings.database_path, settings.schema_path, settings.media_dir, settings.site_dir, run["id"], check_external=False)
+        response = client.post("/api/admin/migration/batches", headers=headers, json={"name": "Устаревший gate", "kind": "priority", "content_ids": [first["id"]],
+            "expected_versions": {first["id"]: saved["version"]}, "expected_audits": {first["id"]: run["id"]}})
+        assert response.status_code == 409
+        assert client.get("/api/admin/migration/batches").json()["total"] == 0
+
+
+def test_cms_53_finalized_batch_requires_new_full_audit(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        first = create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/a")
+        create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/b")
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        created = client.post("/api/admin/migration/batches", headers=headers, json={"name": "Архив", "kind": "priority", "content_ids": [first["id"]]}).json()
+        item = created["items"][0]
+        saved = client.patch(f"/api/admin/migration/batches/{created['id']}/items/{first['id']}", headers=headers,
+            json={"version": item["version"], "manual_reviewed": True, "disposition": "archive", "note": "Архивная копия"}).json()
+        submitted = client.post(f"/api/admin/migration/batches/{created['id']}/submit", headers=headers, json={"version": saved["version"]}).json()
+        result = client.post(f"/api/admin/migration/batches/{created['id']}/finalize", headers=headers,
+                             json={"version": submitted["version"], "warning_acknowledgements": {}})
+        assert result.status_code == 200, result.text
+        assert not preparation_summary(settings.database_path)["editorial_gate"]["ready"]
+        full_audit(settings)
+        assert preparation_summary(settings.database_path)["editorial_gate"]["ready"]
+
+
+def test_cms_54_finalization_rejects_stale_global_gate(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        first = create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/a")
+        second = create_imported_news(client, headers, title="Дубли 12.05.2018", legacy_url="/news/b")
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        batch = client.post("/api/admin/migration/batches", headers=headers, json={"name": "Архив", "kind": "priority", "content_ids": [first["id"]]}).json()
+        item = batch["items"][0]
+        batch = client.patch(f"/api/admin/migration/batches/{batch['id']}/items/{first['id']}", headers=headers,
+            json={"version": item["version"], "manual_reviewed": True, "disposition": "archive", "note": "Архив"}).json()
+        batch = client.post(f"/api/admin/migration/batches/{batch['id']}/submit", headers=headers, json={"version": batch["version"]}).json()
+        other = client.get(f"/api/admin/contents/{second['id']}").json()
+        other["data"]["summary"] += " Изменено."
+        assert client.put(f"/api/admin/contents/{second['id']}", headers=headers, json={"version": other["version"], "title": other["title"], "slug": other["slug"], "data": other["data"]}).status_code == 200
+        result = client.post(f"/api/admin/migration/batches/{batch['id']}/finalize", headers=headers,
+                             json={"version": batch["version"], "warning_acknowledgements": {}})
+        assert result.status_code == 409
+        assert client.get(f"/api/admin/contents/{first['id']}").json()["migration_review_required"]
+
+
+def test_cms_56_semantic_gate_rejects_hash_drift(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers)
+        prepared = preview(settings)
+        apply = queue_preparation(settings.database_path, actor_id=None, mode="apply", preview_run_id=prepared["id"])
+        execute_preparation_run(settings, apply["id"])
+        full_audit(settings)
+        assert verify_preparation(settings.database_path)["ok"]
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET title='Изменено без новой версии' WHERE id=?", (item["id"],))
+        with pytest.raises(PreparationError):
+            verify_preparation(settings.database_path)
 
 
 def test_preview_apply_is_idempotent_and_rollback_is_compensating(tmp_path: Path) -> None:

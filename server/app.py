@@ -7,6 +7,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import unicodedata
 import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
@@ -50,6 +51,8 @@ from .migration_acceptance import (
     AcceptanceError,
     acceptance_scheduler,
     acceptance_summary,
+    automatic_acceptance,
+    automatic_acceptance_candidates,
     cancel_batch,
     create_batch,
     create_pilot_batch,
@@ -58,10 +61,18 @@ from .migration_acceptance import (
     get_audit_run,
     get_batch,
     list_batches,
+    list_automatic_acceptance_operations,
     list_issues,
     queue_audit,
+    refresh_batch,
+    rollback_automatic_acceptance,
     submit_batch,
     update_batch_item,
+    verify_final_acceptance,
+    _content_year,
+    _latest_audit_item,
+    _latest_applied_preparation_id,
+    _assessment_for_audit,
 )
 from .migration_preparation import (
     PreparationError,
@@ -229,10 +240,16 @@ class BulkWorkflowPayload(BaseModel):
     items: list[BulkContentItem] = Field(min_length=1, max_length=100)
 
 
+class AutomaticAcceptancePayload(BaseModel):
+    operation_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+    items: list[BulkContentItem] = Field(min_length=1, max_length=50)
+
+
 class MigrationAuditPayload(BaseModel):
     content_type: str | None = None
     year: int | None = Field(default=None, ge=1900, le=2100)
     check_external: bool = True
+    population: Literal["pending", "active"] = "pending"
 
 
 class MigrationBatchCreatePayload(BaseModel):
@@ -241,6 +258,8 @@ class MigrationBatchCreatePayload(BaseModel):
     content_ids: list[str] = Field(min_length=1, max_length=50)
     filters: dict[str, Any] = Field(default_factory=dict)
     sample_rate: float = Field(default=0.1, gt=0, le=1)
+    expected_versions: dict[str, int] | None = None
+    expected_audits: dict[str, str] | None = None
 
 
 class MigrationBatchItemPayload(BaseModel):
@@ -532,6 +551,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         existing_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
+            if content_type == "clergy" and isinstance(data.get("position"), str):
+                data = {**data, "position": unicodedata.normalize("NFKC", data["position"])}
             return prepare_content_data(
                 connection, content_type, data,
                 content_id=content_id, existing_data=existing_data,
@@ -1192,6 +1213,120 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not row:
             raise HTTPException(404, "Материал не найден")
         return serialize_admin_content(row)
+
+    def content_migration_review(connection: sqlite3.Connection, row: sqlite3.Row) -> dict:
+        audit = connection.execute(
+            """SELECT ai.*, ar.finished_at,ar.rowid AS audit_order FROM migration_audit_items ai
+               JOIN migration_audit_runs ar ON ar.id=ai.run_id AND ar.status='completed'
+               WHERE ai.content_id=? ORDER BY ai.content_version DESC,ai.scanned_at DESC,ar.rowid DESC LIMIT 1""",
+            (row["id"],),
+        ).fetchone()
+        current = bool(audit and audit["content_version"] == row["version"])
+        state = "completed" if current else "stale" if audit else "not_checked"
+        if current:
+            try:
+                _assessment_for_audit(connection, row, audit["run_id"])
+            except AcceptanceError:
+                current = False
+                state = "stale"
+        audit_error = None
+        for candidate in connection.execute("SELECT rowid AS audit_order,* FROM migration_audit_runs ORDER BY rowid DESC"):
+            scope = json.loads(candidate["scope_json"] or "{}")
+            applies = scope.get("content_id") == row["id"] or (
+                not any(scope.get(key) for key in ("content_id", "content_type", "year"))
+                and (scope.get("population") == "active" or row["migration_review_required"])
+            )
+            if not applies:
+                continue
+            if candidate["status"] in {"queued", "running", "failed"} and (not audit or candidate["audit_order"] > audit["audit_order"]):
+                state = candidate["status"]
+                audit_error = candidate["error"]
+                current = False
+            break
+        issues = []
+        if current:
+            issues = [dict(issue) for issue in connection.execute(
+                """SELECT id,code,severity,field_path,message,status FROM migration_review_issues
+                   WHERE content_id=? AND content_version=? AND status IN ('open','acknowledged')
+                   ORDER BY severity,field_path,code""", (row["id"], row["version"]),
+            )]
+        history = connection.execute(
+            """SELECT pi.content_version,pi.result_version,pi.classification,pi.reasons_json
+               FROM migration_preparation_items pi JOIN migration_preparation_runs pr ON pr.id=pi.run_id
+               WHERE pi.content_id=? AND pr.mode='apply' AND pr.status IN ('completed','rolled_back')
+               ORDER BY pr.finished_at DESC,pr.id DESC LIMIT 1""", (row["id"],),
+        ).fetchone()
+        assessment = None
+        if current:
+            assessment_row = connection.execute("""SELECT * FROM migration_editorial_assessments
+                WHERE content_id=? AND content_version=? AND audit_run_id=? ORDER BY rowid DESC LIMIT 1""",
+                (row["id"], row["version"], audit["run_id"])).fetchone()
+            if assessment_row:
+                assessment = json.loads(assessment_row["assessment_json"])
+                assessment["audit_run_id"] = assessment_row["audit_run_id"]
+                assessment["rules_version"] = assessment_row["rules_version"]
+        return {
+            "content_version": row["version"], "state": state, "audit_error": audit_error,
+            "audit_version": audit["content_version"] if audit else None,
+            "audited_at": audit["finished_at"] if audit else None,
+            "blocker_count": audit["blocker_count"] if current else None,
+            "warning_count": audit["warning_count"] if current else None,
+            "issues": issues,
+            "assessment": assessment,
+            "historical_preparation": ({**dict(history), "reasons": json.loads(history["reasons_json"])} if history else None),
+        }
+
+    @app.get("/api/admin/contents/{content_id}/migration-review")
+    def migration_review(content_id: str, _: dict = Depends(require("viewer"))):
+        with connect(settings.database_path) as connection:
+            return content_migration_review(connection, content_or_404(connection, content_id))
+
+    @app.post("/api/admin/contents/{content_id}/migration-issues/{issue_id}/normalize")
+    async def normalize_migration_issue(content_id: str, issue_id: str, payload: VersionPayload,
+                                        user: dict = Depends(require("editor", mutation=True))):
+        with transaction(settings.database_path) as connection:
+            old = content_or_404(connection, content_id)
+            require_version(old, payload.version)
+            require_state(old, {"draft", "in_review", "scheduled", "published"}, "исправление")
+            if not old["migration_review_required"]:
+                raise HTTPException(409, "Материал уже прошёл миграционную приёмку")
+            issue = connection.execute(
+                "SELECT * FROM migration_review_issues WHERE id=? AND content_id=?", (issue_id, content_id),
+            ).fetchone()
+            if not issue or old["content_type"] != "clergy" or issue["code"] != "unicode_not_nfkc" or issue["field_path"] != "content.position":
+                raise HTTPException(404, "Исправляемое замечание не найдено")
+            try:
+                _assessment_for_audit(connection, old, issue["audit_run_id"])
+            except AcceptanceError as error:
+                raise acceptance_http_error(error) from error
+            data = json.loads(old["data_json"])
+            value = data.get("position")
+            if not isinstance(value, str):
+                raise HTTPException(409, "Поле изменилось; откройте свежую версию")
+            normalized = unicodedata.normalize("NFKC", value)
+            if normalized != value:
+                if issue["content_version"] != old["version"] or issue["status"] != "open":
+                    raise HTTPException(409, "Замечание устарело; откройте свежую версию и повторите аудит")
+                data["position"] = normalized
+                connection.execute("UPDATE contents SET data_json=?,version=version+1,updated_at=? WHERE id=?",
+                                   (json.dumps(data, ensure_ascii=False, sort_keys=True), utc_now(), content_id))
+                snapshot(connection, content_id, user["id"])
+                row = content_or_404(connection, content_id)
+                record_audit(connection, content_id=content_id, actor_id=user["id"], action="migration_normalize",
+                             before=old, after=row, details={"field": "position", "issue_id": issue_id})
+            else:
+                row = old
+            content = serialize_admin_content(row)
+        try:
+            await audit_single_content(content_id, MigrationAuditPayload(), user)
+            error = None
+        except (AcceptanceError, HTTPException) as exc:
+            error = str(exc.detail if isinstance(exc, HTTPException) else exc)
+        with connect(settings.database_path) as connection:
+            row = content_or_404(connection, content_id)
+            review = content_migration_review(connection, row)
+            content = serialize_admin_content(row)
+        return {"content": content, "review": review, "audit_error": error}
 
     @app.post("/api/admin/contents", status_code=201)
     def create_content(payload: ContentCreate, user: dict = Depends(require("editor", mutation=True))):
@@ -1929,6 +2064,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if payload.content_type else None,
                 "year": payload.year,
                 "check_external": payload.check_external,
+                "population": payload.population if payload.population != "pending" else None,
             }.items() if value is not None
         }
         try:
@@ -2053,6 +2189,84 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except PreparationError as error:
             raise preparation_http_error(error) from error
 
+    @app.get("/api/admin/migration/batch-candidates")
+    def migration_batch_candidates(q: str = "", content_type: str | None = None,
+                                   year: int | None = Query(default=None, ge=1900, le=2100),
+                                   limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+                                   _: dict = Depends(require("publisher"))):
+        with connect(settings.database_path) as connection:
+            preparation_id = _latest_applied_preparation_id(connection)
+            rows = connection.execute("SELECT * FROM contents ORDER BY title,id").fetchall()
+            matches = []
+            for row in rows:
+                content = serialize_admin_content(row)
+                content_year = _content_year(content)
+                if q.strip().casefold() not in row["title"].casefold() or (content_type and row["content_type"] != content_type) or (year and content_year != year):
+                    continue
+                matches.append((row, content_year))
+            items = []
+            for row, content_year in matches[offset:offset + limit]:
+                audit = _latest_audit_item(connection, row["id"], row["version"])
+                active = connection.execute("""SELECT b.name FROM migration_review_batch_items bi
+                    JOIN migration_review_batches b ON b.id=bi.batch_id
+                    WHERE bi.content_id=? AND b.status IN ('draft','in_review') LIMIT 1""", (row["id"],)).fetchone()
+                preparation = connection.execute("SELECT classification,result_version FROM migration_preparation_items WHERE run_id=? AND content_id=?", (preparation_id, row["id"])).fetchone() if preparation_id else None
+                assessment_stale = False
+                try:
+                    assessment = _assessment_for_audit(connection, row, audit["run_id"]) if audit else None
+                except AcceptanceError:
+                    assessment = None
+                    assessment_stale = True
+                classification = assessment.get("classification") if assessment else (preparation["classification"] if preparation and preparation["result_version"] == row["version"] else None)
+                reason = None
+                if not row["migration_review_required"]:
+                    reason = "Материал уже принят"
+                elif active:
+                    reason = f"Уже включён в партию «{active['name']}»"
+                elif not audit:
+                    reason = "Нет завершённого аудита текущей версии"
+                elif assessment_stale:
+                    reason = "Досье устарело; повторите аудит"
+                elif preparation_id and not classification:
+                    reason = "Нет актуального досье автоматической подготовки"
+                elif preparation_id and classification != "editorial_review":
+                    reason = "Материал не относится к редакционному остатку"
+                items.append({"id": row["id"], "title": row["title"], "content_type": row["content_type"],
+                              "year": content_year, "version": row["version"],
+                              "audit_run_id": audit["run_id"] if audit else None,
+                              "eligible": reason is None, "reason": reason})
+        return {"items": items, "total": len(matches), "limit": limit, "offset": offset}
+
+    @app.get("/api/admin/migration/final-verification")
+    def final_verification(_: dict = Depends(require("viewer"))):
+        try:
+            return verify_final_acceptance(settings.database_path)
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/automatic-acceptance")
+    def accept_automatic(payload: AutomaticAcceptancePayload, user: dict = Depends(require("publisher", mutation=True))):
+        try:
+            return automatic_acceptance(settings.database_path, operation_id=payload.operation_id,
+                                        items=[item.model_dump() for item in payload.items], actor_id=user["id"])
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.get("/api/admin/migration/automatic-acceptance/candidates")
+    def auto_accept_candidates(_: dict = Depends(require("publisher"))):
+        return automatic_acceptance_candidates(settings.database_path)
+
+    @app.post("/api/admin/migration/acceptance-operations/{operation_id}/rollback")
+    def rollback_automatic(operation_id: str, user: dict = Depends(require("admin", mutation=True))):
+        try:
+            return rollback_automatic_acceptance(settings.database_path, operation_id=operation_id, actor_id=user["id"])
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.get("/api/admin/migration/acceptance-operations")
+    def list_automatic_operations(_: dict = Depends(require("publisher"))):
+        return list_automatic_acceptance_operations(settings.database_path)
+
     @app.get("/api/admin/migration/batches")
     def migration_batches(status: str | None = None, _: dict = Depends(require("viewer"))):
         return list_batches(settings.database_path, status=status)
@@ -2071,6 +2285,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 actor_id=user["id"],
                 filters=payload.filters,
                 sample_rate=payload.sample_rate,
+                expected_versions=payload.expected_versions,
+                expected_audits=payload.expected_audits,
             )
         except AcceptanceError as error:
             raise acceptance_http_error(error) from error
@@ -2122,6 +2338,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 settings.database_path, batch_id=batch_id,
                 version=payload.version, actor_id=user["id"],
             )
+        except AcceptanceError as error:
+            raise acceptance_http_error(error) from error
+
+    @app.post("/api/admin/migration/batches/{batch_id}/refresh")
+    def refresh_migration_batch(batch_id: str, payload: MigrationBatchVersionPayload,
+                                user: dict = Depends(require("publisher", mutation=True))):
+        try:
+            return refresh_batch(settings.database_path, batch_id=batch_id, version=payload.version,
+                                 actor_id=user["id"], schema=schema, media_dir=settings.media_dir)
         except AcceptanceError as error:
             raise acceptance_http_error(error) from error
 

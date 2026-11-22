@@ -31,6 +31,14 @@ def test_stage14_wrapper_accepts_schema_13_or_14_and_targets_14() -> None:
     assert "external treby legacy status" in rollout
 
 
+def test_stage15_wrapper_accepts_schema_14_or_15_and_targets_15() -> None:
+    wrapper = script("production_apply_stage15.sh")
+    assert "export DEPLOYMENT_STAGE=15" in wrapper
+    assert "14|15)" in wrapper
+    assert "export EXPECTED_SCHEMA=15" in wrapper
+    assert "production_apply_stage4.sh" in wrapper
+
+
 def test_cms_30_rollout_supports_direct_docker_without_passwordless_sudo() -> None:
     baseline = script("production_baseline.sh")
     rollout = script("production_apply_stage4.sh")

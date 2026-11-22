@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from server.baseline import database_report, media_summary
+from server.baseline import database_report, media_summary, readonly_connection
 
 
 def coverage_check_count() -> int:
@@ -45,10 +45,39 @@ def media_inventory_digest(media: Path) -> str:
     return digest.hexdigest()
 
 
+def logical_database_digest(database: Path) -> str:
+    """Hash all logical table rows in a single read-only SQLite snapshot."""
+    digest = hashlib.sha256()
+
+    def add(value: object) -> None:
+        if value is None:
+            tag, payload = b"n", b""
+        elif isinstance(value, bytes):
+            tag, payload = b"b", value
+        else:
+            tag, payload = type(value).__name__.encode("ascii"), str(value).encode("utf-8")
+        digest.update(len(tag).to_bytes(2, "big") + tag + len(payload).to_bytes(8, "big") + payload)
+
+    with readonly_connection(database) as connection:
+        connection.execute("BEGIN")
+        tables = connection.execute("""SELECT name,sql FROM sqlite_master WHERE type='table'
+            AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') ORDER BY name""").fetchall()
+        for table in tables:
+            add(table["name"])
+            add(table["sql"])
+            name = table["name"].replace('"', '""')
+            for row in connection.execute(f'SELECT * FROM "{name}"'):
+                add("row")
+                for value in row:
+                    add(value)
+    return digest.hexdigest()
+
+
 def stable_source_report(database: Path, media: Path) -> dict:
     report = database_report(database)
     return {
         "database": {
+            "logical_sha256": logical_database_digest(database),
             "quick_check": report["quick_check"],
             "foreign_key_error_count": report["foreign_key_error_count"],
             "metrics": report["metrics"],

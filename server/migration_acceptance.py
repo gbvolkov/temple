@@ -850,6 +850,8 @@ def queue_audit(database_path: Path, *, actor_id: str | None, scope: dict[str, A
         for key, value in sorted((scope or {}).items())
         if value is not None
     }
+    if normalized_scope.get("population", "pending") not in {"pending", "active"}:
+        raise AcceptanceError("Неизвестная область аудита", 422, "INVALID_AUDIT_POPULATION")
     normalized_scope.setdefault("check_external", True)
     run_id = str(uuid.uuid4())
     now = utc_now()
@@ -913,7 +915,7 @@ def queue_audit(database_path: Path, *, actor_id: str | None, scope: dict[str, A
 
 
 def _scope_rows(connection: sqlite3.Connection, scope: dict[str, Any]) -> list[sqlite3.Row]:
-    where = ["migration_review_required=1"]
+    where = ["status NOT IN ('archived','trash')"] if scope.get("population") == "active" else ["migration_review_required=1"]
     params: list[Any] = []
     if scope.get("content_id"):
         where = ["id=?"]
@@ -1072,6 +1074,16 @@ def execute_audit_run(
                     ),
                 )
             counts["contents"] = len(scanned)
+            if scanned:
+                from .migration_preparation import PREPARATION_RULES_VERSION, propose_content
+                preparation_id = _latest_applied_preparation_id(connection)
+                for content, _ in scanned:
+                    row = connection.execute("SELECT * FROM contents WHERE id=?", (content["id"],)).fetchone()
+                    assessment = propose_content(connection, row, schema, media_dir)
+                    connection.execute("""INSERT INTO migration_editorial_assessments(
+                        id,content_id,content_version,content_hash,audit_run_id,preparation_run_id,rules_version,assessment_json,created_at
+                        ) VALUES(?,?,?,?,?,?,?,?,?)""", (str(uuid.uuid4()), row["id"], row["version"],
+                        assessment["before_hash"], run_id, preparation_id, PREPARATION_RULES_VERSION, _json(assessment), now))
             connection.execute(
                 """UPDATE migration_audit_runs SET status='completed',counts_json=?,finished_at=?
                    WHERE id=?""",
@@ -1232,7 +1244,7 @@ def _latest_audit_item(connection: sqlite3.Connection, content_id: str, version:
         """SELECT ai.* FROM migration_audit_items ai
            JOIN migration_audit_runs ar ON ar.id=ai.run_id AND ar.status='completed'
            WHERE ai.content_id=? AND ai.content_version=?
-           ORDER BY ai.scanned_at DESC,ai.run_id DESC LIMIT 1""",
+           ORDER BY ai.scanned_at DESC,ar.rowid DESC LIMIT 1""",
         (content_id, version),
     ).fetchone()
 
@@ -1289,6 +1301,8 @@ def create_batch(
     filters: dict[str, Any] | None = None,
     sample_rate: float = 0.1,
     batch_id: str | None = None,
+    expected_versions: dict[str, int] | None = None,
+    expected_audits: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if kind not in {"priority", "archive"}:
         raise AcceptanceError("Неизвестный тип партии")
@@ -1309,23 +1323,25 @@ def create_batch(
         missing = [content_id for content_id in content_ids if content_id not in by_id]
         if missing:
             raise AcceptanceError("Материалы не найдены: " + ", ".join(missing), 404)
+        if expected_versions is not None:
+            if set(expected_versions) != set(content_ids):
+                raise AcceptanceError("Укажите версию каждого выбранного материала", 422)
+            changed = [by_id[content_id]["title"] for content_id in content_ids
+                       if by_id[content_id]["version"] != expected_versions[content_id]]
+            if changed:
+                raise AcceptanceError("Материалы изменились после выбора: " + ", ".join(changed), 409,
+                                      "BATCH_SELECTION_STALE", {"titles": changed})
+        if expected_audits is not None and set(expected_audits) != set(content_ids):
+            raise AcceptanceError("Укажите аудит каждого выбранного материала", 422)
         if any(not by_id[content_id]["migration_review_required"] for content_id in content_ids):
             raise AcceptanceError("В партию можно добавлять только материалы, требующие миграционной приёмки", 409)
         preparation_run_id = _latest_applied_preparation_id(connection)
         if preparation_run_id:
-            editorial_ids = {
-                row["content_id"] for row in connection.execute(
-                    f"""SELECT content_id FROM migration_preparation_items
-                        WHERE run_id=? AND classification='editorial_review'
-                          AND content_id IN ({','.join('?' for _ in content_ids)})""",
-                    [preparation_run_id, *content_ids],
-                )
-            }
-            if editorial_ids != set(content_ids):
-                raise AcceptanceError(
-                    "В редакционную партию можно включать только неоднозначный остаток автоматической подготовки",
-                    409,
-                )
+            from .migration_preparation import _semantic_verification
+            gate = _semantic_verification(connection)
+            if not gate["ok"]:
+                raise AcceptanceError("Для новой партии требуется актуальный полный аудит и semantic gate", 409,
+                                      "EDITORIAL_GATE_BLOCKED", gate)
         active_items = connection.execute(
             f"""SELECT bi.content_id,b.name FROM migration_review_batch_items bi
                 JOIN migration_review_batches b ON b.id=bi.batch_id
@@ -1352,6 +1368,19 @@ def create_batch(
                 raise AcceptanceError(
                     f"Для материала «{by_id[content_id]['title']}» нет актуального завершённого аудита", 409
                 )
+            if preparation_run_id:
+                assessment = _assessment_for_audit(connection, by_id[content_id], item["run_id"])
+                if assessment:
+                    classification = assessment.get("classification")
+                else:
+                    preparation = connection.execute("SELECT classification,result_version FROM migration_preparation_items WHERE run_id=? AND content_id=?",
+                                                     (preparation_run_id, content_id)).fetchone()
+                    classification = preparation["classification"] if preparation and preparation["result_version"] == by_id[content_id]["version"] else None
+                if classification != "editorial_review":
+                    raise AcceptanceError(f"Для «{by_id[content_id]['title']}» нет актуального досье редакционного остатка", 409)
+            if expected_audits is not None and item["run_id"] != expected_audits[content_id]:
+                raise AcceptanceError(f"Аудит материала «{by_id[content_id]['title']}» изменился после выбора", 409,
+                                      "BATCH_AUDIT_STALE", {"titles": [by_id[content_id]["title"]]})
             audit_items[content_id] = item
             warning_codes[content_id] = _warning_codes(
                 connection, content_id, by_id[content_id]["version"]
@@ -1634,6 +1663,195 @@ def submit_batch(database_path: Path, *, batch_id: str, version: int, actor_id: 
     return get_batch(database_path, batch_id)
 
 
+def refresh_batch(database_path: Path, *, batch_id: str, version: int, actor_id: str,
+                  schema: dict[str, Any], media_dir: Path) -> dict[str, Any]:
+    from .migration_preparation import propose_content
+
+    with transaction(database_path) as connection:
+        batch = connection.execute("SELECT * FROM migration_review_batches WHERE id=?", (batch_id,)).fetchone()
+        if not batch:
+            raise AcceptanceError("Партия не найдена", 404)
+        if batch["version"] != version:
+            raise AcceptanceError("Партия уже изменена; обновите страницу", 409)
+        if batch["status"] not in {"draft", "in_review"}:
+            raise AcceptanceError("Обновить можно только незавершённую партию", 409)
+        items = connection.execute("SELECT * FROM migration_review_batch_items WHERE batch_id=? ORDER BY content_id", (batch_id,)).fetchall()
+        changes = []
+        for item in items:
+            content = connection.execute("SELECT * FROM contents WHERE id=?", (item["content_id"],)).fetchone()
+            if not content or not content["migration_review_required"]:
+                raise AcceptanceError("Материал больше не доступен для миграционной приёмки", 409)
+            audit = _latest_audit_item(connection, item["content_id"], content["version"])
+            if not audit:
+                raise AcceptanceError(f"Для «{content['title']}» нужен аудит текущей версии", 409)
+            if content["version"] == item["content_version"] and audit["run_id"] == item["audit_run_id"]:
+                continue
+            assessment = _assessment_for_audit(connection, content, audit["run_id"])
+            if assessment is None:
+                assessment = propose_content(connection, content, schema, media_dir)
+            changes.append((item, content, audit, assessment))
+        now = utc_now()
+        excluded = []
+        for item, content, audit, assessment in changes:
+            _event(connection, batch_id=batch_id, content_id=item["content_id"], actor_id=actor_id,
+                   action="item_refresh_previous_decision", details={"content_version": item["content_version"],
+                   "audit_run_id": item["audit_run_id"], "disposition": item["disposition"],
+                   "manual_reviewed": bool(item["manual_reviewed"]), "note": item["note"],
+                   "warning_acknowledgements": _loads(item["warning_ack_json"], {})})
+            if assessment["classification"] != "editorial_review":
+                excluded.append({"title": content["title"], "classification": assessment["classification"]})
+                connection.execute("DELETE FROM migration_review_batch_items WHERE batch_id=? AND content_id=?", (batch_id, item["content_id"]))
+                continue
+            sampled = bool(item["sampled"]) or _is_priority_content(admin_content(content)) or bool(_warning_codes(connection, item["content_id"], content["version"]) & INDIVIDUAL_WARNING_CODES)
+            connection.execute("""UPDATE migration_review_batch_items SET content_version=?,audit_run_id=?,sampled=?,
+                manual_reviewed=0,disposition='pending',warning_ack_json='{}',note='',version=version+1,
+                reviewed_by=NULL,reviewed_at=NULL,decision_by=NULL,decision_at=NULL
+                WHERE batch_id=? AND content_id=?""",
+                (content["version"], audit["run_id"], int(sampled), batch_id, item["content_id"]))
+        if changes:
+            remaining = connection.execute("SELECT COUNT(*) FROM migration_review_batch_items WHERE batch_id=?", (batch_id,)).fetchone()[0]
+            connection.execute("UPDATE migration_review_batches SET status=?,warning_ack_json='{}',version=version+1,updated_at=? WHERE id=?",
+                               ("draft" if remaining else "cancelled", now, batch_id))
+            _event(connection, batch_id=batch_id, content_id=None, actor_id=actor_id, action="batch_refreshed",
+                   details={"changed": len(changes), "excluded": excluded})
+    result = get_batch(database_path, batch_id)
+    result["refresh_excluded"] = excluded
+    return result
+
+
+def _assessment_for_audit(connection: sqlite3.Connection, row: sqlite3.Row, audit_run_id: str) -> dict[str, Any] | None:
+    stored = connection.execute("""SELECT * FROM migration_editorial_assessments
+        WHERE content_id=? AND content_version=? AND audit_run_id=? ORDER BY rowid DESC LIMIT 1""",
+        (row["id"], row["version"], audit_run_id)).fetchone()
+    if not stored:
+        return None
+    content = admin_content(row)
+    snapshot = {"content_type": content["content_type"], "slug": content["slug"], "title": content["title"], "data": content["data"]}
+    if stored["content_hash"] != _hash_identity(snapshot):
+        raise AcceptanceError(f"Досье материала «{row['title']}» устарело", 409, "ASSESSMENT_STALE")
+    return _loads(stored["assessment_json"], {})
+
+
+def automatic_acceptance(database_path: Path, *, operation_id: str, items: list[dict[str, Any]], actor_id: str) -> dict[str, Any]:
+    from .migration_preparation import _semantic_verification
+
+    if not 1 <= len(items) <= 50 or len({item["id"] for item in items}) != len(items):
+        raise AcceptanceError("Выберите от 1 до 50 уникальных материалов")
+    ordered = sorted(items, key=lambda item: item["id"])
+    request_hash = _hash_identity(ordered)
+    with transaction(database_path) as connection:
+        existing = connection.execute("SELECT * FROM migration_acceptance_operations WHERE id=?", (operation_id,)).fetchone()
+        if existing:
+            if existing["request_hash"] != request_hash:
+                raise AcceptanceError("Идентификатор операции уже использован для другого состава", 409)
+            return {"id": operation_id, "status": existing["status"], "replayed": True, "count": len(ordered)}
+        gate = _semantic_verification(connection)
+        if not gate["ok"]:
+            raise AcceptanceError("Семантический шлюз не пройден", 409, "EDITORIAL_GATE_BLOCKED", gate)
+        checked = []
+        for item in ordered:
+            row = connection.execute("SELECT * FROM contents WHERE id=?", (item["id"],)).fetchone()
+            if not row or row["version"] != item["version"] or not row["migration_review_required"]:
+                raise AcceptanceError("Материал изменён или уже принят; обновите список", 409)
+            if row["status"] != "draft" or row["published_version"] is not None:
+                raise AcceptanceError(f"Материал «{row['title']}» не является непубличным черновиком", 409)
+            preparation = connection.execute("SELECT * FROM migration_preparation_items WHERE run_id=? AND content_id=?", (gate["run_id"], item["id"])).fetchone()
+            audit = connection.execute("SELECT * FROM migration_audit_items WHERE run_id=? AND content_id=? AND content_version=?", (gate["audit_run_id"], item["id"], row["version"])).fetchone()
+            active = connection.execute("""SELECT 1 FROM migration_review_batch_items bi JOIN migration_review_batches b ON b.id=bi.batch_id
+                WHERE bi.content_id=? AND b.status IN ('draft','in_review')""", (item["id"],)).fetchone()
+            content = admin_content(row)
+            snapshot = {"content_type": content["content_type"], "slug": content["slug"], "title": content["title"], "data": content["data"]}
+            assessment = _assessment_for_audit(connection, row, gate["audit_run_id"])
+            prepared_clean = bool(assessment and assessment.get("classification") == "auto_ready"
+                                  and assessment.get("before_hash") == assessment.get("proposed_hash"))
+            if not assessment:
+                prepared_clean = bool(preparation and preparation["classification"] == "auto_ready"
+                                      and preparation["result_version"] == row["version"]
+                                      and preparation["proposed_hash"] == _hash_identity(snapshot))
+            if not prepared_clean or not audit or audit["blocker_count"] or audit["warning_count"] or active:
+                raise AcceptanceError(f"Материал «{row['title']}» не прошёл автоматическую проверку", 409, "AUTO_ACCEPT_INELIGIBLE")
+            open_issues = connection.execute("""SELECT 1 FROM migration_review_issues WHERE content_id=? AND content_version=?
+                AND severity IN ('blocker','warning') AND status IN ('open','acknowledged') LIMIT 1""", (item["id"], row["version"])).fetchone()
+            if open_issues:
+                raise AcceptanceError(f"У материала «{row['title']}» есть нерешённые замечания", 409)
+            checked.append(row)
+        now = utc_now()
+        connection.execute("INSERT INTO migration_acceptance_operations(id,request_hash,request_json,status,actor_id,created_at) VALUES(?,?,?,'completed',?,?)",
+                           (operation_id, request_hash, _json(ordered), actor_id, now))
+        for before in checked:
+            connection.execute("UPDATE contents SET migration_review_required=0,updated_at=? WHERE id=?", (now, before["id"]))
+            after = connection.execute("SELECT * FROM contents WHERE id=?", (before["id"],)).fetchone()
+            connection.execute("INSERT INTO migration_acceptance_operation_items(operation_id,content_id,before_json,after_hash) VALUES(?,?,?,?)",
+                               (operation_id, before["id"], _json(dict(before)), _hash_identity(dict(after))))
+            record_audit(connection, content_id=before["id"], actor_id=actor_id, action="migration_auto_accept", before=before, after=after,
+                         details={"operation_id": operation_id, "preparation_run_id": gate["run_id"], "audit_run_id": gate["audit_run_id"]})
+    return {"id": operation_id, "status": "completed", "replayed": False, "count": len(ordered)}
+
+
+def automatic_acceptance_candidates(database_path: Path) -> dict[str, Any]:
+    from .migration_preparation import _semantic_verification
+    with connect(database_path) as connection:
+        gate = _semantic_verification(connection)
+        if not gate["ok"]:
+            return {"ready": False, "message": gate["message"], "items": []}
+        rows = connection.execute("""SELECT c.*,pi.proposed_hash,pi.result_version,pi.classification FROM contents c
+            JOIN migration_preparation_items pi ON pi.content_id=c.id AND pi.run_id=?
+            JOIN migration_audit_items ai ON ai.content_id=c.id AND ai.run_id=? AND ai.content_version=c.version
+            WHERE c.migration_review_required=1 AND c.status='draft' AND c.published_version IS NULL
+              AND ai.blocker_count=0 AND ai.warning_count=0
+              AND NOT EXISTS(SELECT 1 FROM migration_review_batch_items bi JOIN migration_review_batches b ON b.id=bi.batch_id
+                             WHERE bi.content_id=c.id AND b.status IN ('draft','in_review'))
+              AND NOT EXISTS(SELECT 1 FROM migration_review_issues i WHERE i.content_id=c.id AND i.content_version=c.version
+                             AND i.severity IN ('blocker','warning') AND i.status IN ('open','acknowledged'))
+            ORDER BY c.title,c.id""", (gate["run_id"], gate["audit_run_id"])).fetchall()
+        candidates = []
+        for row in rows:
+            content = admin_content(row)
+            snapshot = {"content_type": content["content_type"], "slug": content["slug"], "title": content["title"], "data": content["data"]}
+            assessment = _assessment_for_audit(connection, row, gate["audit_run_id"])
+            eligible = bool(assessment and assessment.get("classification") == "auto_ready"
+                            and assessment.get("before_hash") == assessment.get("proposed_hash"))
+            if not assessment:
+                eligible = bool(row["classification"] == "auto_ready" and row["result_version"] == row["version"]
+                                and row["proposed_hash"] == _hash_identity(snapshot))
+            if eligible:
+                candidates.append({"id": row["id"], "version": row["version"], "title": row["title"]})
+    return {"ready": True, "message": "Семантический шлюз пройден", "total": len(candidates), "items": candidates[:50]}
+
+
+def rollback_automatic_acceptance(database_path: Path, *, operation_id: str, actor_id: str) -> dict[str, Any]:
+    with transaction(database_path) as connection:
+        operation = connection.execute("SELECT * FROM migration_acceptance_operations WHERE id=?", (operation_id,)).fetchone()
+        if not operation:
+            raise AcceptanceError("Операция не найдена", 404)
+        if operation["status"] == "rolled_back":
+            return {"id": operation_id, "status": "rolled_back", "replayed": True}
+        items = connection.execute("SELECT * FROM migration_acceptance_operation_items WHERE operation_id=?", (operation_id,)).fetchall()
+        for item in items:
+            row = connection.execute("SELECT * FROM contents WHERE id=?", (item["content_id"],)).fetchone()
+            if not row or _hash_identity(dict(row)) != item["after_hash"]:
+                raise AcceptanceError("Откат остановлен: материал изменён после приёмки", 409, "ROLLBACK_CONFLICT")
+        for item in items:
+            before = connection.execute("SELECT * FROM contents WHERE id=?", (item["content_id"],)).fetchone()
+            original = _loads(item["before_json"], {})
+            connection.execute("UPDATE contents SET migration_review_required=?,updated_at=? WHERE id=?",
+                               (original["migration_review_required"], utc_now(), item["content_id"]))
+            after = connection.execute("SELECT * FROM contents WHERE id=?", (item["content_id"],)).fetchone()
+            record_audit(connection, content_id=item["content_id"], actor_id=actor_id, action="migration_auto_accept_rollback", before=before, after=after,
+                         details={"operation_id": operation_id})
+        connection.execute("UPDATE migration_acceptance_operations SET status='rolled_back',rolled_back_at=? WHERE id=?", (utc_now(), operation_id))
+    return {"id": operation_id, "status": "rolled_back", "replayed": False}
+
+
+def list_automatic_acceptance_operations(database_path: Path) -> dict[str, Any]:
+    with connect(database_path) as connection:
+        rows = connection.execute("""SELECT o.id,o.status,o.created_at,o.rolled_back_at,u.username AS actor,
+            COUNT(i.content_id) AS item_count FROM migration_acceptance_operations o
+            LEFT JOIN users u ON u.id=o.actor_id LEFT JOIN migration_acceptance_operation_items i ON i.operation_id=o.id
+            GROUP BY o.id ORDER BY o.created_at DESC,o.rowid DESC LIMIT 100""").fetchall()
+    return {"items": [dict(row) for row in rows]}
+
+
 def finalize_batch(
     database_path: Path,
     *,
@@ -1655,6 +1873,12 @@ def finalize_batch(
             raise AcceptanceError("Партия уже изменена; обновите страницу", 409)
         if batch["status"] != "in_review":
             raise AcceptanceError("Финализировать можно только отправленную партию", 409)
+        if _latest_applied_preparation_id(connection):
+            from .migration_preparation import _semantic_verification
+            gate = _semantic_verification(connection)
+            if not gate["ok"]:
+                raise AcceptanceError("Перед финализацией требуется актуальный полный аудит и semantic gate", 409,
+                                      "EDITORIAL_GATE_BLOCKED", gate)
         items = connection.execute(
             """SELECT bi.*,c.version AS current_content_version,c.title,
                       c.status AS current_status,c.migration_review_required
@@ -1875,6 +2099,42 @@ def verify_acceptance(database_path: Path) -> dict[str, Any]:
     return {"ok": True, "schema": 9, "rules_version": RULES_VERSION}
 
 
+def verify_final_acceptance(database_path: Path) -> dict[str, Any]:
+    verify_acceptance(database_path)
+    with connect(database_path) as connection:
+        pending = connection.execute("SELECT COUNT(*) FROM contents WHERE migration_review_required=1").fetchone()[0]
+        active_batches = connection.execute("SELECT COUNT(*) FROM migration_review_batches WHERE status IN ('draft','in_review')").fetchone()[0]
+        run = next((candidate for candidate in connection.execute("SELECT * FROM migration_audit_runs ORDER BY rowid DESC")
+                    if _loads(candidate["scope_json"], {}).get("population") == "active"
+                    and not any(_loads(candidate["scope_json"], {}).get(key) for key in ("content_id", "content_type", "year"))), None)
+        if not run or run["status"] != "completed":
+            raise AcceptanceError("Требуется завершённый полный аудит активных материалов", 409, "FINAL_AUDIT_REQUIRED")
+        rows = connection.execute("SELECT * FROM contents WHERE status NOT IN ('archived','trash')").fetchall()
+        stale = []
+        blockers = 0
+        for row in rows:
+            audit = connection.execute("SELECT * FROM migration_audit_items WHERE run_id=? AND content_id=? AND content_version=?",
+                                       (run["id"], row["id"], row["version"])).fetchone()
+            if not audit:
+                stale.append(row["title"])
+                continue
+            try:
+                if _assessment_for_audit(connection, row, run["id"]) is None:
+                    stale.append(row["title"])
+            except AcceptanceError:
+                stale.append(row["title"])
+            blockers += audit["blocker_count"]
+        current_blockers = connection.execute("""SELECT COUNT(*) FROM migration_review_issues i
+            JOIN contents c ON c.id=i.content_id AND c.version=i.content_version
+            WHERE c.status NOT IN ('archived','trash') AND i.severity='blocker' AND i.status IN ('open','acknowledged')""").fetchone()[0]
+        blockers = max(blockers, current_blockers)
+        details = {"audit_run_id": run["id"], "active_contents": len(rows), "pending": pending,
+                   "active_batches": active_batches, "stale_count": len(stale), "stale_titles": stale[:20], "blocker_count": blockers}
+        if pending or active_batches or stale or blockers:
+            raise AcceptanceError("Финальная проверка не пройдена: устраните оставшиеся материалы, устаревший аудит или блокеры", 409, "FINAL_GATE_BLOCKED", details)
+    return {"ok": True, **details}
+
+
 def _run_sync(settings: Settings, scope: dict[str, Any] | None, actor_id: str | None, check_external: bool) -> dict[str, Any]:
     run = queue_audit(settings.database_path, actor_id=actor_id, scope=scope)
     return execute_audit_run(
@@ -1885,12 +2145,15 @@ def _run_sync(settings: Settings, scope: dict[str, Any] | None, actor_id: str | 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Редакторская приёмка перенесённых материалов")
-    parser.add_argument("command", choices=("scan", "status", "verify", "create-pilot", "report"))
+    parser.add_argument("command", choices=("scan", "status", "verify", "create-pilot", "report", "auto-accept", "rollback-auto-accept"))
     parser.add_argument("--database", type=Path)
     parser.add_argument("--content-id")
     parser.add_argument("--content-type")
     parser.add_argument("--year", type=int)
     parser.add_argument("--actor-id")
+    parser.add_argument("--operation-id")
+    parser.add_argument("--population", choices=("pending", "active"), default="pending")
+    parser.add_argument("--final", action="store_true", help="verify all active material against the latest full audit")
     parser.add_argument("--skip-external", action="store_true")
     try:
         args = parser.parse_args()
@@ -1901,12 +2164,37 @@ def main() -> None:
             scope = {key: value for key, value in {
                 "content_id": args.content_id, "content_type": args.content_type, "year": args.year,
                 "check_external": not args.skip_external,
+                "population": args.population if args.population != "pending" else None,
             }.items() if value is not None}
             result = _run_sync(settings, scope, args.actor_id, not args.skip_external)
         elif args.command in {"status", "report"}:
             result = acceptance_summary(settings.database_path)
         elif args.command == "verify":
-            result = verify_acceptance(settings.database_path)
+            result = verify_final_acceptance(settings.database_path) if args.final else verify_acceptance(settings.database_path)
+        elif args.command in {"auto-accept", "rollback-auto-accept"}:
+            if not args.actor_id:
+                raise AcceptanceError("--actor-id is required", 422, "ACTOR_ID_REQUIRED")
+            with connect(settings.database_path) as connection:
+                actor = connection.execute("SELECT role,is_active FROM users WHERE id=?", (args.actor_id,)).fetchone()
+            required = {"admin"} if args.command == "rollback-auto-accept" else {"publisher", "admin"}
+            if not actor or not actor["is_active"] or actor["role"] not in required:
+                raise AcceptanceError("У пользователя недостаточно прав", 403, "ACTOR_ROLE_FORBIDDEN")
+            if args.command == "rollback-auto-accept":
+                if not args.operation_id:
+                    raise AcceptanceError("--operation-id is required", 422, "OPERATION_ID_REQUIRED")
+                result = rollback_automatic_acceptance(settings.database_path, operation_id=args.operation_id, actor_id=args.actor_id)
+            else:
+                operations = []
+                while True:
+                    candidates = automatic_acceptance_candidates(settings.database_path)
+                    if not candidates["ready"]:
+                        raise AcceptanceError(candidates["message"], 409, "EDITORIAL_GATE_BLOCKED", {"completed_operations": operations})
+                    if not candidates["items"]:
+                        break
+                    operation = automatic_acceptance(settings.database_path, operation_id=str(uuid.uuid4()),
+                        items=[{"id": item["id"], "version": item["version"]} for item in candidates["items"]], actor_id=args.actor_id)
+                    operations.append(operation)
+                result = {"ok": True, "count": sum(item["count"] for item in operations), "operations": operations}
         else:
             if not args.actor_id:
                 raise AcceptanceError(

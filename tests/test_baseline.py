@@ -6,6 +6,21 @@ from pathlib import Path
 
 from server.baseline import build_report, verify_restore, write_media_manifest
 from server.migrations import migrate
+from scripts.run_cms_regression import stable_source_report
+
+
+def test_cms_57_source_report_detects_row_changes_without_count_changes(tmp_path):
+    database = tmp_path / "cms.sqlite3"
+    media = tmp_path / "media"
+    media.mkdir()
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('record','page','record','Исходный заголовок','draft','{}',1,1,'now','now')""")
+    before = stable_source_report(database, media)
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE contents SET title='Изменённый заголовок' WHERE id='record'")
+    assert stable_source_report(database, media) != before
 
 
 def test_baseline_report_counts_public_materials_by_published_pointer(tmp_path):

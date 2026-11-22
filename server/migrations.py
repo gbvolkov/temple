@@ -50,6 +50,61 @@ from .migration_preparation import (
 )
 
 
+EDITORIAL_ASSESSMENT_SCHEMA_SQL = """
+CREATE TABLE migration_editorial_assessments (
+  id TEXT PRIMARY KEY,
+  content_id TEXT NOT NULL REFERENCES contents(id),
+  content_version INTEGER NOT NULL,
+  content_hash TEXT NOT NULL,
+  audit_run_id TEXT NOT NULL REFERENCES migration_audit_runs(id),
+  preparation_run_id TEXT REFERENCES migration_preparation_runs(id),
+  rules_version TEXT NOT NULL,
+  assessment_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_editorial_assessments_content ON migration_editorial_assessments(content_id,content_version,created_at);
+CREATE TABLE migration_acceptance_operations (
+  id TEXT PRIMARY KEY,
+  request_hash TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('completed','rolled_back')),
+  actor_id TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  rolled_back_at TEXT
+);
+CREATE TABLE migration_acceptance_operation_items (
+  operation_id TEXT NOT NULL REFERENCES migration_acceptance_operations(id),
+  content_id TEXT NOT NULL REFERENCES contents(id),
+  before_json TEXT NOT NULL,
+  after_hash TEXT NOT NULL,
+  PRIMARY KEY(operation_id,content_id)
+);
+"""
+
+
+def validate_editorial_assessment_schema(connection: sqlite3.Connection) -> None:
+    required = {
+        "migration_editorial_assessments": {"id", "content_id", "content_version", "content_hash", "audit_run_id", "preparation_run_id", "rules_version", "assessment_json", "created_at"},
+        "migration_acceptance_operations": {"id", "request_hash", "request_json", "status", "actor_id", "created_at", "rolled_back_at"},
+        "migration_acceptance_operation_items": {"operation_id", "content_id", "before_json", "after_hash"},
+    }
+    for table, columns in required.items():
+        present = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        if not columns <= present:
+            raise MigrationError(f"Editorial assessment schema incomplete: {table}")
+    indexes = {row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+    if "idx_editorial_assessments_content" not in indexes:
+        raise MigrationError("Editorial assessment index missing")
+
+
+def apply_editorial_assessment_schema(connection: sqlite3.Connection) -> str:
+    for statement in EDITORIAL_ASSESSMENT_SCHEMA_SQL.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+    validate_editorial_assessment_schema(connection)
+    return "editorial assessments and acceptance operation journal created"
+
+
 MIGRATION_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version INTEGER PRIMARY KEY,
@@ -1114,6 +1169,8 @@ MIGRATIONS = (
             inspect.getsource(validate_treby_public_route),
         )),
     ),
+    Migration(15, "editorial_assessment_and_acceptance", apply_editorial_assessment_schema,
+              "\n".join((EDITORIAL_ASSESSMENT_SCHEMA_SQL, inspect.getsource(validate_editorial_assessment_schema)))),
 )
 
 
@@ -1201,6 +1258,8 @@ def verify_migrations(path: Path) -> list[dict]:
                 validate_media_reconciliation_schema(connection)
             if any(item.get("version") == 12 and item["state"] == "applied" for item in status):
                 validate_preparation_schema(connection)
+            if any(item.get("version") == 15 and item["state"] == "applied" for item in status):
+                validate_editorial_assessment_schema(connection)
         finally:
             connection.close()
     return status
