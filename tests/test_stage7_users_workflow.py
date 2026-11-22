@@ -31,6 +31,19 @@ def settings_for(tmp_path: Path) -> Settings:
     )
 
 
+def test_cms_60_editor_assets_require_revalidation(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        for path in ("/cms.html", "/cms.js", "/cms.css", "/cms-schema.json"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert "no-cache" in response.headers.get("cache-control", "").lower(), path
+            if response.headers.get("etag"):
+                revalidated = client.get(path, headers={"If-None-Match": response.headers["etag"]})
+                assert revalidated.status_code in (200, 304)
+                assert "no-cache" in revalidated.headers.get("cache-control", "").lower()
+        assert "no-cache" not in client.get("/app.js").headers.get("cache-control", "").lower()
+
+
 def login(client: TestClient, username: str, password: str) -> dict[str, str]:
     response = client.post("/api/admin/login", json={"username": username, "password": password})
     assert response.status_code == 200, response.text
