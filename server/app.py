@@ -448,6 +448,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response = await call_next(request)
         if path.startswith("/api/admin/submissions"):
             response.headers["Cache-Control"] = "no-store"
+        elif path in {"/cms.html", "/cms.js", "/cms.css", "/cms-schema.json"}:
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     def current_user(request: Request) -> dict:
