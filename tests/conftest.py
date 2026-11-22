@@ -10,6 +10,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption("--cms-headed", action="store_true", help="Show Chromium during CMS E2E tests")
     group.addoption("--cms-source-db", type=Path, help="Read-only source database for source_data tests")
     group.addoption("--cms-source-media", type=Path, help="Read-only source media directory")
+    group.addoption("--cms-source-manifest", type=Path, help="Read-only source media manifest")
     group.addoption("--cms-artifacts-dir", type=Path, help="Playwright artifacts directory")
 
 

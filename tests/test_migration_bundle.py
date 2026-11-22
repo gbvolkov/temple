@@ -93,7 +93,7 @@ def test_bundle_create_verify_and_database_contract(tmp_path: Path):
     plan = json.loads((root / "source/full-import-plan.json").read_text(encoding="utf-8"))
     execute_plan(database, root / "source/legacy-crawl-checkpoint.json", plan)
     verified = verify_database(database, root)
-    assert verified["schema_version"] == 14
+    assert verified["schema_version"] == 15
     assert verified["contents"] == verified["review_required"] == 1
     assert verified["source_users_imported"] == 0
 

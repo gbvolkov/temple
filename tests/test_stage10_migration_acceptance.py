@@ -96,6 +96,206 @@ def run_audit(settings: Settings, *, content_id: str | None = None) -> dict:
     )
 
 
+def test_cms_38_clergy_position_is_nfkc_on_save(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        created = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "clergy", "title": "Священник", "data": {"rank": "Иерей", "position": "Служение"}},
+        ).json()
+        payload = {"title": created["title"], "slug": created["slug"], "version": created["version"],
+                   "data": {**created["data"], "position": "Служение\u00a0в храме"}}
+        response = client.put(f"/api/admin/contents/{created['id']}", headers=headers, json=payload)
+        assert response.status_code == 200, response.text
+        updated = response.json()
+        assert updated["data"]["position"] == "Служение в храме"
+        assert updated["data"]["rank"] == "Иерей"
+        payload.update(version=updated["version"], data=updated["data"])
+        again = client.put(f"/api/admin/contents/{created['id']}", headers=headers, json=payload)
+        assert again.status_code == 200
+        assert again.json()["version"] == updated["version"]
+
+
+def test_cms_39_card_review_and_local_unicode_repair(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        response = client.post(
+            "/api/admin/contents", headers=headers,
+            json={"content_type": "clergy", "title": "Иерей Сергий", "data": {"rank": "Иерей", "position": "Служение"}},
+        )
+        assert response.status_code == 201
+        item = response.json()
+        with sqlite3.connect(settings.database_path) as connection:
+            data = item["data"] | {"position": "Служение\u00a0в храме"}
+            connection.execute("UPDATE contents SET data_json=?, migration_review_required=1 WHERE id=?", (json.dumps(data), item["id"]))
+        run_audit(settings, content_id=item["id"])
+        review = client.get(f"/api/admin/contents/{item['id']}/migration-review")
+        assert review.status_code == 200
+        review = review.json()
+        assert review["assessment"]["content_version"] == item["version"]
+        assert review["assessment"]["audit_run_id"]
+        issue = next(issue for issue in review["issues"] if issue["code"] == "unicode_not_nfkc")
+        assert issue["field_path"] == "content.position"
+        url = f"/api/admin/contents/{item['id']}/migration-issues/{issue['id']}/normalize"
+        user = client.post("/api/admin/users", headers=headers, json={"username": "viewer39", "password": "Strong-Password-2026!", "role": "viewer"})
+        assert user.status_code == 201
+        client.post("/api/admin/logout", headers=headers)
+        viewer_login = client.post("/api/admin/login", json={"username": "viewer39", "password": "Strong-Password-2026!"})
+        viewer_headers = {"X-CSRF-Token": viewer_login.json()["csrf_token"]}
+        assert client.post(url, headers=viewer_headers, json={"version": item["version"]}).status_code == 403
+        client.post("/api/admin/logout", headers=viewer_headers)
+        headers = login(client)
+        assert client.post(url, headers=headers, json={"version": 999}).status_code == 409
+        fixed = client.post(url, headers=headers, json={"version": item["version"]})
+        assert fixed.status_code == 200, fixed.text
+        result = fixed.json()
+        assert result["content"]["data"]["rank"] == "Иерей"
+        assert result["content"]["data"]["position"] == "Служение в храме"
+        assert result["content"]["migration_review_required"]
+        assert result["review"]["audit_version"] == result["content"]["version"]
+        assert all(i["code"] != "unicode_not_nfkc" for i in result["review"]["issues"])
+        again = client.post(url, headers=headers, json={"version": result["content"]["version"]})
+        assert again.status_code == 200
+        assert again.json()["content"]["version"] == result["content"]["version"]
+
+
+def test_cms_41_batch_rejects_changed_selection(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Проверка версии партии")
+        run_audit(settings)
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET version=version+1 WHERE id=?", (item["id"],))
+        run_audit(settings, content_id=item["id"])
+        response = client.post("/api/admin/migration/batches", headers=headers, json={
+            "name": "Проверка", "kind": "priority", "content_ids": [item["id"]],
+            "expected_versions": {item["id"]: item["version"]},
+        })
+        assert response.status_code == 409, response.text
+        assert client.get("/api/admin/migration/batches").json()["total"] == 0
+
+
+def test_cms_42_batch_candidate_lookup_by_title(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Особый заголовок")
+        run_audit(settings)
+        response = client.get("/api/admin/migration/batch-candidates", params={"q": "Особый"})
+        assert response.status_code == 200
+        candidate = response.json()["items"][0]
+        assert candidate["id"] == item["id"]
+        assert candidate["eligible"] and candidate["version"] == item["version"]
+        assert candidate["audit_run_id"]
+
+
+def test_cms_43_refresh_stale_batch_resets_only_changed_decisions(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        first = create_imported_news(client, headers, "Одинаковый заголовок")
+        second = create_imported_news(client, headers, "Одинаковый заголовок")
+        run_audit(settings)
+        with sqlite3.connect(settings.database_path) as connection:
+            actor_id = connection.execute("SELECT id FROM users WHERE username='admin'").fetchone()[0]
+        batch = create_batch(settings.database_path, name="Тест", kind="priority", content_ids=[first["id"], second["id"]], actor_id=actor_id)
+        for item in batch["items"]:
+            response = client.patch(f"/api/admin/migration/batches/{batch['id']}/items/{item['content_id']}", headers=headers,
+                                    json={"version": item["version"], "manual_reviewed": True, "disposition": "accept", "note": "Проверено"})
+            assert response.status_code == 200
+            batch = response.json()
+        content = client.get(f"/api/admin/contents/{first['id']}").json()
+        content["data"]["summary"] += " Изменено."
+        saved = client.put(f"/api/admin/contents/{first['id']}", headers=headers,
+                           json={"version": content["version"], "title": content["title"], "slug": content["slug"], "data": content["data"]})
+        assert saved.status_code == 200
+        run_audit(settings, content_id=first["id"])
+        response = client.post(f"/api/admin/migration/batches/{batch['id']}/refresh", headers=headers, json={"version": batch["version"]})
+        assert response.status_code == 200, response.text
+        refreshed = {item["content_id"]: item for item in response.json()["items"]}
+        assert refreshed[first["id"]]["disposition"] == "pending"
+        assert not refreshed[first["id"]]["manual_reviewed"]
+        assert refreshed[second["id"]]["disposition"] == "accept"
+        assert refreshed[second["id"]]["manual_reviewed"]
+
+
+def test_cms_46_final_audit_includes_accepted_active_content(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Принятый черновик")
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET migration_review_required=0 WHERE id=?", (item["id"],))
+        run = queue_audit(settings.database_path, actor_id=None, scope={"population": "active", "check_external": False})
+        result = execute_audit_run(settings.database_path, settings.schema_path, settings.media_dir,
+                                   settings.site_dir, run["id"], check_external=False)
+        assert result["counts"]["contents"] == 1
+        with sqlite3.connect(settings.database_path) as connection:
+            assert connection.execute("SELECT COUNT(*) FROM migration_audit_items WHERE run_id=? AND content_id=?", (run["id"], item["id"])).fetchone()[0] == 1
+
+
+def test_cms_47_final_gate_rejects_missing_or_stale_active_audit(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Проверенный материал")
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET migration_review_required=0 WHERE id=?", (item["id"],))
+        assert client.get("/api/admin/migration/final-verification").status_code == 409
+        run = queue_audit(settings.database_path, actor_id=None, scope={"population": "active", "check_external": False})
+        execute_audit_run(settings.database_path, settings.schema_path, settings.media_dir, settings.site_dir, run["id"], check_external=False)
+        assert client.get("/api/admin/migration/final-verification").status_code == 200
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET version=version+1 WHERE id=?", (item["id"],))
+        assert client.get("/api/admin/migration/final-verification").status_code == 409
+
+
+def test_cms_50_final_gate_checks_new_current_blockers(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Проверенный материал")
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET migration_review_required=0 WHERE id=?", (item["id"],))
+        run = queue_audit(settings.database_path, actor_id=None, scope={"population": "active", "check_external": False})
+        execute_audit_run(settings.database_path, settings.schema_path, settings.media_dir, settings.site_dir, run["id"], check_external=False)
+        assert client.get("/api/admin/migration/final-verification").status_code == 200
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("""INSERT INTO migration_review_issues(id,audit_run_id,content_id,content_version,code,severity,field_path,fingerprint,status,message,details_json,detected_at)
+                VALUES('final-blocker',?,?,?,'late_blocker','blocker','title','final-blocker','open','Блокер','{}','2026-01-01')""", (run["id"], item["id"], item["version"]))
+        assert client.get("/api/admin/migration/final-verification").status_code == 409
+
+
+def test_cms_48_card_does_not_hide_failed_latest_audit(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Неудачная проверка")
+        run_audit(settings, content_id=item["id"])
+        failed = queue_audit(settings.database_path, actor_id=None, scope={"content_id": item["id"], "check_external": False})
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE migration_audit_runs SET status='failed',error='Проверка не выполнена' WHERE id=?", (failed["id"],))
+        review = client.get(f"/api/admin/contents/{item['id']}/migration-review").json()
+        assert review["state"] == "failed"
+        assert review["blocker_count"] is None and review["warning_count"] is None
+
+
+def test_cms_55_card_detects_hash_drift_without_version_change(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = login(client)
+        item = create_imported_news(client, headers, "Проверка хеша")
+        run_audit(settings, content_id=item["id"])
+        with sqlite3.connect(settings.database_path) as connection:
+            connection.execute("UPDATE contents SET title='Другая версия данных' WHERE id=?", (item["id"],))
+        review = client.get(f"/api/admin/contents/{item['id']}/migration-review").json()
+        assert review["state"] == "stale"
+        assert review["blocker_count"] is None
+
+
 def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -> None:
     settings = settings_for(tmp_path)
     init_database(settings.database_path)
@@ -104,7 +304,7 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
             table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("contents", "revisions", "users", "media", "redirects", "submissions")
         }
-        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
+        assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 15
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     init_database(settings.database_path)
     with sqlite3.connect(settings.database_path) as connection:

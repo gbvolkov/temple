@@ -27,9 +27,9 @@ def legacy_database(path):
 def test_fresh_database_and_repeat_are_idempotent(tmp_path):
     database = tmp_path / "fresh.sqlite3"
     first = migrate(database)
-    assert [item["state"] for item in first] == ["applied"] * 14
+    assert [item["state"] for item in first] == ["applied"] * 15
     second = migrate(database)
-    assert [item["state"] for item in second] == ["unchanged"] * 14
+    assert [item["state"] for item in second] == ["unchanged"] * 15
     with sqlite3.connect(database) as connection:
         for table, columns in {
             "migration_audit_runs": {
@@ -73,7 +73,7 @@ def test_existing_legacy_schema_is_stamped_without_losing_data(tmp_path):
     migrate(database)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 14
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 15
 
 
 def test_schema_14_repairs_existing_treby_redirect(tmp_path):
@@ -87,12 +87,34 @@ def test_schema_14_repairs_existing_treby_redirect(tmp_path):
         )
 
     result = migrate(database)
-    assert result[-1]["version"] == 14
-    assert result[-1]["state"] == "applied"
+    assert result[13]["version"] == 14
+    assert result[13]["state"] == "applied"
     with sqlite3.connect(database) as connection:
         assert connection.execute(
             "SELECT new_path,status_code FROM redirects WHERE old_path='/требы-онлайн.html'"
         ).fetchone() == ("/treby", 301)
+
+
+def test_schema_15_upgrade_preserves_existing_records_and_checksums(tmp_path):
+    database = tmp_path / "schema14.sqlite3"
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("DROP TABLE migration_acceptance_operation_items")
+        connection.execute("DROP TABLE migration_acceptance_operations")
+        connection.execute("DROP TABLE migration_editorial_assessments")
+        connection.execute("DELETE FROM schema_migrations WHERE version=15")
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('preserved','page','preserved','Сохранить','draft','{}',1,4,'created','updated')""")
+        before = connection.execute("SELECT * FROM contents WHERE id='preserved'").fetchone()
+        checksums = connection.execute("SELECT version,checksum FROM schema_migrations ORDER BY version").fetchall()
+    result = migrate(database)
+    assert result[-1]["version"] == 15 and result[-1]["state"] == "applied"
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT * FROM contents WHERE id='preserved'").fetchone() == before
+        assert connection.execute("SELECT version,checksum FROM schema_migrations WHERE version<15 ORDER BY version").fetchall() == checksums
+        assert not connection.execute("PRAGMA foreign_key_check").fetchall()
+    assert migrate(database)[-1]["state"] == "unchanged"
+    verify_migrations(database)
 
 
 def test_dry_run_does_not_create_or_change_database(tmp_path):
@@ -100,7 +122,7 @@ def test_dry_run_does_not_create_or_change_database(tmp_path):
     legacy_database(database)
     before = database.read_bytes()
     pending = migrate(database, dry_run=True)
-    assert [item["version"] for item in pending] == list(range(1, 15))
+    assert [item["version"] for item in pending] == list(range(1, 16))
     assert database.read_bytes() == before
     with sqlite3.connect(database) as connection:
         assert connection.execute(

@@ -13,7 +13,10 @@ from server.baseline import database_report, media_summary, readonly_connection
 from server.config import Settings
 from server.db import init_database
 from server.media_reconciliation import run_reconciliation
-from server.migration_acceptance import execute_audit_run, queue_audit
+from server.migration_acceptance import (
+    automatic_acceptance, automatic_acceptance_candidates, execute_audit_run,
+    queue_audit, rollback_automatic_acceptance,
+)
 from server.migration_preparation import (
     PreparationError,
     execute_preparation_run,
@@ -54,7 +57,7 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
         source.backup(destination)
     init_database(target)
     migrated = database_report(target)
-    assert migrated["schema_version"] == 14
+    assert migrated["schema_version"] == 15
     assert migrated["quick_check"] == ["ok"]
     assert migrated["foreign_key_error_count"] == 0
     after = stable_database_metrics(database_report(source_db))
@@ -73,6 +76,9 @@ def source_paths(pytestconfig):
 @pytest.fixture(scope="module")
 def reconciled_source(pytestconfig, tmp_path_factory):
     source_db, source_media = source_paths(pytestconfig)
+    source_manifest = pytestconfig.getoption("--cms-source-manifest") or source_db.parent / "legacy-media-manifest.json"
+    if not source_manifest.is_file():
+        raise pytest.UsageError(f"Source media manifest not found: {source_manifest}")
     before_database = stable_database_metrics(database_report(source_db))
     before_media = media_summary(source_media)
     target_root = tmp_path_factory.mktemp("cms-source-reconciliation")
@@ -91,7 +97,7 @@ def reconciled_source(pytestconfig, tmp_path_factory):
         schema_path=ROOT / "site" / "cms-schema.json",
         legacy_sections_path=ROOT / "current-sections.json",
         legacy_crawl_path=None,
-        media_manifest_path=ROOT / "data" / "legacy-media-manifest.json",
+        media_manifest_path=source_manifest.resolve(),
         missing_media_report_path=ROOT / "outputs" / "missing-legacy-media.csv",
         environment="test",
         bootstrap_user="admin",
@@ -301,3 +307,42 @@ def test_cms_20_verify_fails_closed_on_post_apply_violations(prepared_source, de
         f"verify_ok={verify_ok}; blockers={blockers}; warnings={warnings}; "
         f"verification={verification}"
     )
+
+
+@pytest.mark.source_data
+def test_stage7_automatic_acceptance_on_source_copy(prepared_source, tmp_path):
+    settings: Settings = prepared_source["settings"]
+    target = tmp_path / "acceptance-copy.sqlite3"
+    with readonly_connection(settings.database_path) as source, sqlite3.connect(target) as destination:
+        source.backup(destination)
+    with sqlite3.connect(target) as connection:
+        before = {row[0]: row[1:] for row in connection.execute(
+            "SELECT id,status,version,published_version,title,data_json,migration_review_required FROM contents"
+        )}
+        actor = connection.execute("SELECT id FROM users WHERE role='admin' AND is_active=1 LIMIT 1").fetchone()
+    operations = []
+    accepted = set()
+    while True:
+        candidates = automatic_acceptance_candidates(target)
+        assert candidates["ready"], candidates
+        if not candidates["items"]:
+            break
+        selected = [{"id": row["id"], "version": row["version"]} for row in candidates["items"]]
+        assert not (accepted & {row["id"] for row in selected})
+        operation_id = f"source-copy-{len(operations)}"
+        result = automatic_acceptance(target, operation_id=operation_id, items=selected, actor_id=actor[0] if actor else None)
+        assert result["count"] == len(selected)
+        operations.append((operation_id, selected))
+        accepted.update(row["id"] for row in selected)
+    assert accepted, "Source copy must contain auto-ready materials"
+    with sqlite3.connect(target) as connection:
+        after = {row[0]: row[1:] for row in connection.execute(
+            "SELECT id,status,version,published_version,title,data_json,migration_review_required FROM contents"
+        )}
+        for content_id, original in before.items():
+            assert after[content_id][:-1] == original[:-1]
+            assert after[content_id][-1] == (0 if content_id in accepted else original[-1])
+    operation_id, selected = operations[0]
+    assert rollback_automatic_acceptance(target, operation_id=operation_id, actor_id=actor[0] if actor else None)["status"] == "rolled_back"
+    with sqlite3.connect(target) as connection:
+        assert all(connection.execute("SELECT migration_review_required FROM contents WHERE id=?", (row["id"],)).fetchone()[0] == 1 for row in selected)

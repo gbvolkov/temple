@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from server.baseline import database_report, media_summary
+from server.baseline import database_report, media_summary, readonly_connection
 
 
 def coverage_check_count() -> int:
@@ -45,10 +45,46 @@ def media_inventory_digest(media: Path) -> str:
     return digest.hexdigest()
 
 
-def stable_source_report(database: Path, media: Path) -> dict:
+def logical_database_digest(database: Path) -> str:
+    """Hash all logical table rows in a single read-only SQLite snapshot."""
+    digest = hashlib.sha256()
+
+    def add(value: object) -> None:
+        if value is None:
+            tag, payload = b"n", b""
+        elif isinstance(value, bytes):
+            tag, payload = b"b", value
+        else:
+            tag, payload = type(value).__name__.encode("ascii"), str(value).encode("utf-8")
+        digest.update(len(tag).to_bytes(2, "big") + tag + len(payload).to_bytes(8, "big") + payload)
+
+    with readonly_connection(database) as connection:
+        connection.execute("BEGIN")
+        tables = connection.execute("""SELECT name,sql FROM sqlite_master WHERE type='table'
+            AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') ORDER BY name""").fetchall()
+        for table in tables:
+            add(table["name"])
+            add(table["sql"])
+            name = table["name"].replace('"', '""')
+            for row in connection.execute(f'SELECT * FROM "{name}"'):
+                add("row")
+                for value in row:
+                    add(value)
+    return digest.hexdigest()
+
+
+def source_manifest_path(database: Path, explicit: Path | None = None) -> Path:
+    manifest = (explicit or database.resolve().parent / "legacy-media-manifest.json").resolve()
+    if not manifest.is_file():
+        raise FileNotFoundError(f"Source media manifest not found: {manifest}")
+    return manifest
+
+
+def stable_source_report(database: Path, media: Path, manifest: Path | None = None) -> dict:
     report = database_report(database)
-    return {
+    result = {
         "database": {
+            "logical_sha256": logical_database_digest(database),
             "quick_check": report["quick_check"],
             "foreign_key_error_count": report["foreign_key_error_count"],
             "metrics": report["metrics"],
@@ -59,6 +95,13 @@ def stable_source_report(database: Path, media: Path) -> dict:
         },
         "media": {**media_summary(media), "inventory_sha256": media_inventory_digest(media)},
     }
+    if manifest is not None:
+        digest = hashlib.sha256()
+        with manifest.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        result["manifest"] = {"path": str(manifest.resolve()), "sha256": digest.hexdigest()}
+    return result
 
 
 def main() -> int:
@@ -67,6 +110,7 @@ def main() -> int:
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--source-db", type=Path)
     parser.add_argument("--source-media", type=Path)
+    parser.add_argument("--source-manifest", type=Path)
     parser.add_argument("--artifacts-dir", type=Path)
     parser.add_argument("--keep-workdir", action="store_true", help="Keep isolated pytest work directory")
     args = parser.parse_args()
@@ -92,13 +136,15 @@ def main() -> int:
             parser.error("source-data requires --source-db and --source-media")
         source_db = args.source_db.resolve()
         source_media = args.source_media.resolve()
-        source_before = stable_source_report(source_db, source_media)
+        source_manifest = source_manifest_path(source_db, args.source_manifest)
+        source_before = stable_source_report(source_db, source_media, source_manifest)
         (artifacts / "source-before.json").write_text(
             json.dumps(source_before, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         command += [
             "-m", "source_data", "--cms-source-db", str(source_db),
             "--cms-source-media", str(source_media),
+            "--cms-source-manifest", str(source_manifest),
         ]
     if args.headed:
         command.append("--cms-headed")
@@ -108,7 +154,7 @@ def main() -> int:
         result = subprocess.run(command, cwd=ROOT, check=False)
         source_unchanged = True
         if source_before is not None:
-            source_after = stable_source_report(args.source_db.resolve(), args.source_media.resolve())
+            source_after = stable_source_report(args.source_db.resolve(), args.source_media.resolve(), source_manifest)
             (artifacts / "source-after.json").write_text(
                 json.dumps(source_after, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
             )

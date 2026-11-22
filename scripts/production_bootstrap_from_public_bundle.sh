@@ -7,7 +7,7 @@ ARCHIVE="${1:-}"
 CHECKSUM="${2:-${ARCHIVE:+$ARCHIVE.sha256}}"
 SERVICE="${SERVICE:-cms}"
 VERIFY_EXTERNAL="${VERIFY_EXTERNAL:-0}"
-EXPECTED_SCHEMA=14
+EXPECTED_SCHEMA=15
 EXPECTED_CONTENT_SCHEMA=1.7.0
 
 if [[ -z "$ARCHIVE" || -z "$CHECKSUM" ]]; then
@@ -252,7 +252,7 @@ with open(path, "w", encoding="utf-8") as output:
         "code_sha": code_sha,
         "image_id": image_id,
         "bundle_id": bundle_id,
-        "schema_version": 14,
+        "schema_version": 15,
     }, output, ensure_ascii=False, indent=2)
 PY
 chmod 600 "$REPORT_ROOT"/*

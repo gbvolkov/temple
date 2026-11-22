@@ -1,14 +1,263 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 import pytest
+from playwright.sync_api import expect
 
 from server.migration_acceptance import execute_audit_run, queue_audit
 from server.migration_preparation import execute_preparation_run, queue_preparation
 
-from .conftest import login
+from .conftest import login, open_content
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_39_card_review_ui(page, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        content_id, raw = connection.execute("SELECT id,data_json FROM contents WHERE content_type='clergy' AND title='E2E clergy'").fetchone()
+        data = json.loads(raw)
+        data.update(rank="Иерей", position="Служение\u00a0в храме")
+        connection.execute("UPDATE contents SET data_json=?,migration_review_required=1 WHERE id=?", (json.dumps(data), content_id))
+    run = queue_audit(live_cms.settings.database_path, actor_id=None, scope={"content_id": content_id, "check_external": False})
+    execute_audit_run(live_cms.settings.database_path, live_cms.settings.schema_path, live_cms.settings.media_dir, live_cms.settings.site_dir, run["id"], check_external=False)
+    login(page)
+    open_content(page, "clergy", "E2E clergy")
+    review = page.locator("[data-card-review]")
+    review.get_by_text("Служение", exact=False).first.wait_for()
+    coverage_steps.check("stage7.card.current-warning", "Служение" in review.inner_text())
+    review.get_by_role("button", name="Исправить и перепроверить").click()
+    review.get_by_text("0 предупреждений", exact=False).wait_for()
+    coverage_steps.check("stage7.card.corrected", "0 предупреждений" in review.inner_text())
+    page.reload()
+    open_content(page, "clergy", "E2E clergy")
+    page.locator("[data-card-review]").get_by_text("0 предупреждений", exact=False).wait_for()
+    coverage_steps.check("stage7.card.reload", "0 предупреждений" in page.locator("[data-card-review]").inner_text())
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_42_followup_batch_ui(page, live_cms, coverage_steps):
+    login(page)
+    _create_pilot(page, live_cms)
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.locator("[data-batch-cancel]").click()
+    page.locator(".workflow-panel__head .state-pill").filter(has_text="Отменена").wait_for()
+    page.locator("[data-migration-back]").click()
+    page.get_by_role("button", name="Создать следующую партию").click()
+    page.get_by_label("Поиск материалов").fill("E2E")
+    page.get_by_role("button", name="Найти материалы").click()
+    checkbox = page.locator("[data-candidate-select]:not(:disabled)").first
+    checkbox.wait_for()
+    coverage_steps.check("stage7.batch.lookup", checkbox.is_visible())
+    checkbox.check()
+    page.get_by_label("Название партии").fill("Следующая партия")
+    page.get_by_role("button", name="Создать партию").click()
+    page.get_by_role("heading", name="Следующая партия", exact=True).wait_for()
+    coverage_steps.check("stage7.batch.create", page.locator("[data-batch-content]").count() == 1)
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_43_refresh_batch_ui(page, live_cms, coverage_steps):
+    login(page)
+    batch = _create_pilot(page, live_cms)
+    changed = next(item for item in batch["items"] if item["content_type"] == "clergy")
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute("UPDATE contents SET version=version+1 WHERE id=?", (changed["content_id"],))
+    run = queue_audit(live_cms.settings.database_path, actor_id=None, scope={"content_id": changed["content_id"], "check_external": False})
+    execute_audit_run(live_cms.settings.database_path, live_cms.settings.schema_path, live_cms.settings.media_dir, live_cms.settings.site_dir, run["id"], check_external=False)
+    page.locator("[data-migration-back]").click()
+    page.locator(f'[data-migration-batch="{batch["id"]}"]').click()
+    page.get_by_text("Версии материалов изменились").wait_for()
+    coverage_steps.check("stage7.batch-refresh.stale", page.locator("[data-batch-stale]").is_visible())
+    page.get_by_role("button", name="Обновить версии партии").click()
+    page.get_by_text("Версии материалов изменились").wait_for(state="hidden")
+    coverage_steps.check("stage7.batch-refresh.updated", page.locator("[data-batch-stale]").count() == 0)
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_44_automatic_acceptance_ui(page, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute("UPDATE contents SET migration_review_required=0")
+        data = {"publication_date": "2014-01-01", "category": "Новости прихода", "summary": "Краткое описание",
+                "cover": "assets/school-maslenitsa.jpg", "cover_alt": "Событие", "related_content": [],
+                "body": [{"id": "p1", "type": "paragraph", "data": {"runs": [{"text": "Текст события.", "marks": []}]}}]}
+        connection.execute("UPDATE contents SET migration_review_required=1,data_json=? WHERE content_type='news' AND title='E2E pagination 001'", (json.dumps(data, ensure_ascii=False),))
+    _prepare_editorial_gate(live_cms)
+    login(page)
+    _open_panel(page, "migration", "Перенесённые материалы")
+    page.get_by_role("button", name="Принять автоматически готовые").click()
+    page.get_by_text("Автоматически принято: 1", exact=False).wait_for()
+    coverage_steps.mark("stage7.auto.accepted")
+    page.locator('.cms-type[data-content-type="news"]').click()
+    picker = page.locator("[data-content-select]")
+    option = picker.locator("option").filter(has_text="E2E pagination 001")
+    option.wait_for(state="attached")
+    picker.select_option(option.get_attribute("value"))
+    page.locator("[data-editor-title]").filter(has_text="E2E pagination 001").wait_for()
+    coverage_steps.check("stage7.auto.draft", page.locator("[data-migration-warning]").count() == 0 and "Черновик" in page.locator("[data-workflow-state]").inner_text())
+    _open_panel(page, "migration", "Перенесённые материалы")
+    page.get_by_text("Журнал автоматической приёмки").click()
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.get_by_role("button", name="Откатить пакет").click()
+    page.locator("[data-auto-operations]").get_by_text("откачено", exact=False).wait_for()
+    coverage_steps.mark("stage7.auto.rollback")
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+@pytest.mark.expected_http_error(409, "/api/admin/contents/")
+def test_stage7_visible_workflow_to_publication(page, browser, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute("UPDATE contents SET migration_review_required=0")
+        original = connection.execute("SELECT id FROM contents WHERE content_type='clergy' AND title='E2E clergy'").fetchone()[0]
+        data = {"rank": "", "position": "Настоятель", "biography": [{"id": "bio", "type": "paragraph", "data": {"runs": [{"text": "Биография священника.", "marks": []}]}}]}
+        connection.execute("UPDATE contents SET title=?,data_json=?,migration_review_required=1 WHERE id=?", ("Священник E2E", json.dumps(data, ensure_ascii=False), original))
+        data.update(rank="Иерей", position="Другой приход")
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('e2e-clergy-duplicate','clergy','e2e-clergy-duplicate','Священник E2E','draft',?,0,1,'2026-01-01','2026-01-01')""", (json.dumps(data, ensure_ascii=False),))
+    _prepare_editorial_gate(live_cms)
+    viewer = browser.new_page()
+    viewer.goto(f"{live_cms.base_url}/cms.html")
+    login(viewer, "e2e_viewer", SEEDED_PASSWORD)
+    _open_panel(viewer, "migration", "Перенесённые материалы")
+    coverage_steps.check("stage7.e2e.role", viewer.get_by_role("button", name="Создать следующую партию").count() == 0)
+    viewer.close()
+    login(page)
+    _open_panel(page, "migration", "Перенесённые материалы")
+    issue = page.locator("[data-migration-issue]").filter(has_text="Священник E2E").first
+    issue.get_by_role("button", name="Исправить").click()
+    page.locator('[data-schema-field="rank"] input').fill("Иерей")
+    page.locator("[data-save-draft]").last.click()
+    page.locator("[data-audit-current]").click()
+    page.locator("[data-card-review]").get_by_text("0 блокирующих ошибок", exact=False).wait_for()
+    coverage_steps.mark("stage7.e2e.correct-audit")
+    page.reload()
+    page.locator('.cms-type[data-content-type="clergy"]').click()
+    picker = page.locator("[data-content-select]")
+    option = picker.locator("option").filter(has_text="! Священник E2E")
+    option.wait_for(state="attached")
+    picker.select_option(option.get_attribute("value"))
+    page.locator("[data-card-review]").get_by_text("0 блокирующих ошибок", exact=False).wait_for()
+    coverage_steps.mark("stage7.e2e.reload")
+    other = browser.new_page()
+    other.goto(f"{live_cms.base_url}/cms.html")
+    login(other, "e2e_editor", SEEDED_PASSWORD)
+    other.locator('.cms-type[data-content-type="clergy"]').click()
+    other_picker = other.locator("[data-content-select]")
+    other_option = other_picker.locator("option").filter(has_text="! Священник E2E")
+    other_option.wait_for(state="attached")
+    other_picker.select_option(other_option.get_attribute("value"))
+    expect(other.locator("[data-editor-title]")).to_have_text("Священник E2E")
+    expect(other.locator('[data-schema-field="position"] input')).to_have_value("Настоятель")
+    other.locator('[data-schema-field="position"] input').fill("Второй редактор")
+    other.locator("[data-save-draft]").last.click()
+    other.get_by_text("Черновик сохранён").wait_for()
+    page.locator('[data-schema-field="rank"] input').fill("Протоиерей")
+    page.locator("[data-save-draft]").last.click()
+    page.get_by_role("button", name="Открыть свежую версию").wait_for()
+    assert page.locator('[data-schema-field="rank"] input').input_value() == "Протоиерей"
+    page.get_by_role("button", name="Открыть свежую версию").click()
+    page.locator("[data-unsaved-discard]").click()
+    expect(page.locator('[data-schema-field="position"] input')).to_have_value("Второй редактор")
+    other.close()
+    page.locator("[data-audit-current]").click()
+    page.locator("[data-card-review]").get_by_text("0 блокирующих ошибок", exact=False).wait_for()
+    coverage_steps.mark("stage7.e2e.conflict")
+    _open_panel(page, "migration", "Перенесённые материалы")
+    page.get_by_role("button", name="Запустить аудит", exact=True).click()
+    expect(page.locator("[data-migration-pilot-reason]")).to_have_text("Семантический шлюз пройден", timeout=60000)
+    page.get_by_role("button", name="Создать следующую партию").click()
+    page.get_by_label("Поиск материалов").fill("Священник E2E")
+    page.get_by_role("button", name="Найти материалы").click()
+    page.locator("[data-candidate-select]:not(:disabled)").first.check()
+    page.get_by_label("Название партии").fill("Приёмка священника")
+    page.get_by_role("button", name="Создать партию").click()
+    page.get_by_role("heading", name="Приёмка священника", exact=True).wait_for()
+    coverage_steps.mark("stage7.e2e.batch")
+    card = page.locator("[data-batch-content]").first
+    card.locator("[data-batch-reviewed]").check()
+    card.locator("[data-batch-disposition]").select_option("accept")
+    card.locator("[data-batch-note]").fill("Содержимое проверено")
+    for field in card.locator("[data-batch-warning]").all():
+        field.fill("Дубли проверены")
+    card.locator("[data-batch-item-save]").click()
+    page.get_by_text("1/1 решений", exact=False).wait_for()
+    page.locator("[data-batch-submit]").click()
+    page.locator(".workflow-panel__head .state-pill").filter(has_text="На утверждении").wait_for()
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.locator("[data-batch-finalize]").click()
+    page.locator(".workflow-panel__head .state-pill").filter(has_text="Завершена").wait_for()
+    coverage_steps.mark("stage7.e2e.accept")
+    page.locator("[data-batch-content]").first.get_by_role("button", name="Редактор и preview").click()
+    page.locator('[data-workflow-action="submit-review"]').click()
+    page.locator("[data-workflow-state]").filter(has_text="На проверке").wait_for()
+    page.locator('[data-workflow-action="publish"]').click()
+    publish = page.locator("[data-publish-dialog]")
+    publish.locator('input[type="checkbox"]').last.check()
+    publish.locator("[data-publish-confirm]").click()
+    page.locator("[data-workflow-state]").filter(has_text="На сайте").wait_for()
+    coverage_steps.mark("stage7.e2e.publish")
+    page.goto(f"{live_cms.base_url}/about")
+    page.get_by_role("link", name="Священник E2E", exact=False).wait_for()
+    coverage_steps.mark("stage7.e2e.public")
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+@pytest.mark.expected_http_error(409, "/api/admin/contents/")
+def test_cms_51_conflict_recovery_ui(page, browser, live_cms, coverage_steps):
+    login(page)
+    open_content(page, "clergy", "E2E clergy")
+    second = browser.new_page()
+    second.goto(f"{live_cms.base_url}/cms.html")
+    login(second)
+    open_content(second, "clergy", "E2E clergy")
+    second.locator('[data-schema-field="position"] input').fill("Другая правка")
+    second.locator("[data-save-draft]").last.click()
+    second.get_by_text("Черновик сохранён").wait_for()
+    page.locator('[data-schema-field="rank"] input').fill("Моя правка")
+    page.locator("[data-save-draft]").last.click()
+    page.get_by_role("button", name="Открыть свежую версию").wait_for()
+    coverage_steps.check("stage7.conflict.preserved", page.locator('[data-schema-field="rank"] input').input_value() == "Моя правка")
+    page.get_by_role("button", name="Открыть свежую версию").click()
+    page.locator("[data-unsaved-discard]").click()
+    expect(page.locator('[data-schema-field="position"] input')).to_have_value("Другая правка")
+    coverage_steps.mark("stage7.conflict.reload")
+    second.close()
+
+
+@pytest.mark.e2e
+@pytest.mark.full
+def test_cms_59_card_loading_blocks_editing(page, live_cms, coverage_steps):
+    with sqlite3.connect(live_cms.settings.database_path) as connection:
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('e2e-slow-card','clergy','e2e-slow-card','Медленная карточка','draft','{}',0,1,'2026-01-01','2026-01-01')""")
+    login(page)
+    page.locator('.cms-type[data-content-type="clergy"]').click()
+    picker = page.locator("[data-content-select]")
+    option = picker.locator("option").filter(has_text="Медленная карточка")
+    option.wait_for(state="attached")
+    picker.select_option(option.get_attribute("value"))
+    form = page.locator("[data-editor-form]")
+    expect(form).to_have_attribute("aria-busy", "true")
+    coverage_steps.check("stage7.card-loading.disabled", form.locator('[data-schema-field="rank"] input').is_disabled() and page.locator("[data-save-draft]").first.is_disabled())
+    expect(page.locator("[data-editor-title]")).to_have_text("Медленная карточка")
+    expect(form.locator('[data-schema-field="rank"] input')).to_be_enabled()
+    coverage_steps.mark("stage7.card-loading.ready")
+    fast = picker.locator("option").filter(has_text="E2E clergy")
+    fast.wait_for(state="attached")
+    picker.select_option(fast.get_attribute("value"))
+    expect(page.locator("[data-editor-title]")).to_have_text("E2E clergy")
+    with page.expect_response(lambda response: response.url.endswith("/api/admin/contents/e2e-slow-card")):
+        picker.select_option(option.get_attribute("value"))
+        page.locator('.cms-type[data-content-type="news"]').click()
+    expect(page.locator('.cms-type[data-content-type="news"]')).to_have_class(re.compile("is-active"))
+    coverage_steps.check("stage7.card-loading.latest", page.locator('[data-editor-title]').inner_text() != "Медленная карточка")
 
 
 CREATED_PASSWORD = "Created-Strong-Password-2026!"
@@ -713,6 +962,17 @@ def _seed_stage7_test_issues(live_cms):
                    WHERE run_id=? AND content_id=?""",
                 (apply_id, content_id),
             )
+            existing = connection.execute("""SELECT id,assessment_json FROM migration_editorial_assessments
+                WHERE content_id=? AND content_version=? ORDER BY rowid DESC LIMIT 1""", (content_id, version)).fetchone()
+            if existing:
+                assessment = json.loads(existing[1])
+                assessment["classification"] = "editorial_review"
+                extra_reason = ("required_field_requires_editor" if index == 0 else
+                                "duplicate_content" if index == 1 else
+                                "text_extraction_ambiguous" if index == 2 else None)
+                if extra_reason:
+                    assessment.setdefault("reasons", []).append({"code": extra_reason, "message": "Тестовая редакционная причина"})
+                connection.execute("UPDATE migration_editorial_assessments SET assessment_json=? WHERE id=?", (json.dumps(assessment, ensure_ascii=False), existing[0]))
             connection.execute(
                 """INSERT INTO migration_audit_items(
                      run_id,content_id,content_version,blocker_count,warning_count,
@@ -723,9 +983,9 @@ def _seed_stage7_test_issues(live_cms):
             if index not in {0, 1, 2}:
                 continue
             code = (
-                "e2e_pilot_blocker" if index == 0
+                "required_field_missing" if index == 0
                 else "duplicate_content" if index == 1
-                else "e2e_common_warning"
+                else "legacy_text"
             )
             severity = "blocker" if index == 0 else "warning"
             connection.execute(
@@ -873,7 +1133,7 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
         "migration.batch-finalize-dismiss",
         page.locator(".workflow-panel__head .state-pill").inner_text() == "На утверждении",
     )
-    batch_ack = page.locator('[data-batch-ack="e2e_common_warning"]')
+    batch_ack = page.locator('[data-batch-ack="legacy_text"]')
     batch_ack.fill("Общее предупреждение партии проверено выпускающим")
     coverage_steps.check(
         "migration.batch-common-warning-ack",
@@ -901,7 +1161,7 @@ def test_migration_batch_finalize(page, live_cms, coverage_steps):
         rows = connection.execute(
             """SELECT c.id,c.status,c.migration_review_required,bi.disposition,
                       EXISTS(SELECT 1 FROM migration_review_issues i
-                                 WHERE i.content_id=c.id AND i.code='e2e_pilot_blocker') AS had_blocker
+                                 WHERE i.content_id=c.id AND i.id='e2e-stage7-issue-0') AS had_blocker
                FROM contents c JOIN migration_review_batch_items bi ON bi.content_id=c.id
                WHERE bi.batch_id=?""",
             (batch_id,),

@@ -377,7 +377,7 @@ def verify_database(database: Path, root: Path, *, post_activation: bool = False
     checks = {
         "quick_check": quick == "ok",
         "foreign_key_check": not foreign_keys,
-        "schema_14": schema == 14,
+        "schema_15": schema == 15,
         "contents": contents == expected["records"],
         "redirects": redirects == expected["redirect_urls"],
         "review_flags": review == contents,

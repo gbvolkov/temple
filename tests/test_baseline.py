@@ -6,6 +6,42 @@ from pathlib import Path
 
 from server.baseline import build_report, verify_restore, write_media_manifest
 from server.migrations import migrate
+from scripts.run_cms_regression import stable_source_report
+
+
+def test_cms_57_source_report_detects_row_changes_without_count_changes(tmp_path):
+    database = tmp_path / "cms.sqlite3"
+    media = tmp_path / "media"
+    media.mkdir()
+    migrate(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("""INSERT INTO contents(id,content_type,slug,title,status,data_json,migration_review_required,version,created_at,updated_at)
+            VALUES('record','page','record','Исходный заголовок','draft','{}',1,1,'now','now')""")
+    before = stable_source_report(database, media)
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE contents SET title='Изменённый заголовок' WHERE id='record'")
+    assert stable_source_report(database, media) != before
+
+
+def test_cms_58_source_manifest_is_resolved_from_source_database(tmp_path):
+    from scripts.run_cms_regression import source_manifest_path
+
+    source = tmp_path / "external-source"
+    source.mkdir()
+    database = source / "cms.sqlite3"
+    manifest = source / "legacy-media-manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    assert source_manifest_path(database) == manifest.resolve()
+    migrate(database)
+    media = source / "media"
+    media.mkdir()
+    before = stable_source_report(database, media, manifest)
+    manifest.write_text('{"changed": true}', encoding="utf-8")
+    assert stable_source_report(database, media, manifest) != before
+    manifest.unlink()
+    import pytest
+    with pytest.raises(FileNotFoundError):
+        source_manifest_path(database)
 
 
 def test_baseline_report_counts_public_materials_by_published_pointer(tmp_path):

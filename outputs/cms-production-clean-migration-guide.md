@@ -527,3 +527,9 @@ VERIFY_EXTERNAL=1 bash scripts/production_verify_clean.sh public-source-YYYYMMDD
 - исходный MODX не изменён.
 
 Редакционная проверка содержательных вопросов выполняется позднее на этапе 7 и не заменяет ни один технический gate этой инструкции.
+
+Для развёртывания schema 15 поверх существующей schema 14 используется
+`scripts/production_apply_stage15.sh`: тот же restore drill и post-activation gate
+выполняются до и после обновления. Clean bootstrap и проверка bundle ожидают
+schema 15. Автоматическая приёмка не запускается при обновлении схемы; её
+результаты фиксируются отдельно в журнале операций.

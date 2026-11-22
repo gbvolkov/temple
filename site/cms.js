@@ -2,6 +2,7 @@
   "use strict";
 
   const editorForm = document.querySelector("[data-editor-form]");
+  let recordLoadId = 0;
   const previewFrame = document.querySelector("[data-content-preview]");
   const panel = document.querySelector("[data-cms-panel]");
   const roleLevel = { viewer: 0, editor: 1, publisher: 2, admin: 3 };
@@ -329,6 +330,8 @@
   }
 
   function renderEditor(type = state.currentType, record = state.current) {
+    recordLoadId += 1;
+    editorForm.removeAttribute("aria-busy");
     state.currentType = type;
     const item = definition();
     renderNavigation();
@@ -363,7 +366,27 @@
     if (!record?.migration_review_required) return;
     const legacyLink = record.legacy_url ? `<a class="text-link" href="https://www.sv-innokenty.ru${escapeHtml(record.legacy_url)}" target="_blank" rel="noopener">Сравнить со старой страницей ↗</a>` : "";
     const button = can("editor") ? '<button class="button button--primary button--compact" type="button" data-audit-current>Повторить автоматический аудит</button>' : "";
-    document.querySelector(".editor-head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-migration-warning><strong>Черновик перенесён со старого сайта</strong><span>Флаг снимается только при атомарной финализации редакционной партии. Сохранение материала само по себе не означает приёмку.</span><div class="migration-warning__actions">${button}${legacyLink}</div></div>`);
+    document.querySelector(".editor-head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-migration-warning><strong>Черновик перенесён со старого сайта</strong><span>Флаг снимается только при атомарной финализации редакционной партии. Сохранение материала само по себе не означает приёмку.</span><div data-card-review aria-live="polite">Загружаем результат аудита…</div><div class="migration-warning__actions">${button}${legacyLink}</div></div>`);
+    loadCardReview(record).catch(error => { const box = document.querySelector("[data-card-review]"); if (box && state.current?.id === record.id) box.textContent = `Не удалось загрузить аудит: ${error.message}`; });
+  }
+
+  async function loadCardReview(record) {
+    const review = await apiRequest(`/api/admin/contents/${encodeURIComponent(record.id)}/migration-review`);
+    if (state.current?.id !== record.id || state.current?.version !== record.version) return;
+    const box = document.querySelector("[data-card-review]");
+    if (!box) return;
+    const fields = state.schema.content_types[record.content_type]?.fields || {};
+    const label = path => { const key = String(path || "").replace(/^content\./, "").split(/[.[]/)[0]; return fields[key]?.label || path || "Материал целиком"; };
+    const history = review.historical_preparation;
+    const historical = history ? `<details><summary>История подготовки · версия ${Number(history.content_version)}</summary>${(history.reasons || []).map(reason => `<p>${escapeHtml(reason.message || reason.code || String(reason))}</p>`).join("") || "Нет замечаний"}</details>` : "";
+    if (review.state !== "completed") {
+      const message = review.state === "stale" ? `Аудит версии ${Number(review.audit_version)} устарел для текущей версии ${Number(review.content_version)}.` : review.state === "failed" ? `Последний аудит завершился ошибкой: ${review.audit_error || "причина не указана"}.` : ["queued", "running"].includes(review.state) ? "Аудит выполняется." : "Сохранённая версия ещё не проверена.";
+      box.innerHTML = `<p>${escapeHtml(message)} ${["queued", "running"].includes(review.state) ? "Дождитесь завершения." : "Запустите повторный аудит."}</p>${historical}`;
+      return;
+    }
+    const assessment = review.assessment;
+    const dossier = assessment ? `<details><summary>Досье текущей версии ${Number(assessment.content_version)}</summary><p>${escapeHtml(assessment.recommendation || "")}</p>${(assessment.reasons || []).map(reason => `<p><b>${escapeHtml(label(reason.field_path))}</b>: ${escapeHtml(reason.message || reason.code || "")}</p>`).join("") || "Нет оставшихся причин"}</details>` : "";
+    box.innerHTML = `<p>Аудит версии ${Number(review.audit_version)}: ${Number(review.blocker_count)} блокирующих ошибок, ${Number(review.warning_count)} предупреждений.</p>${review.issues.map(issue => `<div><b>${escapeHtml(label(issue.field_path))}</b>: ${escapeHtml(issue.message)}${can("editor") && issue.code === "unicode_not_nfkc" && issue.field_path === "content.position" && issue.status === "open" ? ` <button type="button" class="button button--ghost button--compact" data-normalize-issue="${escapeHtml(issue.id)}">Исправить и перепроверить</button>` : ""}</div>`).join("")}${dossier}${historical}`;
   }
 
   function renderEditorReturnContext(record) {
@@ -527,7 +550,15 @@
     if (!can("editor")) throw new Error("Недостаточно прав для сохранения");
     const payload = editorPayload();
     const options = state.current ? { method: "PUT", body: JSON.stringify({ title: payload.title, slug: state.current.slug, data: payload.data, version: state.current.version }) } : { method: "POST", body: JSON.stringify({ content_type: state.currentType, title: payload.title, data: payload.data }) };
-    state.current = await apiRequest(state.current ? `/api/admin/contents/${state.current.id}` : "/api/admin/contents", options);
+    try {
+      state.current = await apiRequest(state.current ? `/api/admin/contents/${state.current.id}` : "/api/admin/contents", options);
+    } catch (error) {
+      if (error.status === 409 && state.current && !document.querySelector("[data-card-reload]")) {
+        const box = document.querySelector("[data-card-review]") || document.querySelector("[data-workflow-actions]");
+        box?.insertAdjacentHTML("beforeend", '<button class="button button--ghost button--compact" type="button" data-card-reload>Открыть свежую версию</button>');
+      }
+      throw error;
+    }
     state.dirty = false;
     document.querySelector("[data-save-status]").textContent = `Сохранено · v${state.current.version}`;
     renderEditor(state.currentType, state.current);
@@ -582,12 +613,30 @@
   }
 
   async function openRecord(id) {
+    const requestId = ++recordLoadId;
     if (!id) { state.current = null; renderEditor(state.currentType, null); return; }
-    state.current = await apiRequest(`/api/admin/contents/${encodeURIComponent(id)}`);
-    state.currentType = state.current.content_type;
-    state.dirty = false;
-    renderNavigation();
-    renderEditor(state.currentType, state.current);
+    editorForm.setAttribute("aria-busy", "true");
+    editorForm.querySelectorAll("input,textarea,select,button,[contenteditable]").forEach(element => {
+      if (element.matches("[contenteditable]")) element.contentEditable = "false";
+      else element.disabled = true;
+    });
+    document.querySelectorAll("[data-save-draft],[data-workflow-action]").forEach(button => { button.disabled = true; });
+    try {
+      const record = await apiRequest(`/api/admin/contents/${encodeURIComponent(id)}`);
+      if (requestId !== recordLoadId) return;
+      state.current = record;
+      state.currentType = record.content_type;
+      state.dirty = false;
+      renderNavigation();
+      renderEditor(state.currentType, state.current);
+    } catch (error) {
+      if (requestId === recordLoadId) {
+        editorForm.removeAttribute("aria-busy");
+        updateEditableState();
+        renderWorkflow();
+        throw error;
+      }
+    }
   }
 
   function schedulePreview() {
@@ -887,8 +936,11 @@
   async function auditCurrent() {
     if (!state.current) return;
     if (state.dirty) await saveDraft();
-    const result = await apiRequest(`/api/admin/contents/${state.current.id}/migration-audit`, { method: "POST", body: JSON.stringify({ check_external: true }) });
-    toast(`Аудит завершён: ${Number(result.counts.blocker || 0)} блокирующих, ${Number(result.counts.warning || 0)} предупреждений`);
+    const record = state.current;
+    try {
+      const result = await apiRequest(`/api/admin/contents/${record.id}/migration-audit`, { method: "POST", body: JSON.stringify({ check_external: true }) });
+      toast(`Аудит завершён: ${Number(result.counts.blocker || 0)} блокирующих, ${Number(result.counts.warning || 0)} предупреждений`);
+    } finally { await loadCardReview(record); }
   }
 
   async function submitReview() { if (!ensureWorkflowReady()) return false; if (state.dirty || !state.current) await saveDraft(); await postWorkflow("submit-review"); toast("Материал отправлен на проверку"); return true; }
@@ -1105,6 +1157,44 @@
          <details class="preparation-runs"><summary>История автоматической подготовки</summary><div class="acceptance-runs" data-preparation-runs></div></details>
        </section>`,
     );
+    if (can("publisher")) panel.querySelector("[data-acceptance-batches]").insertAdjacentHTML("beforebegin", '<div class="migration-dashboard-actions"><button class="button button--primary button--compact" type="button" data-create-followup>Создать следующую партию</button><button class="button button--ghost button--compact" type="button" data-auto-accept>Принять автоматически готовые</button><span data-auto-progress aria-live="polite"></span></div><details><summary>Журнал автоматической приёмки</summary><div data-auto-operations></div></details>');
+    if (can("publisher")) panel.querySelector("[data-migration-run]").insertAdjacentHTML("afterend", '<button class="button button--ghost" type="button" data-migration-final-audit>Аудит всех активных материалов</button><button class="button button--ghost" type="button" data-final-verification>Проверить финальную готовность</button>');
+  }
+
+  let batchBuilder = null;
+  async function openBatchBuilder() {
+    batchBuilder = { offset: 0, selected: new Map(), items: new Map(), total: 0 };
+    panel.innerHTML = `<div class="acceptance-panel"><button class="button button--ghost" data-migration-back type="button">← К dashboard</button><h1>Создать следующую партию</h1><label>Название партии<input data-followup-name></label><label>Тип партии<select data-followup-kind><option value="priority">Приоритетная</option><option value="archive">Архивная</option></select></label><div class="acceptance-filters"><label>Поиск материалов<input type="search" data-followup-query></label><label>Тип материала<select data-followup-type><option value="">Все типы</option>${Object.entries(state.schema.content_types).map(([type, definition]) => `<option value="${escapeHtml(type)}">${escapeHtml(definition.label)}</option>`).join("")}</select></label><label>Год<input type="number" min="1900" max="2100" data-followup-year></label><button class="button button--ghost" type="button" data-followup-search>Найти материалы</button></div><div data-followup-results></div><div class="media-pagination"><button class="button button--ghost" type="button" data-followup-prev>← Назад</button><span data-followup-page></span><button class="button button--ghost" type="button" data-followup-next>Дальше →</button></div><section><h2>Выбранные материалы</h2><div data-followup-selected>Ничего не выбрано</div><button class="button button--primary" type="button" data-followup-create>Создать партию</button></section></div>`;
+    await loadBatchCandidates();
+  }
+
+  async function loadBatchCandidates() {
+    const params = new URLSearchParams({ q: panel.querySelector("[data-followup-query]").value, limit: "50", offset: String(batchBuilder.offset) });
+    const type = panel.querySelector("[data-followup-type]").value, year = panel.querySelector("[data-followup-year]").value;
+    if (type) params.set("content_type", type);
+    if (year) params.set("year", year);
+    const result = await apiRequest(`/api/admin/migration/batch-candidates?${params}`);
+    if (!panel.querySelector("[data-followup-results]")) return;
+    batchBuilder.total = result.total;
+    batchBuilder.items = new Map(result.items.map(item => [item.id, item]));
+    panel.querySelector("[data-followup-results]").innerHTML = result.items.map(item => `<label class="acceptance-issue"><input type="checkbox" data-candidate-select="${escapeHtml(item.id)}" ${item.eligible ? "" : "disabled"} ${batchBuilder.selected.has(item.id) ? "checked" : ""}><span><strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · ${escapeHtml(item.year || "без года")} · v${item.version}${item.reason ? ` · ${escapeHtml(item.reason)}` : ""}</span></label>`).join("") || "Материалы не найдены";
+    panel.querySelector("[data-followup-page]").textContent = `${result.total ? result.offset + 1 : 0}–${result.offset + result.items.length} из ${result.total}`;
+    panel.querySelector("[data-followup-prev]").disabled = batchBuilder.offset === 0;
+    panel.querySelector("[data-followup-next]").disabled = batchBuilder.offset + result.items.length >= result.total;
+  }
+
+  function renderSelectedCandidates() {
+    panel.querySelector("[data-followup-selected]").innerHTML = [...batchBuilder.selected.values()].map(item => `<p>${escapeHtml(item.title)} · v${item.version}</p>`).join("") || "Ничего не выбрано";
+  }
+
+  async function createFollowupBatch() {
+    const selected = [...batchBuilder.selected.values()];
+    const name = panel.querySelector("[data-followup-name]").value.trim();
+    if (!name || !selected.length || selected.length > 50) throw new Error("Укажите название и выберите от 1 до 50 материалов");
+    const kind = panel.querySelector("[data-followup-kind]").value;
+    const payload = { name, kind, content_ids: selected.map(item => item.id), expected_versions: Object.fromEntries(selected.map(item => [item.id, item.version])), expected_audits: Object.fromEntries(selected.map(item => [item.id, item.audit_run_id])), filters: { q: panel.querySelector("[data-followup-query]").value, content_type: panel.querySelector("[data-followup-type]").value, year: panel.querySelector("[data-followup-year]").value }, sample_rate: 0.1 };
+    const batch = await apiRequest("/api/admin/migration/batches", { method: "POST", body: JSON.stringify(payload) });
+    renderMigrationBatch(batch);
   }
 
   function migrationIssueQuery() {
@@ -1137,7 +1227,7 @@
     const reasons = item.reasons || [];
     panel.innerHTML = `<div class="acceptance-panel preparation-dossier">
       <button class="button button--ghost button--compact" type="button" data-migration-back>← К dashboard</button>
-      <div class="workflow-panel__head"><div><div class="eyebrow">Досье автоматической подготовки</div><h1 id="preparation-dossier-title" tabindex="-1">${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
+      <div class="workflow-panel__head"><div><div class="eyebrow">Историческое досье автоматической подготовки</div><h1 id="preparation-dossier-title" tabindex="-1">${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p><p>Причины ниже относятся к снимку подготовки. Текущие замечания доступны в карточке материала.</p><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(item.content_id)}" data-content-type="${escapeHtml(item.content_type)}">Открыть текущую карточку</button></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
       <section class="acceptance-section"><h2>Рекомендация</h2><p>${escapeHtml(item.recommendation || "Дополнительных действий не требуется.")}</p><div class="dossier-reasons">${reasons.length ? reasons.map(reason => typeof reason === "string" ? `<article><b>Неуточнённая причина</b><p>Материал целиком</p><p>${escapeHtml(reason)}</p></article>` : `<article><b>${escapeHtml(reason.code || "unmapped_reason")}</b><p><strong>Поле:</strong> ${escapeHtml(reason.field_path || "Материал целиком")}</p><p>${escapeHtml(reason.message || "Описание отсутствует")}</p>${reason.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(reason.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") : '<p>Причин для ручной проверки нет.</p>'}</div></section>
       <section class="acceptance-section"><h2>Применяемые правила</h2><div class="dossier-rules">${transformations.map(rule => `<article><b>${escapeHtml(rule.rule || "normalization")}</b><p>${escapeHtml(rule.label || "Автоматическое преобразование")}</p><p><strong>Поле:</strong> ${escapeHtml(rule.field || "Материал целиком")}${Object.hasOwn(rule, "value") ? ` · <strong>Значение:</strong> ${escapeHtml(String(rule.value))}` : ""}</p>${rule.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(rule.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") || '<span class="state-pill">Данные уже соответствуют правилам</span>'}</div></section>
       <section class="preparation-diff"><article><h2>До</h2><pre>${escapeHtml(JSON.stringify(item.before, null, 2))}</pre></article><article><h2>После</h2><pre>${escapeHtml(JSON.stringify(item.proposed, null, 2))}</pre></article></section>
@@ -1175,12 +1265,13 @@
     const filterButton = panel.querySelector("[data-migration-filter]");
     dashboard?.setAttribute("aria-busy", "true");
     if (filterButton) filterButton.disabled = true;
-    let status, issues, batches;
+    let status, issues, batches, operations;
     try {
-      [status, issues, batches] = await Promise.all([
+      [status, issues, batches, operations] = await Promise.all([
         apiRequest("/api/admin/migration", { signal: controller.signal }),
         apiRequest(`/api/admin/migration/issues?${issueQuery}`, { signal: controller.signal }),
         apiRequest("/api/admin/migration/batches", { signal: controller.signal }),
+        can("publisher") ? apiRequest("/api/admin/migration/acceptance-operations", { signal: controller.signal }) : Promise.resolve({ items: [] }),
       ]);
     } catch (error) {
       if (error.name === "AbortError") return false;
@@ -1193,7 +1284,7 @@
     if (requestId !== state.migration.requestId || !panel.querySelector("[data-acceptance-metrics]")) return false;
     const acceptance = status.acceptance || { totals: status.totals, issues: {}, runs: [] };
     const runs = acceptance.runs || [];
-    const fullRuns = runs.filter(run => !run.scope || !["content_id", "content_type", "year"].some(key => run.scope[key]));
+    const fullRuns = runs.filter(run => !run.scope || (run.scope.population !== "active" && !["content_id", "content_type", "year"].some(key => run.scope[key])));
     const latestFullRun = fullRuns[0] || null;
     const auditActive = fullRuns.some(run => ["queued", "running"].includes(run.status));
     const auditReady = latestFullRun?.status === "completed";
@@ -1203,6 +1294,8 @@
     const editorialGate = preparation.editorial_gate || { ready: false, code: "EDITORIAL_GATE_UNKNOWN", message: "Семантический шлюз ещё не проверен." };
     if (pilot) pilot.disabled = !editorialGate.ready;
     if (pilotReason) pilotReason.textContent = editorialGate.message;
+    const followup = panel.querySelector("[data-create-followup]");
+    if (followup) { followup.disabled = !editorialGate.ready; followup.title = editorialGate.ready ? "" : editorialGate.message; }
     const preparationRuns = preparation.runs || [];
     const displayPreparation = preparation.display_run || preparationRuns[0] || null;
     state.migration.preparationDisplayRun = displayPreparation;
@@ -1251,7 +1344,7 @@
     panel.querySelector("[data-preparation-next]").disabled = state.migration.preparationOffset + preparationItems.items.length >= preparationItems.total;
     panel.querySelector("[data-preparation-runs]").innerHTML = preparationRuns.map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.mode)} · ${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.changed || 0)} изменений${run.preview_run_id ? ` · preview ${escapeHtml(run.preview_run_id)}` : ""}${run.recovered ? ` · восстановлен (${escapeHtml(run.recovery_reason || "restart")})` : ""}${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Запусков пока нет.</div>';
     clearTimeout(state.migration.preparationTimer);
-    if (preparationActive) state.migration.preparationTimer = setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1500);
+    if (preparationActive || auditActive) state.migration.preparationTimer = setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1500);
     const total = Number(acceptance.totals.contents || 0), remaining = Number(acceptance.totals.review_required || 0);
     panel.querySelector("[data-acceptance-metrics]").innerHTML = [
       ["Осталось принять", remaining], ["Блокирующих", acceptance.issues.blocker || 0],
@@ -1272,6 +1365,8 @@
     panel.querySelector("[data-migration-issues-prev]").disabled = state.migration.issuesOffset === 0;
     panel.querySelector("[data-migration-issues-next]").disabled = state.migration.issuesOffset + issues.items.length >= issues.total;
     panel.querySelector("[data-acceptance-batches]").innerHTML = batches.items.map(batch => `<button class="acceptance-batch" type="button" data-migration-batch="${escapeHtml(batch.id)}"><span class="state-pill">${escapeHtml(migrationBatchStatusLabels[batch.status] || batch.status)}</span><strong>${escapeHtml(batch.name)}</strong><small>${batch.decided_count || 0}/${batch.item_count || 0} решений · выборка ${batch.reviewed_count || 0}/${batch.sampled_count || 0}</small></button>`).join("") || '<div class="history-empty">Партий пока нет. После полного аудита создайте пилотную партию.</div>';
+    const operationList = panel.querySelector("[data-auto-operations]");
+    if (operationList) operationList.innerHTML = operations.items.map(item => `<article class="acceptance-run"><strong>${escapeHtml(formatDate(item.created_at))}</strong><span>${Number(item.item_count)} материалов · ${item.status === "rolled_back" ? "откачено" : "принято"} · ${escapeHtml(item.actor || "система")}</span>${can("admin") && item.status === "completed" ? `<button class="button button--ghost button--compact" type="button" data-auto-rollback="${escapeHtml(item.id)}">Откатить пакет</button>` : ""}</article>`).join("") || "Операций пока нет";
     panel.querySelector("[data-acceptance-runs]").innerHTML = (acceptance.runs || []).map(run => `<article class="acceptance-run"><span class="state-pill">${escapeHtml(run.status)}</span><b>${escapeHtml(formatDate(run.created_at))}</b><small>${Number(run.counts?.contents || 0)} материалов · ${Number(run.counts?.blocker || 0)} блокирующих · ${Number(run.counts?.warning || 0)} предупреждений${run.error ? ` · ${escapeHtml(run.error)}` : ""}</small></article>`).join("") || '<div class="history-empty">Аудит ещё не запускался.</div>';
     dashboard?.removeAttribute("aria-busy");
     if (filterButton) filterButton.disabled = false;
@@ -1283,6 +1378,10 @@
     const batchWarningCodes = [...new Set(batch.items.flatMap(item => item.issues.filter(issue => issue.severity === "warning" && !individualMigrationWarnings.has(issue.code)).map(issue => issue.code)))];
     const readOnly = !can("editor") || ["finalized", "cancelled"].includes(batch.status);
     panel.innerHTML = `<div class="acceptance-panel"><button class="button button--ghost button--compact" type="button" data-migration-back>← К dashboard</button><div class="workflow-panel__head"><div><div class="eyebrow">${escapeHtml(batch.kind === "priority" ? "Приоритетная партия" : "Архивная партия")}</div><h1>${escapeHtml(batch.name)}</h1><p>${batch.progress.decided}/${batch.progress.items} решений · обязательная выборка ${batch.progress.reviewed}/${batch.progress.sampled} · ${batch.progress.blockers} блокирующих · ${batch.progress.warnings} предупреждений</p></div><span class="state-pill">${escapeHtml(migrationBatchStatusLabels[batch.status] || batch.status)}</span></div>${batchWarningCodes.length ? `<section class="acceptance-section"><h2>Подтверждения партии</h2><p>Для общих предупреждений укажите осмысленный редакционный комментарий.</p><div class="acceptance-ack-list">${batchWarningCodes.map(code => `<label>${escapeHtml(code)}<textarea rows="2" data-batch-ack="${escapeHtml(code)}" ${can("publisher") ? "" : "readonly"}>${escapeHtml(batch.warning_acknowledgements?.[code] || "")}</textarea></label>`).join("")}</div></section>` : ""}<div class="acceptance-batch-items">${batch.items.map(item => { const source = migrationSourceText(item); const warningInputs = item.issues.filter(issue => issue.severity === "warning" && individualMigrationWarnings.has(issue.code)).map(issue => `<label>${escapeHtml(issue.code)}<input type="text" value="${escapeHtml(item.warning_acknowledgements?.[issue.code] || "")}" placeholder="Комментарий обязателен" data-batch-warning="${escapeHtml(issue.code)}" ${readOnly ? "readonly" : ""}></label>`).join(""); return `<article class="acceptance-batch-item" data-batch-content="${escapeHtml(item.content_id)}" data-item-version="${item.version}"><div class="acceptance-batch-item__head"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · рабочая v${item.current_content_version} · аудит v${item.content_version}${item.sampled ? " · обязательная ручная выборка" : ""}</small></div><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(item.content_id)}" data-content-type="${escapeHtml(item.content_type)}">Редактор и preview</button></div>${source ? `<details><summary>Исходный crawl-текст</summary><pre>${escapeHtml(source.slice(0, 12000))}</pre></details>` : ""}<div class="acceptance-item-issues">${item.issues.map(issue => `<span class="acceptance-chip acceptance-chip--${escapeHtml(issue.severity)}" title="${escapeHtml(issue.message)}">${escapeHtml(issue.code)}</span>`).join("") || '<span class="state-pill">Проблем не найдено</span>'}</div><div class="acceptance-decision"><label><input type="checkbox" data-batch-reviewed ${item.manual_reviewed ? "checked" : ""} ${readOnly ? "disabled" : ""}> Материал просмотрен вручную</label><label>Решение<select data-batch-disposition ${readOnly ? "disabled" : ""}><option value="pending">Не выбрано</option><option value="accept"${item.disposition === "accept" ? " selected" : ""}>Принять в черновики</option><option value="archive"${item.disposition === "archive" ? " selected" : ""}>В архив</option><option value="trash"${item.disposition === "trash" ? " selected" : ""}>В корзину</option></select></label><label>Комментарий<textarea rows="2" data-batch-note ${readOnly ? "readonly" : ""}>${escapeHtml(item.note || "")}</textarea></label>${warningInputs}${readOnly ? "" : '<button class="button button--primary button--compact" type="button" data-batch-item-save>Сохранить решение</button>'}</div></article>`; }).join("")}</div><div class="acceptance-footer-actions">${batch.status === "draft" && can("editor") ? '<button class="button button--primary" type="button" data-batch-submit>Отправить партию на утверждение</button>' : ""}${batch.status === "in_review" && can("publisher") ? '<button class="button button--primary" type="button" data-batch-finalize>Финализировать атомарно</button>' : ""}${!["finalized", "cancelled"].includes(batch.status) && can("publisher") ? '<button class="button button--danger" type="button" data-batch-cancel>Отменить партию</button>' : ""}</div></div>`;
+    const staleItems = batch.items.filter(item => item.current_content_version !== item.content_version);
+    if (staleItems.length && !["finalized", "cancelled"].includes(batch.status)) {
+      panel.querySelector(".workflow-panel__head").insertAdjacentHTML("afterend", `<div class="migration-warning" data-batch-stale><strong>Версии материалов изменились</strong><p>${staleItems.map(item => escapeHtml(item.title)).join(", ")}. Сначала повторите аудит каждого материала, затем обновите партию. Решения по изменённым материалам потребуется подтвердить заново.</p>${can("publisher") ? '<button class="button button--primary button--compact" type="button" data-batch-refresh>Обновить версии партии</button>' : '<p>Обновить партию может выпускающий.</p>'}</div>`);
+    }
   }
 
   async function openMigrationBatch(id) {
@@ -1543,6 +1642,19 @@
     if (target.dataset.previewSize) applyPreviewSize(target.dataset.previewSize);
     if (target.matches("[data-save-draft]")) await saveDraft().catch(error => toast(error.message));
     if (target.matches("[data-audit-current]")) await auditCurrent().catch(error => toast(error.message));
+    if (target.dataset.normalizeIssue) {
+      try {
+        if (state.dirty) throw new Error("Сначала сохраните изменения в карточке");
+        const result = await apiRequest(`/api/admin/contents/${state.current.id}/migration-issues/${encodeURIComponent(target.dataset.normalizeIssue)}/normalize`, { method: "POST", body: JSON.stringify({ version: state.current.version }) });
+        state.current = result.content;
+        renderEditor(state.currentType, state.current);
+        toast(result.audit_error ? `Поле исправлено; аудит не завершён: ${result.audit_error}` : "Поле исправлено и проверено");
+      } catch (error) {
+        toast(`${error.message}. При конфликте откройте свежую версию материала.`);
+        if (error.status === 409) document.querySelector("[data-card-review]")?.insertAdjacentHTML("beforeend", '<button class="button button--ghost button--compact" type="button" data-card-reload>Открыть свежую версию</button>');
+      }
+    }
+    if (target.matches("[data-card-reload]")) await guardUnsavedChanges(async () => { await openRecord(state.current.id); });
     if (target.matches("[data-publish-close]")) closeDialog("[data-publish-dialog]");
     if (target.matches("[data-schedule-close]")) closeDialog("[data-schedule-dialog]");
     if (target.matches("[data-history-close]")) closeDialog("[data-history-dialog]");
@@ -1603,6 +1715,8 @@
     }
     if (target.dataset.restoreRevision) await restoreRevision(Number(target.dataset.restoreRevision)).catch(error => toast(error.message));
     if (target.matches("[data-migration-run]")) { await apiRequest("/api/admin/migration/audits", { method: "POST", body: JSON.stringify({ check_external: true }) }); toast("Аудит поставлен в очередь"); setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1200); }
+    if (target.matches("[data-migration-final-audit]")) { await apiRequest("/api/admin/migration/audits", { method: "POST", body: JSON.stringify({ check_external: true, population: "active" }) }).then(() => { toast("Аудит всех активных материалов поставлен в очередь"); setTimeout(() => refreshMigrationStatus().catch(error => toast(error.message)), 1200); }).catch(error => toast(error.message)); }
+    if (target.matches("[data-final-verification]")) await apiRequest("/api/admin/migration/final-verification").then(() => toast("Финальная проверка пройдена")).catch(error => toast(error.message));
     if (target.matches("[data-preparation-preview]")) await preparationAction("preview").catch(error => toast(error.message));
     if (target.matches("[data-preparation-apply]")) await preparationAction("apply").catch(error => toast(error.message));
     if (target.matches("[data-preparation-rollback]") && confirm("Откатить автоматические изменения компенсирующими ревизиями? Откат остановится, если материал уже изменён редактором.")) {
@@ -1623,6 +1737,35 @@
       try { const batch = await apiRequest("/api/admin/migration/batches/pilot", { method: "POST" }); renderMigrationBatch(batch); }
       catch (error) { toast(error.status === 409 ? "Полный аудит устарел или ещё не завершён. Обновляем состояние." : error.message); await refreshMigrationStatus().catch(refreshError => toast(refreshError.message)); }
     }
+    if (target.matches("[data-create-followup]")) await openBatchBuilder().catch(error => toast(error.message));
+    if (target.matches("[data-auto-accept]")) {
+      let accepted = 0;
+      target.disabled = true;
+      try {
+        while (true) {
+          const result = await apiRequest("/api/admin/migration/automatic-acceptance/candidates");
+          if (!result.ready) throw new Error(result.message);
+          if (!result.items.length) break;
+          const operation_id = crypto.randomUUID();
+          await apiRequest("/api/admin/migration/automatic-acceptance", { method: "POST", body: JSON.stringify({ operation_id, items: result.items.map(item => ({ id: item.id, version: item.version })) }) });
+          accepted += result.items.length;
+          const progress = panel.querySelector("[data-auto-progress]");
+          if (progress) progress.textContent = `Автоматически принято: ${accepted}`;
+        }
+        await refreshMigrationStatus();
+        const progress = panel.querySelector("[data-auto-progress]");
+        if (progress) progress.textContent = `Автоматически принято: ${accepted}`;
+        toast(`Автоматически принято: ${accepted}`);
+      } catch (error) { toast(`Принято ${accepted}. ${error.message}`); }
+      finally { target.disabled = false; }
+    }
+    if (target.dataset.autoRollback && confirm("Откатить автоматическую приёмку этого пакета? Изменённые материалы остановят откат.")) {
+      await apiRequest(`/api/admin/migration/acceptance-operations/${encodeURIComponent(target.dataset.autoRollback)}/rollback`, { method: "POST" }).then(async () => { await refreshMigrationStatus(); toast("Автоматическая приёмка откачена"); }).catch(error => toast(error.message));
+    }
+    if (target.matches("[data-followup-search]")) { batchBuilder.offset = 0; await loadBatchCandidates().catch(error => toast(error.message)); }
+    if (target.matches("[data-followup-prev]")) { batchBuilder.offset = Math.max(0, batchBuilder.offset - 50); await loadBatchCandidates().catch(error => toast(error.message)); }
+    if (target.matches("[data-followup-next]")) { batchBuilder.offset += 50; await loadBatchCandidates().catch(error => toast(error.message)); }
+    if (target.matches("[data-followup-create]")) await createFollowupBatch().catch(error => toast(error.message));
     if (target.matches("[data-migration-filter]")) { rememberMigrationIssueFilters(); state.migration.issuesOffset = 0; await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-prev]")) { state.migration.issuesOffset = Math.max(0, state.migration.issuesOffset - 50); await refreshMigrationStatus().catch(error => toast(error.message)); }
     if (target.matches("[data-migration-issues-next]")) { state.migration.issuesOffset += 50; await refreshMigrationStatus().catch(error => toast(error.message)); }
@@ -1644,6 +1787,14 @@
     }
     if (target.matches("[data-batch-item-save]")) await saveMigrationBatchItem(target).catch(error => toast(error.message));
     if (target.matches("[data-batch-submit]")) await migrationBatchAction("submit").catch(error => toast(error.message));
+    if (target.matches("[data-batch-refresh]")) {
+      try {
+        const result = await apiRequest(`/api/admin/migration/batches/${state.migration.currentBatch.id}/refresh`, { method: "POST", body: JSON.stringify({ version: state.migration.currentBatch.version }) });
+        renderMigrationBatch(result);
+        const excluded = result.refresh_excluded || [];
+        toast(excluded.length ? `Исключены из партии: ${excluded.map(item => `${item.title} (${item.classification})`).join(", ")}` : "Версии партии обновлены");
+      } catch (error) { toast(error.message); }
+    }
     if (target.matches("[data-batch-finalize]")) await migrationBatchAction("finalize").catch(error => toast(error.message));
     if (target.matches("[data-batch-cancel]")) { if (confirm("Отменить редакционную партию? Материалы не изменятся.")) await migrationBatchAction("cancel").catch(error => toast(error.message)); }
   });
@@ -1681,6 +1832,13 @@
   document.addEventListener("change", async event => {
     const input = event.target;
     try {
+      if (input.matches("[data-candidate-select]")) {
+        const item = batchBuilder.items.get(input.dataset.candidateSelect);
+        if (input.checked && batchBuilder.selected.size >= 50) { input.checked = false; toast("В партии допускается не более 50 материалов"); }
+        else if (input.checked) batchBuilder.selected.set(item.id, item);
+        else batchBuilder.selected.delete(item.id);
+        renderSelectedCandidates();
+      }
       if (input.matches("[data-bulk-check]")) { if (input.checked) state.bulk.selected.add(input.dataset.bulkCheck); else state.bulk.selected.delete(input.dataset.bulkCheck); await loadBulkQueue(); }
       if (input.matches("[data-submission-type]")) { state.submissions.type = input.value; state.submissions.offset = 0; await loadSubmissions(); }
       if (input.matches("[data-submission-status]")) { state.submissions.status = input.value; state.submissions.offset = 0; await loadSubmissions(); }

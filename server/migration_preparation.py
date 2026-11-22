@@ -819,10 +819,10 @@ def _latest_full_audit(
     require_fresh: bool,
 ) -> sqlite3.Row:
     for row in connection.execute(
-        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,id DESC"""
+        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,rowid DESC"""
     ):
         scope = _loads(row["scope_json"], {})
-        if not any(scope.get(key) for key in ("content_id", "content_type", "year")):
+        if scope.get("population") != "active" and not any(scope.get(key) for key in ("content_id", "content_type", "year")):
             if not require_fresh:
                 return row
             if row["status"] in {"queued", "running"}:
@@ -1243,7 +1243,30 @@ def preparation_summary(database_path: Path) -> dict[str, Any]:
                      AND status IN ('queued','running','completed','rolled_back')""",
                 (run["id"],),
             ).fetchone()
-            if not consumed and not int(run["counts"].get("technical_blocker", 0)):
+            if consumed or int(run["counts"].get("technical_blocker", 0)):
+                continue
+            stale = connection.execute(
+                """SELECT COUNT(*) FROM migration_preparation_items pi
+                   LEFT JOIN contents c ON c.id=pi.content_id
+                   WHERE pi.run_id=? AND (c.id IS NULL OR c.version!=pi.content_version)""",
+                (run["id"],),
+            ).fetchone()[0]
+            if stale:
+                continue
+            rows = connection.execute(
+                """SELECT c.*,pi.before_hash AS preview_before_hash
+                   FROM migration_preparation_items pi JOIN contents c ON c.id=pi.content_id
+                   WHERE pi.run_id=?""", (run["id"],),
+            )
+            fresh = True
+            for row in rows:
+                content = admin_content(row)
+                current = {"content_type": content["content_type"], "slug": content["slug"],
+                           "title": content["title"], "data": content["data"]}
+                if _hash(current) != row["preview_before_hash"]:
+                    fresh = False
+                    break
+            if fresh:
                 actionable_preview = run
                 break
         gate = _semantic_verification(connection)
@@ -1401,11 +1424,12 @@ def _semantic_verification(connection: sqlite3.Connection) -> dict[str, Any]:
         return {"ok": False, "code": "APPLY_REQUIRED", "message": "Нет завершённого применения"}
     post_audit: sqlite3.Row | None = None
     for candidate in connection.execute(
-        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,id DESC"""
+        """SELECT * FROM migration_audit_runs ORDER BY created_at DESC,rowid DESC"""
     ):
         scope = _loads(candidate["scope_json"], {})
         if (
             scope.get("after_preparation_run_id") == latest["id"]
+            and scope.get("population") != "active"
             and not any(scope.get(key) for key in ("content_id", "content_type", "year"))
         ):
             post_audit = candidate
@@ -1440,10 +1464,33 @@ def _semantic_verification(connection: sqlite3.Connection) -> dict[str, Any]:
            )""",
         (latest["id"], post_audit["id"]),
     ).fetchone()[0]
+    finalized_since_audit = connection.execute(
+        """SELECT COUNT(DISTINCT ai.content_id) FROM migration_audit_items ai
+           JOIN contents c ON c.id=ai.content_id AND c.migration_review_required=0
+           JOIN migration_review_batch_items bi ON bi.content_id=ai.content_id AND bi.content_version=ai.content_version
+           JOIN migration_review_batches b ON b.id=bi.batch_id AND b.status='finalized'
+           WHERE ai.run_id=?""", (post_audit["id"],),
+    ).fetchone()[0]
+    missing += finalized_since_audit
+    hash_stale = 0
+    for row in connection.execute("""SELECT c.*,ea.content_hash AS assessed_hash,
+           pi.result_version AS prepared_version,pi.proposed_hash AS prepared_hash
+           FROM contents c JOIN migration_preparation_items pi ON pi.run_id=? AND pi.content_id=c.id
+           JOIN migration_audit_items ai ON ai.run_id=? AND ai.content_id=c.id AND ai.content_version=c.version
+           LEFT JOIN migration_editorial_assessments ea ON ea.audit_run_id=ai.run_id AND ea.content_id=c.id AND ea.content_version=c.version
+           WHERE c.migration_review_required=1""", (latest["id"], post_audit["id"])):
+        content = admin_content(row)
+        snapshot = {"content_type": content["content_type"], "slug": content["slug"], "title": content["title"], "data": content["data"]}
+        expected = row["assessed_hash"] or (row["prepared_hash"] if row["prepared_version"] == row["version"] else None)
+        if not expected or expected != _hash(snapshot):
+            hash_stale += 1
+    missing += hash_stale
     technical_items = connection.execute(
-        """SELECT COUNT(*) FROM migration_preparation_items
-           WHERE run_id=? AND classification='technical_blocker'""",
-        (latest["id"],),
+        """SELECT COUNT(*) FROM contents c
+           JOIN migration_preparation_items pi ON pi.run_id=? AND pi.content_id=c.id
+           LEFT JOIN migration_editorial_assessments ea ON ea.audit_run_id=? AND ea.content_id=c.id AND ea.content_version=c.version
+           WHERE c.migration_review_required=1 AND COALESCE(json_extract(ea.assessment_json,'$.classification'),pi.classification)='technical_blocker'""",
+        (latest["id"], post_audit["id"]),
     ).fetchone()[0]
     semantic_failures: list[dict[str, Any]] = []
     editorial_map = {
@@ -1457,15 +1504,20 @@ def _semantic_verification(connection: sqlite3.Connection) -> dict[str, Any]:
         "legacy_text": "text_extraction_ambiguous",
     }
     for row in connection.execute(
-        """SELECT i.content_id,i.code,i.severity,i.field_path,pi.classification,
-                  pi.reasons_json
+        """SELECT i.content_id,i.code,i.severity,i.field_path,
+                  COALESCE(json_extract(ea.assessment_json,'$.classification'),pi.classification) AS classification,
+                  COALESCE(json_extract(ea.assessment_json,'$.reasons'),pi.reasons_json) AS reasons_json
            FROM migration_review_issues i
+           JOIN contents c ON c.id=i.content_id AND c.version=i.content_version AND c.migration_review_required=1
+           JOIN migration_audit_items ai ON ai.run_id=? AND ai.content_id=c.id AND ai.content_version=c.version
            LEFT JOIN migration_preparation_items pi
              ON pi.run_id=? AND pi.content_id=i.content_id
-           WHERE i.audit_run_id=? AND i.status IN ('open','acknowledged')
+           LEFT JOIN migration_editorial_assessments ea
+             ON ea.audit_run_id=ai.run_id AND ea.content_id=c.id AND ea.content_version=c.version
+           WHERE i.status IN ('open','acknowledged')
              AND i.severity IN ('blocker','warning')
            ORDER BY i.content_id,i.code,i.field_path""",
-        (latest["id"], post_audit["id"]),
+        (post_audit["id"], latest["id"]),
     ):
         reasons = {
             reason.get("code")
@@ -1498,11 +1550,13 @@ def _semantic_verification(connection: sqlite3.Connection) -> dict[str, Any]:
         "code": "OK" if ok else "SEMANTIC_VERIFY_FAILED",
         "message": (
             "Семантический шлюз пройден"
-            if ok else "После применения остались немаппированные или технические нарушения"
+            if ok else "Требуется полный аудит после изменений или устранение немаппированных и технических нарушений"
         ),
         "run_id": latest["id"],
         "audit_run_id": post_audit["id"],
         "missing_or_stale": int(missing),
+        "finalized_since_audit": int(finalized_since_audit),
+        "hash_stale": int(hash_stale),
         "technical_items": int(technical_items),
         "semantic_failure_count": len(semantic_failures),
         "semantic_failures": semantic_failures[:50],
