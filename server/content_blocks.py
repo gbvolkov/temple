@@ -186,7 +186,7 @@ def _normalize_gallery_items(value: Any, label: str) -> list[dict[str, Any]]:
         item = {
             "id": _block_id(raw.get("id"), f"{label}, фотография {index + 1}"),
             "image": image,
-            "alt": _text(raw.get("alt"), f"{label}, фотография {index + 1}, alt", required=True, maximum=500),
+            "alt": _text(raw.get("alt"), f"{label}, фотография {index + 1}, alt", maximum=500),
             "caption": _text(raw.get("caption"), f"{label}, фотография {index + 1}, подпись", maximum=1000),
             "order": index + 1,
         }
@@ -256,7 +256,7 @@ def normalize_block(block: Any, index: int, *, allow_legacy: bool) -> dict[str, 
             _error(f"{label}: неверный адрес изображения")
         result["data"] = {
             "image": image,
-            "alt": _text(data.get("alt"), f"{label}, alt", required=True, maximum=500),
+            "alt": _text(data.get("alt"), f"{label}, alt", maximum=500),
             "caption": _text(data.get("caption"), f"{label}, подпись", maximum=1000),
         }
     elif block_type == "gallery":

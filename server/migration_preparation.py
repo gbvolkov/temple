@@ -32,10 +32,11 @@ from .migration_acceptance import (
     queue_audit,
 )
 from .search import sync_content_search
+from .migration_policy import PHOTO_COLLECTION_POLICY, POLICY_VERSION, gallery_date_proposal
 from .workflow import admin_content, record_audit
 
 
-PREPARATION_RULES_VERSION = "1.2.0"
+PREPARATION_RULES_VERSION = "1.3.1"
 CONTRACT_VERSION = "1.1"
 PREPARATION_NAMESPACE = uuid.UUID("57f5b2b9-c1c2-4f5e-9f7e-2a33e35d2782")
 RUN_STATUSES = ("queued", "running", "completed", "failed", "rolled_back")
@@ -322,7 +323,7 @@ def _date_from_evidence(content: dict[str, Any], clean_text: str) -> str | None:
     return next(iter(numeric)) if len(numeric) == 1 else None
 
 
-def _deduplicate_photos(data: dict[str, Any], title: str) -> bool:
+def _deduplicate_photos(data: dict[str, Any], title: str, *, preserve_all: bool = False) -> bool:
     photos = data.get("photos")
     if not isinstance(photos, list):
         return False
@@ -334,7 +335,7 @@ def _deduplicate_photos(data: dict[str, Any], title: str) -> bool:
             unique.append(photo)
             continue
         image = str(photo.get("image") or "")
-        if image and image in seen:
+        if image and image in seen and not preserve_all:
             changed = True
             continue
         if image:
@@ -346,7 +347,7 @@ def _deduplicate_photos(data: dict[str, Any], title: str) -> bool:
         unique.append(item)
     if changed:
         for index, photo in enumerate(unique, start=1):
-            if isinstance(photo, dict):
+            if isinstance(photo, dict) and not preserve_all:
                 photo["order"] = index
         data["photos"] = unique
     return changed
@@ -458,7 +459,7 @@ def propose_content(
         if legacy:
             raw = "\n\n".join(legacy)
     clean_text, confident = _clean_crawl_text(raw, proposed["title"]) if raw else ("", False)
-    if raw and confident:
+    if raw and confident and body_field in fields:
         blocks = _paragraph_blocks(content["id"], clean_text)
         documents = _legacy_document_blocks(content["id"], data.get("legacy_documents"))
         if documents:
@@ -470,7 +471,7 @@ def propose_content(
         if blocks and data.get(body_field) != blocks:
             data[body_field] = blocks
             transformations.append({"rule": "legacy_text_to_blocks", "label": "Служебный chrome удалён, текст преобразован в блоки"})
-    elif raw:
+    elif raw and body_field in fields and not confident:
         editorial.append({
             "code": "text_extraction_ambiguous",
             "message": "Границы содержательного текста нельзя определить формальным правилом.",
@@ -495,6 +496,20 @@ def propose_content(
         })
 
     for date_field in ("publication_date", "event_date"):
+        if content["content_type"] == "gallery" and date_field == "event_date":
+            policy = gallery_date_proposal(content, clean_text=clean_text)
+            data[date_field] = policy["after"]
+            if policy["accepted"]:
+                data["event_date_precision"] = policy["precision"]
+                data["event_date_policy_version"] = POLICY_VERSION
+                if policy["changed"] or any(content["data"].get(name) != data[name]
+                                            for name in ("event_date_precision", "event_date_policy_version")):
+                    transformations.append({"rule": "gallery_date_policy", "field": date_field,
+                                            "value": policy["after"], "evidence": policy["evidence"]})
+            else:
+                editorial.extend({**item, "code": "date_requires_editor", "source_code": item["code"]}
+                                 for item in policy["reasons"])
+            continue
         if str(data.get(date_field) or "").startswith("2000-"):
             inferred = _date_from_evidence(content, clean_text)
             if inferred:
@@ -511,7 +526,13 @@ def propose_content(
         data["cover_alt"] = proposed["title"]
         transformations.append({"rule": "cover_alt_from_title", "label": "Alt обложки восстановлен из заголовка"})
 
-    if _deduplicate_photos(data, proposed["title"]):
+    preserve_all = content["content_type"] == "gallery"
+    photos_changed = _deduplicate_photos(data, proposed["title"], preserve_all=preserve_all)
+    if preserve_all and isinstance(data.get("photos"), list):
+        if data.get("photo_collection_policy") != PHOTO_COLLECTION_POLICY or photos_changed:
+            transformations.append({"rule": "photo_collection_preserved", "label": "Все фотографии и их порядок сохранены, alt восстановлен"})
+        data["photo_collection_policy"] = PHOTO_COLLECTION_POLICY
+    elif photos_changed:
         transformations.append({"rule": "photo_collection_normalization", "label": "Повторы внутри фотоколлекции удалены, alt восстановлен"})
 
     if content["content_type"] == "leaflet_issue" and not data.get("cover"):
@@ -526,14 +547,21 @@ def propose_content(
                 "message": "PDF выпуска недоступен для однозначного создания обложки.",
             })
 
-    for name in sorted(SERVICE_METADATA_FIELDS & set(data)):
+    preserved = set()
+    if (content["content_type"] == "gallery" and "body_text" in data
+            and any(item["code"] == "date_requires_editor" for item in editorial)):
+        # Keep the evidence until the unresolved date is addressed. Otherwise
+        # the next audit can silently lose the conflict and change its verdict.
+        preserved.add("body_text")
+    removed = (SERVICE_METADATA_FIELDS & set(data)) - preserved
+    for name in sorted(removed):
         data.pop(name, None)
-    if SERVICE_METADATA_FIELDS & set(before["data"]):
+    if removed:
         transformations.append({
             "rule": "provenance_to_journal",
             "label": "Служебные crawl-поля перенесены в журнал",
             "field": "data",
-            "evidence": {"removed_fields": sorted(SERVICE_METADATA_FIELDS & set(before["data"]))},
+            "evidence": {"removed_fields": sorted(removed)},
         })
 
     # Generated summaries, inferred dates, alt text and media paths must pass
@@ -558,7 +586,7 @@ def propose_content(
         resolved_codes.update({"legacy_text", "legacy_navigation_text"})
     if any(item["code"] == "text_extraction_ambiguous" for item in editorial):
         resolved_codes.add("legacy_text")
-    if any(item["rule"] == "date_from_evidence" for item in transformations):
+    if any(item["rule"] in {"date_from_evidence", "gallery_date_policy"} for item in transformations):
         resolved_codes.add("fallback_date_2000")
     if any(item["code"] == "date_requires_editor" for item in editorial):
         resolved_codes.add("fallback_date_2000")
@@ -587,6 +615,7 @@ def propose_content(
             "code": issue["code"],
             "field_path": issue["field_path"],
             "message": issue["message"],
+            "details": _loads(issue.get("details_json"), {}),
         }
         if issue["code"] in TECHNICAL_CODES:
             technical.append(reason)
@@ -601,6 +630,9 @@ def propose_content(
 
     editorial = list({(item["code"], item.get("field_path", ""), item["message"]): item for item in editorial}.values())
     technical = list({(item["code"], item.get("field_path", ""), item["message"]): item for item in technical}.values())
+    from .migration_explanations import explain_reason
+    for finding in editorial + technical:
+        finding.setdefault('explanation', explain_reason(finding, content))
     if technical:
         classification = "technical_blocker"
     elif editorial:
@@ -660,6 +692,9 @@ def queue_preparation(
                 raise PreparationError(
                     "Применить можно только завершённый preview", 409, "PREVIEW_NOT_COMPLETED"
                 )
+            if preview["rules_version"] != PREPARATION_RULES_VERSION:
+                raise PreparationError("Правила подготовки изменились; сформируйте новый preview", 409,
+                                       "PREVIEW_RULES_CHANGED")
             if int(_loads(preview["counts_json"], {}).get("technical_blocker", 0)):
                 raise PreparationError(
                     "Preview содержит технические блокеры", 409, "PREVIEW_NOT_SAFE",
@@ -755,6 +790,13 @@ def _serialize_item(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     ):
         item[target] = _loads(item.pop(source), default)
     item["contract_version"] = CONTRACT_VERSION
+    from .migration_explanations import explain_reason
+    snapshot = item.get('before') or {}
+    same_version = item.get('content_version') == item.get('current_content_version')
+    content = {**snapshot, 'legacy_url': item.get('legacy_url') if same_version else None}
+    for finding in item['reasons']:
+        if isinstance(finding, dict) and not finding.get('explanation'):
+            finding['explanation'] = explain_reason(finding, content, url_is_current=same_version)
     return item
 
 
@@ -805,8 +847,31 @@ def list_preparation_items(
                 LIMIT ? OFFSET ?""",
             [*params, limit, offset],
         ).fetchall()
+        items = [_serialize_item(row) for row in rows]
+        for item in items:
+            issue_rows = connection.execute('''SELECT ri.code,ri.field_path,ri.details_json
+                FROM migration_review_issues ri JOIN migration_preparation_runs pr ON pr.audit_run_id=ri.audit_run_id
+                WHERE pr.id=? AND ri.content_id=? AND ri.content_version=?''',
+                (run_id, item['content_id'], item['content_version'])).fetchall()
+            for finding in item['reasons']:
+                if not isinstance(finding, dict):
+                    continue
+                issue = next((r for r in issue_rows if r['code'] == finding.get('code') and r['field_path'] == finding.get('field_path', '')), None)
+                if not issue:
+                    continue
+                details = _loads(issue['details_json'], {})
+                if isinstance(details, dict):
+                    from .migration_explanations import add_related_facts, explain_reason
+                    snapshot = item.get('before') or {}
+                    same_version = item['content_version'] == item['current_content_version']
+                    historical_content = {**snapshot, 'legacy_url': item.get('legacy_url') if same_version else None}
+                    if not finding.get('details'):
+                        finding['details'] = details
+                        if finding.get('code') != 'date_requires_editor':
+                            finding['explanation'] = explain_reason(finding, historical_content, url_is_current=same_version)
+                    add_related_facts(connection, finding['explanation'], details, item['content_id'])
     return {
-        "items": [_serialize_item(row) for row in rows],
+        "items": items,
         "total": total,
         "limit": limit,
         "offset": offset,

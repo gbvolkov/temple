@@ -3,10 +3,29 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+import pytest
 
 from server.baseline import build_report, verify_restore, write_media_manifest
 from server.migrations import migrate
 from scripts.run_cms_regression import stable_source_report
+
+
+def test_cms_61_media_snapshot_falls_back_when_hardlinks_are_denied(tmp_path, monkeypatch):
+    import os
+    from server.baseline import copy_snapshot_file
+
+    source = tmp_path / "source.jpg"
+    target = tmp_path / "copy.jpg"
+    source.write_bytes(b"immutable source")
+    before = source.stat()
+    def deny_link(*args, **kwargs):
+        raise PermissionError("Hardlinks are unavailable in this Windows sandbox")
+    monkeypatch.setattr(os, "link", deny_link)
+    assert Path(copy_snapshot_file(str(source), str(target))) == target
+    assert target.read_bytes() == source.read_bytes() == b"immutable source"
+    assert target.stat().st_mtime_ns == before.st_mtime_ns
+    target.write_bytes(b"isolated edit")
+    assert source.read_bytes() == b"immutable source"
 
 
 def test_cms_57_source_report_detects_row_changes_without_count_changes(tmp_path):
@@ -116,11 +135,12 @@ def test_restore_verification_detects_media_change(tmp_path):
     assert result["media"]["mismatched"] == ["photo.jpg"]
 
 
-def test_restore_verification_checks_migration_artifacts(tmp_path):
+@pytest.mark.parametrize("artifact_name", ["full-import-plan.json", "legacy-media-manifest.json", "legacy-crawl-checkpoint.json", "missing-legacy-media.csv", "missing-legacy-media.md"])
+def test_restore_verification_checks_migration_artifacts(tmp_path, artifact_name):
     database = tmp_path / "data" / "cms.sqlite3"
     media = tmp_path / "data" / "media"
     media.mkdir(parents=True)
-    artifact = tmp_path / "data" / "full-import-plan.json"
+    artifact = tmp_path / "data" / artifact_name
     artifact.write_text('{"baseline":true}', encoding="utf-8")
     migrate(database)
     report_path = tmp_path / "report.json"
@@ -134,7 +154,7 @@ def test_restore_verification_checks_migration_artifacts(tmp_path):
     artifact.write_text('{"baseline":false}', encoding="utf-8")
     result = verify_restore(database, media, report_path, manifest_path)
     assert result["ok"] is False
-    assert result["artifact_matches"] == [{"name": "full-import-plan.json", "ok": False}]
+    assert result["artifact_matches"] == [{"name": artifact_name, "ok": False}]
 
 
 def test_public_home_has_honest_empty_news_state():

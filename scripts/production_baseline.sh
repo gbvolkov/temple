@@ -149,7 +149,7 @@ fi
 sqlite3 data/cms.sqlite3 ".backup '$STAGING/data/cms.sqlite3'"
 rsync -a --delete data/media/ "$STAGING/data/media/"
 
-for artifact in legacy-crawl-checkpoint.json legacy-media-manifest.json full-import-plan.json; do
+for artifact in legacy-crawl-checkpoint.json legacy-media-manifest.json full-import-plan.json missing-legacy-media.csv missing-legacy-media.md; do
   if [[ -f "data/$artifact" ]]; then
     install -m 600 "data/$artifact" "$STAGING/data/$artifact"
   fi
@@ -195,7 +195,7 @@ REPORT_ARGS=(
   --env-file "$STAGING/.env"
   --output "$STAGING/baseline-report.json"
 )
-for artifact in "$STAGING/data/legacy-crawl-checkpoint.json" "$STAGING/data/legacy-media-manifest.json" "$STAGING/data/full-import-plan.json"; do
+for artifact in "$STAGING/data/legacy-crawl-checkpoint.json" "$STAGING/data/legacy-media-manifest.json" "$STAGING/data/full-import-plan.json" "$STAGING/data/missing-legacy-media.csv" "$STAGING/data/missing-legacy-media.md"; do
   if [[ -f "$artifact" ]]; then
     REPORT_ARGS+=(--artifact "$artifact")
   fi

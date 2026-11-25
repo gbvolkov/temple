@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -20,6 +21,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Reques
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from .draft_preview import DRAFT_PREVIEW, DraftPreviewMiddleware, preview_html
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -476,6 +478,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "is_active": bool(data["is_active"]),
         }
 
+    app.add_middleware(DraftPreviewMiddleware, authenticate=current_user)
+
     def require(min_role: str, *, mutation: bool = False):
         def dependency(
             request: Request,
@@ -876,6 +880,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/public/content")
     def public_content(content_type: str | None = None, limit: int = Query(50, ge=1, le=200)):
+        if DRAFT_PREVIEW.get():
+            return published_items(settings.database_path, TYPE_ALIASES.get(content_type, content_type), limit=limit)
         query = "SELECT * FROM contents WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash')"
         params: list[Any] = []
         if content_type:
@@ -906,6 +912,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/public/content/{slug}")
     def public_content_item(slug: str):
+        if DRAFT_PREVIEW.get():
+            result = published_by_slug(settings.database_path, slug)
+            if result is None:
+                raise HTTPException(404, "Материал не найден")
+            return result
         with connect(settings.database_path) as connection:
             row = connection.execute(
                 """SELECT * FROM contents WHERE published_slug=? AND published_version IS NOT NULL
@@ -1248,10 +1259,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         issues = []
         if current:
             issues = [dict(issue) for issue in connection.execute(
-                """SELECT id,code,severity,field_path,message,status FROM migration_review_issues
+                """SELECT id,code,severity,field_path,message,status,details_json FROM migration_review_issues
                    WHERE content_id=? AND content_version=? AND status IN ('open','acknowledged')
                    ORDER BY severity,field_path,code""", (row["id"], row["version"]),
             )]
+            from .migration_explanations import add_related_facts, explain_reason
+            content = serialize_admin_content(row)
+            for issue in issues:
+                issue['details'] = json.loads(issue.pop('details_json') or '{}')
+                issue['explanation'] = explain_reason(issue, content)
+                add_related_facts(connection, issue['explanation'], issue['details'], row['id'])
         history = connection.execute(
             """SELECT pi.content_version,pi.result_version,pi.classification,pi.reasons_json
                FROM migration_preparation_items pi JOIN migration_preparation_runs pr ON pr.id=pi.run_id
@@ -1265,6 +1282,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 (row["id"], row["version"], audit["run_id"])).fetchone()
             if assessment_row:
                 assessment = json.loads(assessment_row["assessment_json"])
+                from .migration_explanations import explain_reason
+                for finding in assessment.get('reasons', []):
+                    if isinstance(finding, dict) and not finding.get('explanation'):
+                        finding['explanation'] = explain_reason(finding, serialize_admin_content(row))
+                    if isinstance(finding, dict) and isinstance(finding.get('details'), dict):
+                        from .migration_explanations import add_related_facts
+                        add_related_facts(connection, finding['explanation'], finding['details'], row['id'])
                 assessment["audit_run_id"] = assessment_row["audit_run_id"]
                 assessment["rules_version"] = assessment_row["rules_version"]
         return {
@@ -2435,6 +2459,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def render_public(request: Request, template_name: str, context: dict[str, Any], status_code: int = 200):
         context = dict(context)
+        if DRAFT_PREVIEW.get():
+            assets = (settings.site_dir / 'app.js').read_bytes() + (settings.site_dir / 'styles.css').read_bytes()
+            context.update(preview_mode=True, site_draft_preview=True,
+                           preview_public_home_url=settings.public_base_url.rstrip('/') + '/',
+                           preview_asset_version=hashlib.sha256(assets).hexdigest()[:16])
         context["seo"] = build_seo_context(
             settings,
             path=request.url.path,
@@ -2445,12 +2474,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             noindex=bool(context.get("seo_noindex")) or status_code >= 400 or request.url.path == "/search",
             preview=bool(context.get("preview_mode")),
         )
-        return templates.TemplateResponse(
+        response = templates.TemplateResponse(
             request=request,
             name=template_name,
             context=context,
             status_code=status_code,
         )
+        if DRAFT_PREVIEW.get():
+            response.body = preview_html(response.body.decode('utf-8')).encode('utf-8')
+            response.headers['Content-Length'] = str(len(response.body))
+        return response
 
     def render_not_found(request: Request):
         return render_public(
@@ -2683,8 +2716,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/preview", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def public_home(request: Request):
+        if request.url.path == '/preview' and not DRAFT_PREVIEW.get():
+            return RedirectResponse(settings.public_base_url.rstrip('/') + '/', status_code=308)
         news_raw = published_items(settings.database_path, "news")
         directions_raw = published_items(settings.database_path, "parish_section")
         directions_raw.sort(key=lambda item: (int((item.get("data") or {}).get("order") or 100), item["title"]))

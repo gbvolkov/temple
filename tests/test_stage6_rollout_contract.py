@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
+import shlex
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,6 +10,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def script(name: str) -> str:
     return (ROOT / "scripts" / name).read_text(encoding="utf-8")
+
+
+def test_cms_64_baseline_preserves_runtime_missing_media_reports() -> None:
+    baseline = script("production_baseline.sh")
+    copy_loop = re.search(r"for artifact in ([^\n]+); do", baseline)
+    assert copy_loop
+    names = set(shlex.split(copy_loop.group(1)))
+    required = {"missing-legacy-media.csv", "missing-legacy-media.md"}
+    assert required <= names, "Runtime reconciliation reports must be recoverable with the database"
+    report_loop = re.search(r"for artifact in (\"\$STAGING[^\n]+); do", baseline)
+    assert report_loop
+    assert {f"$STAGING/data/{name}" for name in required} <= set(shlex.split(report_loop.group(1)))
 
 
 def test_stage13_wrapper_accepts_only_schema_11_or_12_and_targets_13() -> None:

@@ -19,6 +19,123 @@ VALID_NEWS = {
 }
 
 
+def test_cms_68_preview_opens_the_actual_site_in_current_tab(page, coverage_steps):
+    for role in ("admin", "viewer", "editor", "publisher"):
+        page.context.clear_cookies()
+        page.goto(page.url.split('/cms.html')[0] + '/cms.html')
+        login(page, "admin" if role == "admin" else f"e2e_{role}",
+              "test-password" if role == "admin" else "Strong-Password-2026!")
+        tabs_before = len(page.context.pages)
+        page.locator('[data-site-draft-preview]').click()
+        page.wait_for_url('**/preview?preview=drafts', timeout=3000)
+        coverage_steps.check(f'site-preview.current-tab.{role}',
+                             page.locator('.draft-preview-banner').is_visible()
+                             and page.locator('.site-header').is_visible()
+                             and page.locator('.cms-topbar').count() == 0
+                             and len(page.context.pages) == tabs_before)
+        page.get_by_role('link', name='В CMS', exact=True).click()
+        page.wait_for_url('**/cms.html')
+        page.locator('[data-site-draft-preview]').wait_for(state='visible')
+
+
+def test_cms_69_preview_survives_cms_domain_root_redirect(page, live_cms, coverage_steps):
+    # Match production nginx: the CMS host redirects its exact root to the editor,
+    # before the application ever sees the preview query string.
+    def cms_proxy(route):
+        if route.request.is_navigation_request() and urlsplit(route.request.url).path == '/':
+            route.fulfill(status=302, headers={'Location': live_cms.base_url + '/cms.html'})
+        else:
+            route.continue_()
+    page.route('**/*', cms_proxy)
+    login(page)
+    page.locator('[data-site-draft-preview]').click()
+    page.locator('.site-header').wait_for(timeout=3000)
+    coverage_steps.check('site-preview.proxy-entry', page.locator('.draft-preview-banner').is_visible())
+    page.locator('a[href="/news?preview=drafts"]:visible').first.click()
+    page.get_by_role('link', name='На главную', exact=True).click()
+    coverage_steps.check('site-preview.proxy-home', '/preview?preview=drafts' in page.url and page.locator('.site-header').is_visible())
+    page.goto(live_cms.base_url + '/news?preview=drafts')
+    page.goto(live_cms.base_url + '/preview?preview=drafts#/')
+    page.wait_for_function('location.hash === ""')
+    coverage_steps.check('site-preview.proxy-legacy-home', '/preview?preview=drafts' in page.url and page.locator('.site-header').is_visible())
+
+
+def test_site_preview_navigation_protects_unsaved_work(page, live_cms, coverage_steps):
+    login(page)
+    page.locator('[data-create-current]').click()
+    page.locator('[name="title"]').fill('UnsavedSitePreviewMarker')
+    page.locator('[data-site-draft-preview]').click()
+    dialog = page.locator('[data-unsaved-dialog]')
+    dialog.wait_for(state='visible')
+    coverage_steps.check('site-preview.unsaved-prompt', '/cms.html' in page.url)
+    dialog.locator('[data-unsaved-stay]').click()
+    coverage_steps.check('site-preview.unsaved-stay', page.locator('[name="title"]').input_value() == 'UnsavedSitePreviewMarker')
+    page.locator('[data-site-draft-preview]').click()
+    dialog.locator('[data-unsaved-save]').click()
+    page.wait_for_url('**/preview?preview=drafts')
+    page.goto(live_cms.base_url + '/news?preview=drafts')
+    coverage_steps.check('site-preview.unsaved-save', 'UnsavedSitePreviewMarker' in page.locator('main').inner_text())
+    page.get_by_role('link', name='В CMS', exact=True).click()
+    page.locator('[data-create-current]').click()
+    page.locator('[name="title"]').fill('DiscardedSitePreviewMarker')
+    page.locator('[data-site-draft-preview]').click()
+    dialog.locator('[data-unsaved-discard]').click()
+    page.wait_for_url('**/preview?preview=drafts')
+    page.goto(live_cms.base_url + '/news?preview=drafts')
+    coverage_steps.check('site-preview.unsaved-discard', 'DiscardedSitePreviewMarker' not in page.locator('main').inner_text())
+
+
+def test_authenticated_whole_site_draft_preview(page, live_cms, coverage_steps):
+    headers = api_login(page, live_cms)
+    item = api_create_content(page, live_cms, headers, content_type="news", title="DraftSiteMarker", data=VALID_NEWS)
+    page.reload(wait_until="domcontentloaded")
+    entry = page.locator('[data-site-draft-preview]')
+    entry.wait_for(state="visible")
+    entry.click()
+    page.wait_for_url('**/preview?preview=drafts')
+    preview = page
+    errors = []
+    preview.on('pageerror', lambda error: errors.append(str(error)))
+    preview.wait_for_load_state('domcontentloaded')
+    coverage_steps.check('site-preview.entry', preview.locator('.draft-preview-banner').is_visible())
+    preview.locator('a[href="/news?preview=drafts"]:visible').first.click()
+    preview.get_by_role('link', name='DraftSiteMarker', exact=True).click()
+    coverage_steps.check('site-preview.navigation', 'preview=drafts' in preview.url and item['slug'] in preview.url)
+    coverage_steps.check('site-preview.draft-visible', 'DraftSiteMarker' in preview.locator('main').inner_text())
+    coverage_steps.check('site-preview.forms-disabled', preview.locator('[data-note-open]').first.is_disabled())
+    preview.goto(live_cms.base_url + '/search?q=DraftSiteMarker&preview=drafts')
+    coverage_steps.check('site-preview.search', 'DraftSiteMarker' in preview.locator('main').inner_text())
+    preview.set_viewport_size({'width': 390, 'height': 844})
+    coverage_steps.check('site-preview.mobile', preview.locator('.draft-preview-banner').is_visible() and preview.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+    preview.locator('[data-preview-exit]').click()
+    coverage_steps.check('site-preview.exit', 'preview=' not in preview.url and 'DraftSiteMarker' not in preview.locator('main').inner_text())
+    coverage_steps.check('site-preview.no-js-errors', not errors)
+
+
+def test_policy_procedure_history_labels(page, live_cms, coverage_steps):
+    from server.workflow import record_audit
+
+    headers = api_login(page, live_cms)
+    item = api_create_content(page, live_cms, headers, content_type="news", title="История процедуры миграции", data=VALID_NEWS)
+    # Procedure semantics and journal snapshots are checked on source copies;
+    # this fixture exercises how the resulting events appear in visible history.
+    with sqlite3.connect(live_cms.settings.database_path) as c:
+        c.row_factory = sqlite3.Row
+        row = c.execute("SELECT * FROM contents WHERE id=?", (item["id"],)).fetchone()
+        actor = c.execute("SELECT id FROM users WHERE username='admin'").fetchone()[0]
+        for action in ("migration_policy_apply", "migration_policy_verify", "migration_policy_rollback"):
+            record_audit(c, content_id=item["id"], actor_id=actor, action=action, before=row, after=row,
+                         details={"operation_id": "history-fixture"})
+    login(page)
+    open_content(page, "news", item["title"])
+    page.locator('[data-workflow-action="history"]').click()
+    history = page.locator("[data-history-dialog]")
+    history.get_by_text("Применены правила миграции", exact=True).wait_for()
+    coverage_steps.check("procedure.history.apply", history.get_by_text("Применены правила миграции", exact=True).is_visible())
+    coverage_steps.check("procedure.history.verify", history.get_by_text("Применение правил миграции проверено", exact=True).is_visible())
+    coverage_steps.check("procedure.history.rollback", history.get_by_text("Применение правил миграции отменено", exact=True).is_visible())
+
+
 def bulk_queue_response(response, query: str, action: str) -> bool:
     parsed = urlsplit(response.url)
     if parsed.path != "/api/admin/content-index":
@@ -249,7 +366,7 @@ def test_ui_material_workflow(page, live_cms, coverage_steps):
         headers,
         content_type="news",
         title="E2E UI lifecycle",
-        data=VALID_NEWS,
+        data={**VALID_NEWS, "cover_alt": ""},
     )
     login(page)
     open_content(page, "news", "E2E UI lifecycle")
@@ -289,6 +406,7 @@ def test_ui_material_workflow(page, live_cms, coverage_steps):
     state.filter(has_text="На проверке").wait_for()
     page.locator('[data-workflow-action="publish"]').click()
     publish = page.locator("[data-publish-dialog]")
+    coverage_steps.check("workflow.publish-alt-optional", "alt" not in publish.inner_text().lower())
     publish.locator('input[type="checkbox"]').last.uncheck()
     publish.locator("[data-publish-confirm]").click()
     coverage_steps.check("workflow.publish-incomplete", publish.is_visible() and state.inner_text().startswith("На проверке"))

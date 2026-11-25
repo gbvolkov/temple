@@ -27,9 +27,10 @@
   <script type="application/ld+json">{{ seo.json_ld|tojson }}</script>
   <link rel="icon" href="data:,">
   <title>{{ seo.full_title }}</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css{% if site_draft_preview %}?v={{ preview_asset_version }}{% endif %}">
 </head>
-<body class="{% if active_nav == 'home' %}is-home{% endif %}">
+<body class="{% if active_nav == 'home' %}is-home{% endif %}"{% if site_draft_preview %} data-draft-preview="true"{% endif %}>
+  {% if site_draft_preview %}<aside class="draft-preview-banner" role="status"><strong>Предпросмотр черновиков</strong><span>Рабочие версии, включая миграционную очередь. Материалы не опубликованы. Формы отправки отключены.</span><a href="/cms.html">В CMS</a><a href="{{ preview_public_home_url }}" data-preview-exit>Выйти из предпросмотра</a></aside>{% endif %}
   <a class="skip-link" href="#content">К содержанию</a>
   <header class="site-header" data-header>
     <div class="shell site-header__inner">
@@ -141,6 +142,6 @@
   </dialog>
 
   <dialog class="lightbox" data-lightbox aria-label="Просмотр фотографии"><button class="lightbox__close" type="button" aria-label="Закрыть" data-lightbox-close>×</button><img alt="" data-lightbox-image><p data-lightbox-caption></p></dialog>
-  {% if not preview_mode %}<script src="/app.js"></script>{% endif %}
+  {% if not preview_mode or site_draft_preview %}<script src="/app.js{% if site_draft_preview %}?v={{ preview_asset_version }}{% endif %}"></script>{% endif %}
 </body>
 </html>

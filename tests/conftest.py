@@ -8,6 +8,7 @@ import pytest
 def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("cms-e2e")
     group.addoption("--cms-headed", action="store_true", help="Show Chromium during CMS E2E tests")
+    group.addoption("--cms-browser", choices=("chromium", "webkit"), default="chromium", help="Browser engine for CMS E2E tests")
     group.addoption("--cms-source-db", type=Path, help="Read-only source database for source_data tests")
     group.addoption("--cms-source-media", type=Path, help="Read-only source media directory")
     group.addoption("--cms-source-manifest", type=Path, help="Read-only source media manifest")
@@ -20,6 +21,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "smoke: short mandatory browser regression",
         "full: long browser regression",
         "source_data: requires explicitly supplied local runtime data",
+        "mobile_safari: use iPhone viewport, user agent and touch input",
         "defect(id): characterization check for a registered defect",
         "allow_browser_errors: browser errors are part of the asserted scenario",
         "expected_http_error(status, path): an explicitly asserted validation response",

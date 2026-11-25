@@ -61,6 +61,76 @@ def insert_content(database_path: Path, content_id: str, data: dict) -> None:
         )
 
 
+def test_cms_65_generated_site_social_card_is_a_valid_derivative(tmp_path: Path) -> None:
+    from server.seo import site_social_preview_path
+
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    settings.media_dir.mkdir()
+    write_manifest(settings, {})
+    settings.missing_report_path.write_text(REPORT_HEADER, encoding="utf-8")
+    card = site_social_preview_path(settings)
+    before = card.read_bytes()
+    result = reconcile_media(settings.database_path, settings.media_dir, settings.media_manifest_path,
+                             missing_report=settings.missing_report_path, derivatives_dir=settings.derivatives_dir)
+    assert result["status"] == "ok"
+    assert result["derivative_files"] == 1
+    assert result["invalid_derivative_files"] == result["orphan_derivative_files"] == 0
+    assert card.read_bytes() == before
+
+
+def test_social_revision_cache_tracks_revision_existence_and_survives_archive(tmp_path: Path) -> None:
+    from server.seo import site_social_preview_path
+
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    settings.media_dir.mkdir()
+    write_manifest(settings, {})
+    settings.missing_report_path.write_text(REPORT_HEADER, encoding="utf-8")
+    source = site_social_preview_path(settings)
+    card = settings.derivatives_dir / "social" / "article-1" / "v1.jpg"
+    card.parent.mkdir()
+    card.write_bytes(source.read_bytes())
+    insert_content(settings.database_path, "article-1", {})
+    with sqlite3.connect(settings.database_path) as c:
+        c.execute("INSERT INTO revisions(content_id,version,snapshot_json,created_at) VALUES('article-1',1,'{}','now')")
+
+    def check():
+        return reconcile_media(settings.database_path, settings.media_dir, settings.media_manifest_path,
+                               missing_report=settings.missing_report_path, derivatives_dir=settings.derivatives_dir)
+
+    assert check()["status"] == "ok"
+    assert check()["social_derivative_files"] == 2
+    with sqlite3.connect(settings.database_path) as c:
+        c.execute("UPDATE contents SET status='archived' WHERE id='article-1'")
+    assert check()["status"] == "ok"
+    with sqlite3.connect(settings.database_path) as c:
+        c.execute("DELETE FROM revisions WHERE content_id='article-1'")
+    result = check()
+    assert result["status"] == "warning"
+    assert result["orphan_derivative_files"] == 1
+    assert result["invalid_derivative_files"] == 0
+    assert card.exists()
+
+
+@pytest.mark.parametrize("relative", ["social/other.jpg", "social/article-1/v0.jpg", "social/article-1/v01.jpg", "social/article_1/v1.jpg", "social/article-1/nested/v1.jpg"])
+def test_social_cache_does_not_hide_malformed_derivative_paths(tmp_path: Path, relative: str) -> None:
+    settings = settings_for(tmp_path)
+    init_database(settings.database_path)
+    settings.media_dir.mkdir()
+    write_manifest(settings, {})
+    settings.missing_report_path.write_text(REPORT_HEADER, encoding="utf-8")
+    card = settings.derivatives_dir / relative
+    card.parent.mkdir(parents=True)
+    card.write_bytes(b"unknown cache")
+    result = reconcile_media(settings.database_path, settings.media_dir, settings.media_manifest_path,
+                             missing_report=settings.missing_report_path, derivatives_dir=settings.derivatives_dir)
+    assert result["status"] == "warning"
+    assert result["invalid_derivative_files"] == 1
+    assert result["social_derivative_files"] == 0
+    assert card.read_bytes() == b"unknown cache"
+
+
 def test_reconciliation_classifies_duplicates_missing_unmanaged_and_unsafe_paths(
     tmp_path: Path,
 ) -> None:

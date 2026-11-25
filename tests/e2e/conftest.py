@@ -368,15 +368,21 @@ def playwright_runtime() -> Playwright:
 
 @pytest.fixture(scope="session")
 def browser(playwright_runtime: Playwright, pytestconfig: pytest.Config) -> Browser:
-    browser = playwright_runtime.chromium.launch(headless=not pytestconfig.getoption("--cms-headed"))
+    browser_type = getattr(playwright_runtime, pytestconfig.getoption("--cms-browser"))
+    browser = browser_type.launch(headless=not pytestconfig.getoption("--cms-headed"))
     yield browser
     browser.close()
 
 
 @pytest.fixture
-def page(browser: Browser, live_cms: LiveCms, artifacts_dir: Path, request: pytest.FixtureRequest) -> Page:
+def page(browser: Browser, live_cms: LiveCms, artifacts_dir: Path, request: pytest.FixtureRequest, playwright_runtime: Playwright) -> Page:
+    device = (
+        playwright_runtime.devices["iPhone 13"]
+        if request.node.get_closest_marker("mobile_safari")
+        else {"viewport": {"width": 1440, "height": 1000}}
+    )
     context = browser.new_context(
-        viewport={"width": 1440, "height": 1000},
+        **device,
         locale="ru-RU",
         timezone_id="Europe/Moscow",
     )

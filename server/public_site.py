@@ -9,7 +9,8 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from .content_blocks import enrich_blocks_for_render
-from .db import connect
+from .db import connect, row_to_content
+from .draft_preview import DRAFT_PREVIEW
 from .public_urls import STATIC_HASH_TARGETS, content_path
 from .workflow import public_content
 
@@ -120,16 +121,21 @@ def paragraphs(value: Any) -> list[str]:
     return [paragraph.strip() for paragraph in normalized.split("\n\n") if paragraph.strip()]
 
 
-def published_items(database_path: Path, content_type: str, *, limit: int = 200) -> list[dict[str, Any]]:
+def published_items(database_path: Path, content_type: str | None, *, limit: int = 200) -> list[dict[str, Any]]:
+    visibility = "" if DRAFT_PREVIEW.get() else "published_version IS NOT NULL AND "
+    type_sql = " AND content_type=?" if content_type else ""
     with connect(database_path) as connection:
         rows = connection.execute(
-            """SELECT * FROM contents
-               WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash')
-                 AND content_type=?
+            f"""SELECT * FROM contents
+               WHERE {visibility}status NOT IN ('archived','trash'){type_sql}
                ORDER BY COALESCE(published_at,updated_at) DESC LIMIT ?""",
-            (content_type, limit),
+            (*([content_type] if content_type else []), limit),
         ).fetchall()
-        return [public_content(connection, row) for row in rows]
+        return [visible_content(connection, row) for row in rows]
+
+
+def visible_content(connection, row) -> dict[str, Any]:
+    return row_to_content(row) if DRAFT_PREVIEW.get() else public_content(connection, row)
 
 
 def published_page(
@@ -151,6 +157,14 @@ def published_page(
               JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
               WHERE c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash')
                 AND c.content_type=?"""
+    if DRAFT_PREVIEW.get():
+        year_sql = """substr(COALESCE(json_extract(c.data_json,'$.event_date'),
+            json_extract(c.data_json,'$.publication_date'),json_extract(c.data_json,'$.year'),c.published_at),1,4)"""
+        base = "FROM contents c WHERE c.status NOT IN ('archived','trash') AND c.content_type=?"
+    order_sql = """COALESCE(json_extract(r.snapshot_json,'$.data.event_date'),
+        json_extract(r.snapshot_json,'$.data.publication_date'),c.published_at,c.updated_at)"""
+    if DRAFT_PREVIEW.get():
+        order_sql = "COALESCE(json_extract(c.data_json,'$.event_date'),json_extract(c.data_json,'$.publication_date'),c.published_at,c.updated_at)"
     with connect(database_path) as connection:
         raw_years = connection.execute(
             f"SELECT DISTINCT {year_sql} AS year {base}", (content_type,),
@@ -170,14 +184,10 @@ def published_page(
             return {"items": [], "total": total, "page": page, "pages": pages, "years": years, "invalid": True}
         rows = connection.execute(
             f"""SELECT c.* {where}
-                 ORDER BY COALESCE(
-                   json_extract(r.snapshot_json,'$.data.event_date'),
-                   json_extract(r.snapshot_json,'$.data.publication_date'),
-                   c.published_at,c.updated_at
-                 ) DESC, c.id DESC LIMIT ? OFFSET ?""",
+                 ORDER BY {order_sql} DESC, c.id DESC LIMIT ? OFFSET ?""",
             (*params, per_page, (page - 1) * per_page),
         ).fetchall()
-        items = [public_content(connection, row) for row in rows]
+        items = [visible_content(connection, row) for row in rows]
     return {
         "items": items, "total": total, "page": page, "pages": pages, "years": years,
         "invalid": False, "has_previous": page > 1, "has_next": page < pages,
@@ -222,14 +232,14 @@ def published_related_content(
     legacy_section = data.get("related_section")
     current_id = str(item.get("id") or "")
     current_slug = str(item.get("slug") or "")
+    visibility = "" if DRAFT_PREVIEW.get() else "c.published_version IS NOT NULL AND "
     with connect(database_path) as connection:
         rows = connection.execute(
-            """SELECT c.* FROM contents c
-               JOIN revisions r ON r.content_id=c.id AND r.version=c.published_version
-               WHERE c.published_version IS NOT NULL AND c.status NOT IN ('archived','trash')
+            f"""SELECT c.* FROM contents c
+               WHERE {visibility}c.status NOT IN ('archived','trash')
                  AND c.content_type IN ('news','page','parish_section','gallery')"""
         ).fetchall()
-        published = [public_content(connection, row) for row in rows]
+        published = [visible_content(connection, row) for row in rows]
 
     by_id = {candidate["id"]: candidate for candidate in published}
     selected: list[dict[str, Any]] = []
@@ -260,15 +270,16 @@ def published_related_content(
 
 
 def published_by_slug(database_path: Path, slug: str) -> dict[str, Any] | None:
+    visibility = "" if DRAFT_PREVIEW.get() else "published_version IS NOT NULL AND "
     with connect(database_path) as connection:
         row = connection.execute(
-            """SELECT * FROM contents
-               WHERE published_version IS NOT NULL AND status NOT IN ('archived','trash')
+            f"""SELECT * FROM contents
+               WHERE {visibility}status NOT IN ('archived','trash')
                  AND (published_slug=? OR slug=?)
                LIMIT 1""",
             (slug, slug),
         ).fetchone()
-        return public_content(connection, row) if row else None
+        return visible_content(connection, row) if row else None
 
 
 def published_item(database_path: Path, slug: str, allowed_types: Iterable[str]) -> dict[str, Any] | None:
@@ -276,15 +287,16 @@ def published_item(database_path: Path, slug: str, allowed_types: Iterable[str])
     if not allowed:
         return None
     placeholders = ",".join("?" for _ in allowed)
+    slug_filter = "(slug=? OR published_slug=?)" if DRAFT_PREVIEW.get() else "published_slug=? AND published_version IS NOT NULL"
     with connect(database_path) as connection:
         row = connection.execute(
             f"""SELECT * FROM contents
-                WHERE published_slug=? AND published_version IS NOT NULL
+                WHERE {slug_filter}
                   AND status NOT IN ('archived','trash')
                   AND content_type IN ({placeholders})""",
-            (slug, *allowed),
+            (slug, *([slug] if DRAFT_PREVIEW.get() else []), *allowed),
         ).fetchone()
-        return public_content(connection, row) if row else None
+        return visible_content(connection, row) if row else None
 
 
 def is_school_item(item: dict[str, Any]) -> bool:

@@ -80,6 +80,48 @@ def publish_item(client: TestClient, headers: dict[str, str], content_type: str,
     return response.json()
 
 
+def test_cms_75_news_can_be_published_without_image_descriptions(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        headers = {'X-CSRF-Token': login(client)}
+        data = {'publication_date': '2026-07-12', 'category': 'Новости прихода',
+                'summary': 'Событие прихода', 'cover': 'assets/school-maslenitsa.jpg',
+                'body': [{'type': 'image', 'data': {'image': 'assets/school-maslenitsa.jpg'}},
+                         {'type': 'gallery', 'data': {'items': [{'image': 'assets/school-maslenitsa.jpg'}]}}]}
+        created = client.post('/api/admin/contents', headers=headers,
+                              json={'content_type': 'news', 'title': 'Новость без описания изображения', 'data': data})
+        assert created.status_code == 201, created.text
+        item = created.json()
+        submitted = client.post(f"/api/admin/contents/{item['id']}/submit-review", headers=headers, json={'version': item['version']})
+        assert submitted.status_code == 200, submitted.text
+        published = client.post(f"/api/admin/contents/{item['id']}/publish", headers=headers, json={'version': submitted.json()['version']})
+        assert published.status_code == 200, published.text
+
+
+def test_gallery_alt_is_optional_but_photo_and_image_address_are_required(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        headers = {'X-CSRF-Token': login(client)}
+        data = {'event_date': '2025-06-08', 'category': 'Богослужения',
+                'cover': 'assets/school-maslenitsa.jpg',
+                'photos': [{'image': 'assets/school-maslenitsa.jpg', 'caption': 'На службе'}]}
+        item = publish_item(client, headers, 'gallery', 'Фотоальбом без alt', data)
+        assert item['status'] == 'published'
+        assert item['data']['photos'][0]['caption'] == 'На службе'
+        invalid = client.post('/api/admin/contents', headers=headers, json={'content_type': 'gallery', 'title': 'Некорректный файл', 'data': {**data, 'photos': [{'image': 'javascript:alert(1)'}]}})
+        assert invalid.status_code == 422
+
+
+def test_supplied_alt_text_is_preserved_and_checked(tmp_path):
+    with TestClient(create_app(settings_for(tmp_path))) as client:
+        headers = {'X-CSRF-Token': login(client)}
+        data = {'event_date': '2025-06-08', 'category': 'Богослужения', 'cover': 'assets/school-maslenitsa.jpg',
+                'photos': [{'image': 'assets/school-maslenitsa.jpg', 'alt': 'Служба в храме'}]}
+        created = client.post('/api/admin/contents', headers=headers, json={'content_type': 'gallery', 'title': 'Фото с описанием', 'data': data})
+        assert created.status_code == 201, created.text
+        assert created.json()['data']['photos'][0]['alt'] == 'Служба в храме'
+        bad = client.post('/api/admin/contents', headers=headers, json={'content_type': 'gallery', 'title': 'Слишком длинное описание', 'data': {**data, 'photos': [{'image': 'assets/school-maslenitsa.jpg', 'alt': 'x' * 501}]}})
+        assert bad.status_code == 422
+
+
 def test_auth_crud_publish_and_public_read(tmp_path):
     with TestClient(create_app(settings_for(tmp_path))) as client:
         assert client.get("/api/health").json()["status"] == "ok"
@@ -104,7 +146,8 @@ def test_auth_crud_publish_and_public_read(tmp_path):
             f"/api/admin/contents/{item['id']}/submit-review", headers=headers, json={"version": item["version"]}
         )
         assert incomplete.status_code == 422
-        assert "cover_alt" in incomplete.json()["detail"]["fields"]
+        assert "cover" in incomplete.json()["detail"]["fields"]
+        assert "cover_alt" not in incomplete.json()["detail"]["fields"]
 
         payload = ready_news(item)
         updated = client.put(f"/api/admin/contents/{item['id']}", headers=headers, json=payload)

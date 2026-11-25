@@ -57,10 +57,10 @@ def test_cms_02_incomplete_block_preview(page, defect_registry, coverage_steps):
     coverage_steps.check("stage2.preview.no-request", not preview_requests)
     coverage_steps.check("stage2.preview.preserved", page.locator("[data-content-preview]").get_attribute("srcdoc") == previous)
     image = page.locator('[data-block-type="image"]').last
-    image.locator('[data-block-value="image"]').evaluate("node => { node.value='/assets/school-maslenitsa.jpg'; node.dispatchEvent(new Event('input',{bubbles:true})); }")
     with page.expect_response(lambda response: "/content-preview" in response.url and response.status == 200):
-        image.locator('[data-block-value="alt"]').fill("Праздник Воскресной школы")
+        image.locator('[data-block-value="image"]').evaluate("node => { node.value='/assets/school-maslenitsa.jpg'; node.dispatchEvent(new Event('input',{bubbles:true})); }")
     coverage_steps.check("stage2.preview.recovery", not image.locator("[data-block-validation]").is_visible())
+    coverage_steps.check("stage2.preview.alt-optional", image.locator('[data-block-value="alt"]').input_value() == "")
     page.once("dialog", lambda dialog: dialog.accept())
     image.locator('[data-block-action="delete"]').click()
     page.wait_for_timeout(700)

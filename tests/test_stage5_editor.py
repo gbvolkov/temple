@@ -206,7 +206,7 @@ def test_block_relation_and_size_validation(tmp_path: Path) -> None:
             [{"id": "list", "type": "list", "data": {"style": "checklist", "items": []}}],
             [{"id": "image", "type": "image", "data": {"image": "https://example.org/x.jpg", "alt": "x"}}],
             [{"id": "image-traversal", "type": "image", "data": {"image": "/media/../secret.jpg", "alt": "x"}}],
-            [{"id": "gallery", "type": "gallery", "data": {"items": [{"image": "/media/x.jpg", "alt": ""}]}}],
+            [{"id": "gallery", "type": "gallery", "data": {"items": [{"image": "", "alt": ""}]}}],
             [{"id": "gallery-duplicates", "type": "gallery", "data": {"items": [{"id": "photo", "image": "/media/a.jpg", "alt": "A"}, {"id": "photo", "image": "/media/b.jpg", "alt": "B"}]}}],
             [{"id": "video", "type": "video", "data": {"url": "http://example.org/video"}}],
             [{"id": "file", "type": "file", "data": {"url": "https://example.org/a.pdf", "label": "Файл"}}],

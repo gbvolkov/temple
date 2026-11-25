@@ -91,7 +91,7 @@ def test_cms_44_automatic_acceptance_ui(page, live_cms, coverage_steps):
     login(page)
     _open_panel(page, "migration", "Перенесённые материалы")
     page.get_by_role("button", name="Принять автоматически готовые").click()
-    page.get_by_text("Автоматически принято: 1", exact=False).wait_for()
+    page.locator("[data-auto-progress]").filter(has_text="Автоматически принято: 1").wait_for()
     coverage_steps.mark("stage7.auto.accepted")
     page.locator('.cms-type[data-content-type="news"]').click()
     picker = page.locator("[data-content-select]")
@@ -133,6 +133,7 @@ def test_stage7_visible_workflow_to_publication(page, browser, live_cms, coverag
     issue.get_by_role("button", name="Исправить").click()
     page.locator('[data-schema-field="rank"] input').fill("Иерей")
     page.locator("[data-save-draft]").last.click()
+    page.get_by_text("Черновик сохранён").wait_for()
     page.locator("[data-audit-current]").click()
     page.locator("[data-card-review]").get_by_text("0 блокирующих ошибок", exact=False).wait_for()
     coverage_steps.mark("stage7.e2e.correct-audit")
@@ -709,8 +710,9 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
             }],
         }
         connection.execute(
-            "UPDATE contents SET data_json=?,migration_review_required=1 WHERE id=?",
-            (json.dumps(gallery_data, ensure_ascii=False), gallery_id),
+            "UPDATE contents SET data_json=?,migration_review_required=1,title=?,legacy_url=? WHERE id=?",
+            (json.dumps(gallery_data, ensure_ascii=False), '08 июня 2025 День Святой Троицы',
+             '/gallery/2025/23-июня-2024.html', gallery_id),
         )
     audit = queue_audit(
         live_cms.settings.database_path,
@@ -782,18 +784,18 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
     page.wait_for_function(
         "() => document.querySelectorAll('[data-preparation-item]').length > 0"
     )
-    dossier_button = page.locator("[data-preparation-item]").first
+    dossier_button = page.locator(f'[data-preparation-item="{gallery_id}"]')
     dossier_button.click()
     page.locator(".preparation-dossier").wait_for()
     dossier_checks = {
         "diff": page.locator(".preparation-diff article").count() == 2,
-        "recommendation": page.get_by_role("heading", name="Рекомендация", exact=True).is_visible(),
+        "recommendation": page.get_by_role("heading", name="Что нужно проверить", exact=True).is_visible(),
         "reasons": page.locator(".dossier-reasons article").count() > 0,
-        "reason_code": page.locator(".dossier-reasons article").first.locator("b").inner_text().strip() != "",
-        "reason_field": "Поле:" in page.locator(".dossier-reasons article").first.inner_text(),
+        "actual_dates": all(x in page.locator(".dossier-reasons").inner_text() for x in ('08 июня 2025', '23-июня-2024', '2024, 2025', '30.07.2026')),
+        "next_step": "Что можно сделать" in page.locator(".dossier-reasons").inner_text(),
         "rules": (
             page.locator(".dossier-rules article").count() > 0
-            or "Данные уже соответствуют правилам" in page.locator(".dossier-rules").inner_text()
+            or "Автоматических изменений не предложено" in page.locator(".dossier-rules").inner_text()
         ),
         "options": page.locator(".preparation-dossier li p").count() > 0,
         "focus": page.locator("#preparation-dossier-title").evaluate(
@@ -805,11 +807,14 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
         all(dossier_checks.values()),
         str(dossier_checks),
     )
+    coverage_steps.check('stage6.preparation.explained-values', dossier_checks['actual_dates'])
+    coverage_steps.check('stage6.preparation.explained-action', dossier_checks['next_step'])
+    coverage_steps.check('stage6.preparation.technical-details-closed', not page.locator('.preparation-diff').is_visible())
     page.locator("[data-migration-back]").click()
     page.get_by_role("heading", name="Перенесённые материалы", exact=True).wait_for()
     coverage_steps.check(
         "stage6.preparation.dashboard-back",
-        page.locator("[data-preparation-item]").first.evaluate(
+        page.locator(f'[data-preparation-item="{gallery_id}"]').evaluate(
             "node => document.activeElement === node"
         ),
     )
@@ -826,12 +831,14 @@ def test_stage6_automatic_preparation_workflow(page, live_cms, coverage_steps):
     page.wait_for_function("() => !document.querySelector('[data-preparation-next]').disabled")
     with page.expect_response(lambda response: "/items?" in response.url and "offset=50" in response.url):
         page.locator("[data-preparation-next]").click()
+    expect(page.locator("[data-preparation-prev]")).to_be_enabled()
     coverage_steps.check(
         "stage6.preparation.pagination-next",
         not page.locator("[data-preparation-prev]").is_disabled(),
     )
     with page.expect_response(lambda response: "/items?" in response.url and "offset=0" in response.url):
         page.locator("[data-preparation-prev]").click()
+    expect(page.locator("[data-preparation-prev]")).to_be_disabled()
     coverage_steps.check(
         "stage6.preparation.pagination-prev",
         page.locator("[data-preparation-prev]").is_disabled(),

@@ -12,6 +12,7 @@ from server.db import init_database
 from server.migration_acceptance import (
     AcceptanceError,
     EXTERNAL_CHECKER_VERSION,
+    RULES_VERSION,
     _external_evidence,
     create_batch,
     execute_audit_run,
@@ -316,7 +317,7 @@ def test_migration_9_is_idempotent_and_preserves_existing_rows(tmp_path: Path) -
     assert verify_acceptance(settings.database_path) == {
         "ok": True,
         "schema": 9,
-            "rules_version": "1.1.0",
+        "rules_version": RULES_VERSION,
     }
 
 

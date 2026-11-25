@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
 import sqlite3
 import sys
 from datetime import UTC, datetime
@@ -28,6 +30,15 @@ def readonly_connection(path: Path) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
+
+
+def copy_snapshot_file(source: str, target: str) -> str:
+    """Link read-only snapshot originals, falling back to an independent copy."""
+    try:
+        os.link(source, target)
+        return target
+    except OSError:
+        return shutil.copy2(source, target)
 
 
 def table_exists(connection: sqlite3.Connection, name: str) -> bool:

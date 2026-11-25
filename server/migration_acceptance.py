@@ -21,11 +21,12 @@ from .config import Settings
 from .db import connect, row_to_content, transaction, utc_now
 from .media_library import media_reference_problems, refresh_content_usages
 from .public_urls import content_path
+from .migration_policy import PHOTO_COLLECTION_POLICY, POLICY_VERSION, gallery_date_proposal
 from .search import sync_content_search
 from .workflow import admin_content, record_audit
 
 
-RULES_VERSION = "1.1.0"
+RULES_VERSION = "1.2.1"
 CONTRACT_VERSION = "1.1"
 EXTERNAL_CHECKER_VERSION = "1.1.0"
 EXTERNAL_CACHE_TTL = timedelta(hours=24)
@@ -629,6 +630,9 @@ def audit_content(
                     parsed.year == 2000
                     and content.get("migration_review_required")
                     and content["content_type"] in {"news", "gallery"}
+                    and not (content["content_type"] == "gallery"
+                             and data.get("event_date_policy_version") == POLICY_VERSION
+                             and gallery_date_proposal(content)["accepted"])
                 ):
                     issues.append(_issue(
                         "fallback_date_2000", "blocker",
@@ -716,23 +720,6 @@ def audit_content(
                     field_path=name, details={"url": value},
                 ))
 
-    for index, block in enumerate(_body_blocks(data)):
-        if not isinstance(block, dict):
-            continue
-        block_data = block.get("data") if isinstance(block.get("data"), dict) else {}
-        if block.get("type") == "image" and block_data.get("image") and not str(block_data.get("alt") or "").strip():
-            issues.append(_issue(
-                "image_alt_missing", "blocker", "У изображения отсутствует alt-текст",
-                field_path=f"body[{index}].data.alt",
-            ))
-        if block.get("type") == "gallery":
-            for photo_index, photo in enumerate(block_data.get("photos") or []):
-                if isinstance(photo, dict) and photo.get("image") and not str(photo.get("alt") or "").strip():
-                    issues.append(_issue(
-                        "image_alt_missing", "blocker", "У фотографии отсутствует alt-текст",
-                        field_path=f"body[{index}].data.photos[{photo_index}].alt",
-                    ))
-
     pending_missing = connection.execute(
         """SELECT mi.id FROM missing_media_issues mi
            JOIN missing_media_issue_contents mic ON mic.issue_id=mi.id
@@ -760,7 +747,8 @@ def audit_content(
             media_url for media_url, count in Counter(collection).items() if count > 1
         )
     repeated_media = sorted(set(repeated_media))
-    if repeated_media:
+    if repeated_media and not (content["content_type"] == "gallery"
+                               and data.get("photo_collection_policy") == PHOTO_COLLECTION_POLICY):
         issues.append(_issue(
             "duplicate_media_reference", "warning",
             "Один и тот же медиафайл используется в материале несколько раз",

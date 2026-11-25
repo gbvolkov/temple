@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sqlite3
 from collections import Counter
 from pathlib import Path, PurePosixPath
@@ -181,6 +182,10 @@ def reconcile_media(
         registered_rows = connection.execute("SELECT id,stored_name FROM media").fetchall()
         registered = {str(row["stored_name"]) for row in registered_rows}
         registered_ids = {str(row["id"]) for row in registered_rows}
+        content_revisions = {
+            (str(row["content_id"]), int(row["version"]))
+            for row in connection.execute("SELECT content_id,version FROM revisions")
+        }
         missing_issue_urls = {
             str(row["source_url"])
             for row in connection.execute("SELECT source_url FROM missing_media_issues")
@@ -238,8 +243,20 @@ def reconcile_media(
 
     orphan_derivatives: set[str] = set()
     invalid_derivatives: set[str] = set()
+    social_derivatives: set[str] = set()
     for stored_name in derivatives:
         parts = PurePosixPath(stored_name).parts
+        if parts == ("social", "site-v1.jpg"):
+            social_derivatives.add(stored_name)
+            continue
+        if len(parts) == 3 and parts[0] == "social" and re.fullmatch(r"[A-Za-z0-9-]{1,80}", parts[1]):
+            version = re.fullmatch(r"v([1-9][0-9]*)\.jpg", parts[2])
+            if version:
+                if (parts[1], int(version.group(1))) in content_revisions:
+                    social_derivatives.add(stored_name)
+                else:
+                    orphan_derivatives.add(stored_name)
+                continue
         if len(parts) != 2 or parts[1] not in {"thumb.webp", "web.webp"}:
             invalid_derivatives.add(stored_name)
         elif parts[0] not in registered_ids:
@@ -266,6 +283,7 @@ def reconcile_media(
         "duplicate_groups": len(duplicate_groups),
         "physical_files": len(physical),
         "derivative_files": len(derivatives),
+        "social_derivative_files": len(social_derivatives),
         "orphan_derivative_files": len(orphan_derivatives),
         "invalid_derivative_files": len(invalid_derivatives),
         "missing_manifest_files": len(missing_manifest_files),

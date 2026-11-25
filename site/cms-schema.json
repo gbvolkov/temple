@@ -41,7 +41,7 @@
         "kicker": {"label": "Надзаголовок", "type": "string", "group": "main", "required": true, "default": "Главное", "max_length": 60},
         "summary": {"label": "Краткое описание", "type": "text", "group": "content", "required": true, "max_length": 360},
         "cover": {"label": "Главное изображение", "type": "image", "group": "media", "required": true},
-        "cover_alt": {"label": "Описание изображения", "type": "string", "group": "media", "required": true, "max_length": 500},
+        "cover_alt": {"label": "Описание изображения (необязательно)", "type": "string", "group": "media", "max_length": 500},
         "cta_label": {"label": "Текст кнопки", "type": "string", "group": "publication", "required": true, "default": "Прочитать", "max_length": 40},
         "target_url": {"label": "Ссылка кнопки", "type": "string", "group": "publication", "help": "Внутренняя ссылка начинается с /, внешняя — с https://"},
         "content_slug": {"label": "Slug связанного материала", "type": "string", "group": "relations"},
@@ -59,7 +59,7 @@
         "summary": {"label": "Краткое описание", "type": "text", "group": "content", "required": true, "max_length": 420},
         "body": {"label": "Полный текст", "type": "blocks", "group": "content", "allowed": ["paragraph", "heading", "list", "image", "gallery", "quote", "video", "file", "callout"]},
         "cover": {"label": "Главное изображение", "type": "image", "group": "media", "required": true},
-        "cover_alt": {"label": "Описание главного изображения", "type": "string", "group": "media", "required": true},
+        "cover_alt": {"label": "Описание главного изображения (необязательно)", "type": "string", "group": "media"},
         "related_content": {"label": "Связанные материалы", "type": "relation_list", "group": "relations", "targets": ["news", "page", "parish_section", "gallery"], "max_items": 20},
         "seo_title": {"label": "SEO-заголовок", "type": "string", "group": "seo", "max_length": 70, "help": "Оставьте пустым, чтобы использовать заголовок материала."},
         "seo_description": {"label": "SEO-описание", "type": "text", "group": "seo", "max_length": 200, "help": "Оставьте пустым, чтобы использовать краткое описание или начало текста."},
@@ -193,7 +193,7 @@
   },
   "workflow": {
     "states": ["draft", "in_review", "scheduled", "published", "archived", "trash"],
-    "publish_checks": ["required_fields", "image_alt", "desktop_preview", "mobile_preview", "broken_links"],
+    "publish_checks": ["required_fields", "desktop_preview", "mobile_preview", "broken_links"],
     "version_history": true,
     "scheduled_publication": true
   },

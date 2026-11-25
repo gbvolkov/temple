@@ -9,6 +9,11 @@
   const roleLabels = { viewer: "Наблюдатель", editor: "Редактор", publisher: "Выпускающий", admin: "Администратор" };
   const statusLabels = { draft: "Черновик", in_review: "На проверке", scheduled: "Запланирован", published: "Опубликован", archived: "В архиве", trash: "В корзине" };
   const auditLabels = { create: "Материал создан", update: "Содержимое сохранено", import_create: "Материал импортирован", import_update: "Импортированный материал обновлён", migration_review: "Импортированный материал проверен", migration_accept: "Принят после миграции", migration_archive: "Архивирован при приёмке", migration_trash: "Перемещён в корзину при приёмке", submit_review: "Отправлен на проверку", return_to_draft: "Возвращён в черновики", publish: "Опубликован", schedule: "Публикация запланирована", scheduled_publish: "Опубликован по расписанию", archive: "Перемещён в архив", trash: "Перемещён в корзину", restore: "Восстановлен как черновик", restore_revision: "Восстановлена историческая версия" };
+  Object.assign(auditLabels, {
+    migration_policy_apply: "Применены правила миграции",
+    migration_policy_verify: "Применение правил миграции проверено",
+    migration_policy_rollback: "Применение правил миграции отменено"
+  });
   const userEventLabels = { login: "Вход в CMS", logout: "Выход из CMS", password_change: "Пароль изменён", user_create: "Пользователь создан", user_update: "Роль или состояние изменены", sessions_terminated: "Сессии завершены" };
   const state = { schema: null, currentType: "news", current: null, list: [], user: null, csrf: "", dirty: false, reauthenticating: false, pendingNavigation: null, activePanel: null, previewTimer: null, previewAbort: null, previewSize: "desktop", linkRange: null, linkEditor: null, contentList: { offset: 0, total: 0, limit: 100, requestId: 0, abort: null }, media: { offset: 0, total: 0, q: "", kind: "", usage: "", selected: new Set(), items: new Map(), chooser: null, panelTab: "files", reindexTimer: null, reindexJobId: null, reindexLastStatus: null }, bulk: { action: "publish", q: "", offset: 0, total: 0, items: [], selected: new Set() }, migration: { issuesOffset: 0, issuesTotal: 0, issueFilters: { severity: "", year: "", contentType: "", q: "" }, editorOrigin: null, currentBatch: null, requestId: 0, abort: null, preparationOffset: 0, preparationClassification: "", preparationRun: null, preparationDisplayRun: null, preparationItems: new Map(), preparationTimer: null, dossierOpenerId: null }, submissions: { offset: 0, total: 0, q: "", type: "", status: "", items: [], current: null }, users: [] };
 
@@ -26,6 +31,7 @@
     document.querySelectorAll("[data-admin-only]").forEach(element => { element.hidden = !can("admin"); });
     document.querySelectorAll("[data-publisher-only]").forEach(element => { element.hidden = !can("publisher"); });
     document.querySelectorAll("[data-open-profile],[data-logout],[data-mobile-open-profile],[data-mobile-logout]").forEach(element => { element.hidden = !user; });
+    document.querySelectorAll("[data-site-draft-preview],[data-mobile-site-draft-preview]").forEach(element => { element.hidden = !user; });
     document.querySelectorAll("[data-login-open]").forEach(element => { element.hidden = Boolean(user); });
   }
 
@@ -256,7 +262,7 @@
     const key = kind === "image" ? "image" : "url";
     const accept = kind === "image" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.docx,.xlsx,.pptx,.csv,.txt,.doc,.xls,.ppt,.mp4";
     const mediaKind = kind === "image" ? "image" : "document";
-    return `<div class="media-field"><input type="text" data-block-value="${key}" value="${escapeHtml(data[key] || "")}" readonly><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="block-${kind}" data-media-kind="${mediaKind}">Выбрать</button><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${accept}" data-block-upload="${kind}"></label></div></div>${kind === "image" ? `<label class="field">Alt-текст<input data-block-value="alt" value="${escapeHtml(data.alt || "")}"></label><label class="field">Подпись<input data-block-value="caption" value="${escapeHtml(data.caption || "")}"></label>` : ""}`;
+    return `<div class="media-field"><input type="text" data-block-value="${key}" value="${escapeHtml(data[key] || "")}" readonly><div class="media-field__actions"><button class="button button--ghost button--compact" type="button" data-media-choose="block-${kind}" data-media-kind="${mediaKind}">Выбрать</button><label class="button button--ghost button--compact">Загрузить<input class="cms-file-input" type="file" accept="${accept}" data-block-upload="${kind}"></label></div></div>${kind === "image" ? `<label class="field">Описание для незрячих (необязательно)<input data-block-value="alt" value="${escapeHtml(data.alt || "")}"></label><label class="field">Подпись<input data-block-value="caption" value="${escapeHtml(data.caption || "")}"></label>` : ""}`;
   }
 
   function normalizeImages(images) {
@@ -264,7 +270,7 @@
   }
 
   function imageCards(images) {
-    return normalizeImages(images).map(item => `<article class="image-item" data-image-id="${escapeHtml(item.id)}"><div class="image-item__preview">${item.image ? `<img src="${escapeHtml(item.image.startsWith("assets/") ? `/${item.image}` : item.image)}" alt="">` : ""}</div><div><label class="field">Файл<input data-image-value="image" value="${escapeHtml(item.image)}" readonly></label><label class="field">Alt-текст<input data-image-value="alt" value="${escapeHtml(item.alt)}"></label><label class="field">Подпись<input data-image-value="caption" value="${escapeHtml(item.caption)}"></label></div><div class="image-item__actions"><button type="button" data-image-action="up" aria-label="Выше">↑</button><button type="button" data-image-action="down" aria-label="Ниже">↓</button><button type="button" data-image-action="delete" aria-label="Удалить">×</button></div></article>`).join("");
+    return normalizeImages(images).map(item => `<article class="image-item" data-image-id="${escapeHtml(item.id)}"><div class="image-item__preview">${item.image ? `<img src="${escapeHtml(item.image.startsWith("assets/") ? `/${item.image}` : item.image)}" alt="">` : ""}</div><div><label class="field">Файл<input data-image-value="image" value="${escapeHtml(item.image)}" readonly></label><label class="field">Описание для незрячих (необязательно)<input data-image-value="alt" value="${escapeHtml(item.alt)}"></label><label class="field">Подпись<input data-image-value="caption" value="${escapeHtml(item.caption)}"></label></div><div class="image-item__actions"><button type="button" data-image-action="up" aria-label="Выше">↑</button><button type="button" data-image-action="down" aria-label="Ниже">↓</button><button type="button" data-image-action="delete" aria-label="Удалить">×</button></div></article>`).join("");
   }
 
   function initializeFields(record) {
@@ -362,6 +368,15 @@
     schedulePreview();
   }
 
+  function renderProblemExplanation(finding) {
+    if (typeof finding === "string") return `<p>${escapeHtml(finding)}</p>`;
+    const explanation = finding.explanation || {};
+    const facts = Array.isArray(explanation.facts) ? explanation.facts : [];
+    const messages = { gallery_year_conflict: "В старом адресе указаны разные годы.", gallery_year_unresolved: "Не удалось определить год события.", gallery_day_month_conflict: "День или месяц события указан по-разному.", gallery_date_invalid: "Указанная дата не существует." };
+    const message = messages[finding.source_code || finding.code] || finding.message || "Проблема требует проверки.";
+    return `<div class="problem-explanation"><p>${escapeHtml(message)}</p>${facts.length ? `<dl>${facts.map(fact => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : '<p>Подробные сведения для этой записи не сохранились.</p>'}${explanation.action ? `<p><strong>Что можно сделать:</strong> ${escapeHtml(explanation.action)}</p>` : '<p>Откройте материал и проверьте указанные сведения.</p>'}</div>`;
+  }
+
   function renderMigrationWarning(record) {
     if (!record?.migration_review_required) return;
     const legacyLink = record.legacy_url ? `<a class="text-link" href="https://www.sv-innokenty.ru${escapeHtml(record.legacy_url)}" target="_blank" rel="noopener">Сравнить со старой страницей ↗</a>` : "";
@@ -385,8 +400,8 @@
       return;
     }
     const assessment = review.assessment;
-    const dossier = assessment ? `<details><summary>Досье текущей версии ${Number(assessment.content_version)}</summary><p>${escapeHtml(assessment.recommendation || "")}</p>${(assessment.reasons || []).map(reason => `<p><b>${escapeHtml(label(reason.field_path))}</b>: ${escapeHtml(reason.message || reason.code || "")}</p>`).join("") || "Нет оставшихся причин"}</details>` : "";
-    box.innerHTML = `<p>Аудит версии ${Number(review.audit_version)}: ${Number(review.blocker_count)} блокирующих ошибок, ${Number(review.warning_count)} предупреждений.</p>${review.issues.map(issue => `<div><b>${escapeHtml(label(issue.field_path))}</b>: ${escapeHtml(issue.message)}${can("editor") && issue.code === "unicode_not_nfkc" && issue.field_path === "content.position" && issue.status === "open" ? ` <button type="button" class="button button--ghost button--compact" data-normalize-issue="${escapeHtml(issue.id)}">Исправить и перепроверить</button>` : ""}</div>`).join("")}${dossier}${historical}`;
+    const dossier = assessment ? `<details open><summary>Что нужно проверить в текущей версии</summary>${(assessment.reasons || []).map(reason => renderProblemExplanation(reason)).join("") || "Нет оставшихся причин"}</details>` : "";
+    box.innerHTML = `<p>Проверена версия ${Number(review.audit_version)}: ${Number(review.blocker_count)} блокирующих ошибок, ${Number(review.warning_count)} предупреждений.</p>${review.issues.map(issue => `<div><strong>${escapeHtml(label(issue.field_path))}</strong>${renderProblemExplanation(issue)}${can("editor") && issue.code === "unicode_not_nfkc" && issue.field_path === "content.position" && issue.status === "open" ? ` <button type="button" class="button button--ghost button--compact" data-normalize-issue="${escapeHtml(issue.id)}">Исправить и перепроверить</button>` : ""}</div>`).join("")}${dossier}${historical}`;
   }
 
   function renderEditorReturnContext(record) {
@@ -661,8 +676,8 @@
       for (const block of value.filter(item => item && typeof item === "object" && item.id && item.type)) {
         const data = block.data || {};
         let message = "";
-        if (block.type === "image" && (!internalMediaUrl(data.image) || !String(data.alt || "").trim())) message = "Выберите изображение и заполните alt-текст.";
-        if (block.type === "gallery" && (!Array.isArray(data.items) || !data.items.length || data.items.some(item => !internalMediaUrl(item.image) || !String(item.alt || "").trim()))) message = "Добавьте изображения и заполните alt-текст для каждого элемента галереи.";
+        if (block.type === "image" && !internalMediaUrl(data.image)) message = "Выберите изображение.";
+        if (block.type === "gallery" && (!Array.isArray(data.items) || !data.items.length || data.items.some(item => !internalMediaUrl(item.image)))) message = "Добавьте изображения в галерею.";
         if (block.type === "video" && !httpsUrl(data.url)) message = "Укажите корректную HTTPS-ссылку на видео.";
         if (block.type === "file" && (!internalMediaUrl(data.url) || !String(data.label || "").trim())) message = "Выберите файл и укажите его название.";
         if (message) errors.push({ id: block.id, message });
@@ -921,7 +936,7 @@
   async function openMediaDetail(mediaId) {
     const [item, usages] = await Promise.all([apiRequest(`/api/admin/media/${mediaId}`), apiRequest(`/api/admin/media/${mediaId}/usages?limit=50`)]);
     const preview = item.preview_url ? `<img class="media-detail__preview" src="${escapeHtml(item.preview_url)}" alt="">` : mediaIcon(item);
-    document.querySelector("[data-media-detail]").innerHTML = `<div class="eyebrow">${escapeHtml(item.kind === "image" ? "Изображение" : item.kind === "video" ? "Видео" : "Документ")}</div><h2 id="media-detail-title">${escapeHtml(item.original_name)}</h2><div class="media-detail-grid"><div>${preview}<dl><div><dt>Размер</dt><dd>${humanSize(item.size_bytes)}</dd></div><div><dt>URL</dt><dd><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a></dd></div><div><dt>Источник</dt><dd>${item.source === "legacy" ? "Архив старого сайта" : "Загружен в CMS"}</dd></div></dl></div><div>${item.kind === "image" ? `<label class="field">Alt-текст<textarea rows="3" data-media-alt ${can("editor") ? "" : "readonly"}>${escapeHtml(item.alt_text || "")}</textarea></label>` : ""}<h3>Использование</h3><div class="media-usage-list">${usages.items.map(use => `<a href="/cms.html?content=${escapeHtml(use.content_id)}"><b>${escapeHtml(use.title)}</b><small>${use.revision_version ? `Версия ${use.revision_version}` : "Рабочая версия"}${use.is_published ? " · на сайте" : ""}</small></a>`).join("") || "<p>Файл не используется.</p>"}</div>${can("editor") ? `<div class="media-detail-actions"><button class="button button--primary button--compact" type="button" data-media-save="${escapeHtml(item.id)}" data-version="${item.version}">Сохранить alt</button><label class="button button--ghost button--compact">Загрузить замену<input class="cms-file-input" type="file" data-media-replace="${escapeHtml(item.id)}"></label>${can("admin") && item.usage_count === 0 ? `<button class="button button--danger button--compact" type="button" data-media-delete="${escapeHtml(item.id)}" data-version="${item.version}">Удалить</button>` : ""}</div>` : ""}</div></div>`;
+    document.querySelector("[data-media-detail]").innerHTML = `<div class="eyebrow">${escapeHtml(item.kind === "image" ? "Изображение" : item.kind === "video" ? "Видео" : "Документ")}</div><h2 id="media-detail-title">${escapeHtml(item.original_name)}</h2><div class="media-detail-grid"><div>${preview}<dl><div><dt>Размер</dt><dd>${humanSize(item.size_bytes)}</dd></div><div><dt>URL</dt><dd><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a></dd></div><div><dt>Источник</dt><dd>${item.source === "legacy" ? "Архив старого сайта" : "Загружен в CMS"}</dd></div></dl></div><div>${item.kind === "image" ? `<label class="field">Описание для незрячих (необязательно)<textarea rows="3" data-media-alt ${can("editor") ? "" : "readonly"}>${escapeHtml(item.alt_text || "")}</textarea></label>` : ""}<h3>Использование</h3><div class="media-usage-list">${usages.items.map(use => `<a href="/cms.html?content=${escapeHtml(use.content_id)}"><b>${escapeHtml(use.title)}</b><small>${use.revision_version ? `Версия ${use.revision_version}` : "Рабочая версия"}${use.is_published ? " · на сайте" : ""}</small></a>`).join("") || "<p>Файл не используется.</p>"}</div>${can("editor") ? `<div class="media-detail-actions"><button class="button button--primary button--compact" type="button" data-media-save="${escapeHtml(item.id)}" data-version="${item.version}">Сохранить alt</button><label class="button button--ghost button--compact">Загрузить замену<input class="cms-file-input" type="file" data-media-replace="${escapeHtml(item.id)}"></label>${can("admin") && item.usage_count === 0 ? `<button class="button button--danger button--compact" type="button" data-media-delete="${escapeHtml(item.id)}" data-version="${item.version}">Удалить</button>` : ""}</div>` : ""}</div></div>`;
     document.querySelector("[data-media-detail-dialog]").showModal();
   }
 
@@ -1226,11 +1241,11 @@
     const transformations = item.transformations || [];
     const reasons = item.reasons || [];
     panel.innerHTML = `<div class="acceptance-panel preparation-dossier">
-      <button class="button button--ghost button--compact" type="button" data-migration-back>← К dashboard</button>
-      <div class="workflow-panel__head"><div><div class="eyebrow">Историческое досье автоматической подготовки</div><h1 id="preparation-dossier-title" tabindex="-1">${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · версия до подготовки ${item.content_version} · текущая версия ${item.current_content_version}</p><p>Причины ниже относятся к снимку подготовки. Текущие замечания доступны в карточке материала.</p><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(item.content_id)}" data-content-type="${escapeHtml(item.content_type)}">Открыть текущую карточку</button></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
-      <section class="acceptance-section"><h2>Рекомендация</h2><p>${escapeHtml(item.recommendation || "Дополнительных действий не требуется.")}</p><div class="dossier-reasons">${reasons.length ? reasons.map(reason => typeof reason === "string" ? `<article><b>Неуточнённая причина</b><p>Материал целиком</p><p>${escapeHtml(reason)}</p></article>` : `<article><b>${escapeHtml(reason.code || "unmapped_reason")}</b><p><strong>Поле:</strong> ${escapeHtml(reason.field_path || "Материал целиком")}</p><p>${escapeHtml(reason.message || "Описание отсутствует")}</p>${reason.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(reason.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") : '<p>Причин для ручной проверки нет.</p>'}</div></section>
-      <section class="acceptance-section"><h2>Применяемые правила</h2><div class="dossier-rules">${transformations.map(rule => `<article><b>${escapeHtml(rule.rule || "normalization")}</b><p>${escapeHtml(rule.label || "Автоматическое преобразование")}</p><p><strong>Поле:</strong> ${escapeHtml(rule.field || "Материал целиком")}${Object.hasOwn(rule, "value") ? ` · <strong>Значение:</strong> ${escapeHtml(String(rule.value))}` : ""}</p>${rule.evidence ? `<details><summary>Доказательство</summary><pre>${escapeHtml(JSON.stringify(rule.evidence, null, 2))}</pre></details>` : ""}</article>`).join("") || '<span class="state-pill">Данные уже соответствуют правилам</span>'}</div></section>
-      <section class="preparation-diff"><article><h2>До</h2><pre>${escapeHtml(JSON.stringify(item.before, null, 2))}</pre></article><article><h2>После</h2><pre>${escapeHtml(JSON.stringify(item.proposed, null, 2))}</pre></article></section>
+      <button class="button button--ghost button--compact" type="button" data-migration-back>← К списку материалов</button>
+      <div class="workflow-panel__head"><div><div class="eyebrow">Результат предыдущей проверки</div><h1 id="preparation-dossier-title" tabindex="-1">${escapeHtml(item.title)}</h1><p>${escapeHtml(state.schema.content_types[item.content_type]?.label || item.content_type)} · проверена версия ${item.content_version} · текущая версия ${item.current_content_version}</p><p>Ниже показаны результаты предыдущей проверки. Текущие замечания можно посмотреть в карточке материала.</p><button class="button button--ghost button--compact" type="button" data-migration-open-content="${escapeHtml(item.content_id)}" data-content-type="${escapeHtml(item.content_type)}">Открыть текущую карточку</button></div><span class="state-pill preparation-class preparation-class--${escapeHtml(item.classification)}">${escapeHtml(preparationClassLabels[item.classification] || item.classification)}</span></div>
+      <section class="acceptance-section"><h2>Что нужно проверить</h2><div class="dossier-reasons">${reasons.length ? reasons.map(reason => `<article>${renderProblemExplanation(reason)}</article>`).join("") : '<p>Причин для ручной проверки нет.</p>'}</div></section>
+      <section class="acceptance-section"><h2>Автоматические изменения</h2><div class="dossier-rules">${transformations.map(rule => `<article><p>${escapeHtml(rule.label || "Автоматическое преобразование")}</p></article>`).join("") || '<p>Автоматических изменений не предложено.</p>'}</div></section>
+      <details><summary>Технические сведения для специалиста</summary><section class="preparation-diff"><article><h2>До</h2><pre>${escapeHtml(JSON.stringify(item.before, null, 2))}</pre></article><article><h2>После</h2><pre>${escapeHtml(JSON.stringify(item.proposed, null, 2))}</pre></article></section></details>
       ${item.options?.length ? `<section class="acceptance-section"><h2>Варианты для редакционного этапа</h2><ul>${item.options.map(option => typeof option === "string" ? `<li>${escapeHtml(option)}</li>` : `<li><b>${escapeHtml(option.label || option.value || "Вариант")}</b><p>${escapeHtml(option.consequence || "Последствие не описано")}</p></li>`).join("")}</ul></section>` : ""}
     </div>`;
     panel.querySelector("#preparation-dossier-title")?.focus();
@@ -1473,6 +1488,7 @@
   }
 
   function showPanel(name) {
+    document.body.classList.remove("cms-menu-open");
     if (name !== "migration") { state.migration.abort?.abort(); clearTimeout(state.migration.preparationTimer); }
     if (name !== "media") clearTimeout(state.media.reindexTimer);
     state.activePanel = name;
@@ -1590,6 +1606,12 @@
 
   document.addEventListener("click", async event => {
     const target = event.target.closest("button,a"); if (!target) return;
+    if (target.matches("[data-site-draft-preview],[data-mobile-site-draft-preview]")) {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      await guardUnsavedChanges(() => window.location.assign(target.href));
+      return;
+    }
     if (target.matches("[data-unsaved-stay]")) { await resolveUnsavedChanges("stay"); return; }
     if (target.matches("[data-unsaved-discard]")) { await resolveUnsavedChanges("discard"); return; }
     if (target.matches("[data-unsaved-save]")) { await resolveUnsavedChanges("save"); return; }

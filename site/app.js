@@ -1,3 +1,12 @@
+function sitePreviewUrl(value) {
+  if (document.body?.dataset.draftPreview !== "true") return value;
+  const target = new URL(value, window.location.href);
+  if (target.origin !== window.location.origin) return value;
+  if (target.pathname === "/") target.pathname = "/preview";
+  target.searchParams.set("preview", "drafts");
+  return target.pathname + target.search + target.hash;
+}
+
 const STATIC_HASH_ROUTES = {
   "#/": "/",
   "#/schedule": "/schedule",
@@ -33,19 +42,19 @@ async function runLegacyHashBridge() {
   if (!hash || hash === "#contacts" || !hash.startsWith("#/")) return;
   const staticTarget = STATIC_HASH_ROUTES[hash];
   if (staticTarget) {
-    window.location.replace(staticTarget);
+    window.location.replace(sitePreviewUrl(staticTarget));
     return;
   }
   if (hash.startsWith("#/news/")) {
     const slug = cleanSlug(hash.slice("#/news/".length));
-    if (slug) window.location.replace(`/news/${encodeURIComponent(decodeURIComponent(slug))}`);
+    if (slug) window.location.replace(sitePreviewUrl(`/news/${encodeURIComponent(decodeURIComponent(slug))}`));
     return;
   }
   if (!hash.startsWith("#/content/")) return;
   const slug = cleanSlug(hash.slice("#/content/".length));
   if (!slug) return;
   try {
-    const response = await fetch(`/api/public/content/${encodeURIComponent(decodeURIComponent(slug))}`, {
+    const response = await fetch(sitePreviewUrl(`/api/public/content/${encodeURIComponent(decodeURIComponent(slug))}`), {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -53,9 +62,9 @@ async function runLegacyHashBridge() {
     const route = CONTENT_ROUTES[item.content_type];
     if (!route) throw new Error("Unknown content type");
     const target = route.endsWith("/") ? `${route}${encodeURIComponent(item.published_slug || item.slug)}` : route;
-    window.location.replace(target);
+    window.location.replace(sitePreviewUrl(target));
   } catch (_error) {
-    window.location.replace(`/pages/${encodeURIComponent(decodeURIComponent(slug))}`);
+    window.location.replace(sitePreviewUrl(`/pages/${encodeURIComponent(decodeURIComponent(slug))}`));
   }
 }
 
@@ -126,7 +135,7 @@ function placeFieldError(form, name, message) {
 }
 
 async function postSubmission(path, payload) {
-  const response = await fetch(path, {
+  const response = await fetch(sitePreviewUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
@@ -280,6 +289,12 @@ function bindSchoolForm() {
 }
 
 function initialize() {
+  if (document.body.dataset.draftPreview === "true") {
+    document.querySelectorAll("[data-note-open],[data-school-open],[data-note-submit],[data-school-submit]").forEach(button => {
+      button.disabled = true;
+      button.title = "В предпросмотре доступен только просмотр";
+    });
+  }
   document.querySelectorAll("[data-menu-toggle]").forEach(button => button.addEventListener("click", () => {
     setMenu(!document.body.classList.contains("menu-open"));
   }));

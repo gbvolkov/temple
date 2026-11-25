@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import shutil
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from server.baseline import database_report, media_summary, readonly_connection
+from server.baseline import copy_snapshot_file, database_report, media_summary, readonly_connection
 from server.config import Settings
 from server.db import init_database
 from server.media_reconciliation import run_reconciliation
@@ -24,6 +23,8 @@ from server.migration_preparation import (
     queue_preparation,
     verify_preparation,
 )
+from server.migration_analysis import analyze_migration
+from server.migration_procedure import apply_plan, create_plan, rollback_operation
 
 from .conftest import ROOT, observe_open_defect
 
@@ -65,6 +66,119 @@ def test_source_database_is_copied_and_migrated_without_mutation(pytestconfig, t
     assert media_summary(source_media) == media_before
 
 
+@pytest.mark.source_data
+def test_migration_policy_analysis_on_source_copy(reconciled_source, tmp_path):
+    settings = reconciled_source["_settings"]
+    report = analyze_migration(settings, work_root=tmp_path / "forecast-work")
+    assert report["source_unchanged"] is True
+    summary = report["summary"]
+    assert summary["scope"] == sum(summary[key] for key in ("archive", "ready_for_publication", "remaining_queue"))
+    assert summary["scope"] > 0
+    pending = {item["id"] for item in report["items"] if item["outcome"] == "remaining_queue"}
+    assert pending == {identifier for reason in report["remaining_reasons"] for identifier in reason["material_ids"]}
+    assert sum(group["materials"] for group in report["reason_combinations"]) == len(pending)
+    assert all(item["reasons"] for item in report["items"] if item["id"] in pending)
+    for item in report["items"]:
+        if item.get("date_proposal", {}).get("precision") == "year":
+            assert item["date_after"].endswith("-01-01")
+            assert item["date_proposal"]["accepted"] is True
+            assert "gallery_date_year_only" not in {r["code"] for r in item["reasons"]}
+        if item["content_type"] == "gallery":
+            assert item["photo_sequence_preserved"] is True
+            assert item["photo_count_before"] == item["photo_count_after"]
+        if item["content_type"] == "news" and item["was_queued"]:
+            assert item["outcome"] == "archive"
+    (tmp_path / "forecast.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@pytest.mark.source_data
+def test_whole_site_preview_on_real_source_copy_is_read_only(reconciled_source, tmp_path):
+    from contextlib import closing
+    from dataclasses import replace
+    from datetime import UTC, datetime, timedelta
+    import secrets
+    from fastapi.testclient import TestClient
+    from scripts.run_cms_regression import logical_database_digest
+    from server.app import create_app
+    from server.security import token_hash
+    from server.public_urls import content_path
+
+    original = reconciled_source['_settings']
+    database = tmp_path / 'preview.sqlite3'
+    with closing(readonly_connection(original.database_path)) as source, closing(sqlite3.connect(database)) as target:
+        source.backup(target)
+    settings = replace(original, database_path=database, media_derivatives_dir=tmp_path / 'preview-derivatives')
+    with TestClient(create_app(settings)) as client:
+        token = secrets.token_urlsafe(36)
+        with sqlite3.connect(database) as c:
+            actor = c.execute("SELECT id FROM users WHERE role='admin' AND is_active=1 LIMIT 1").fetchone()[0]
+            c.execute('INSERT INTO sessions(token_hash,user_id,csrf_token,expires_at,created_at) VALUES(?,?,?,?,?)',
+                      (token_hash(token), actor, 'source-preview-test', (datetime.now(UTC)+timedelta(hours=1)).isoformat(), datetime.now(UTC).isoformat()))
+        client.cookies.set('cms_session', token)
+        before = logical_database_digest(database)
+        for route in ['/', '/news', '/gallery', '/leaflet', '/about', '/parish', '/school', '/schedule', '/treby', '/media']:
+            response = client.get(route + '?preview=drafts')
+            assert response.status_code == 200, (route, response.text[:200])
+            assert 'Предпросмотр черновиков' in response.text
+            assert response.headers['cache-control'] == 'private, no-store'
+        with readonly_connection(database) as c:
+            samples = c.execute("SELECT content_type,slug FROM contents WHERE status='draft' AND content_type IN ('news','gallery','page','clergy','parish_section') GROUP BY content_type").fetchall()
+        for sample in samples:
+            response = client.get(content_path(sample['content_type'], sample['slug']) + '?preview=drafts')
+            assert response.status_code == 200, (dict(sample), response.status_code)
+        assert logical_database_digest(database) == before
+
+
+@pytest.mark.source_data
+def test_migration_procedure_apply_verify_and_rollback_on_source_copy(reconciled_source, tmp_path, pytestconfig):
+    from contextlib import closing
+    from dataclasses import replace
+    from server.db import connect
+
+    original = reconciled_source["_settings"]
+    target_db = tmp_path / "runtime/cms.sqlite3"
+    target_db.parent.mkdir()
+    target_media = tmp_path / "runtime/media"
+    with closing(readonly_connection(original.database_path)) as source, closing(sqlite3.connect(target_db)) as target:
+        source.backup(target)
+    shutil.copytree(original.media_dir, target_media, copy_function=copy_snapshot_file)
+    settings = replace(original, database_path=target_db, media_dir=target_media, media_derivatives_dir=tmp_path / "runtime/derivatives")
+    with closing(connect(target_db)) as c:
+        before = {row["id"]: dict(row) for row in c.execute("SELECT * FROM contents")}
+        username = c.execute("SELECT username FROM users WHERE role='admin' AND is_active=1 LIMIT 1").fetchone()[0]
+    bundle = tmp_path / "operation"
+    plan = create_plan(settings, bundle)
+    result = apply_plan(settings, bundle, username=username)
+    assert result["status"] == "verified" and result["semantic_ok"] and result["media_ok"]
+    with closing(connect(target_db)) as c:
+        after = {row["id"]: dict(row) for row in c.execute("SELECT * FROM contents")}
+        assert sum(row["migration_review_required"] for row in after.values()) == plan["summary"]["remaining_queue"]
+        assert sum(row["status"] == "archived" for row in after.values()) == plan["summary"]["archive"]
+        assert all(not row["published_version"] for row in after.values())
+        import unicodedata
+        for identifier, row in after.items():
+            if row["content_type"] != "gallery":
+                continue
+            old = json.loads(before[identifier]["data_json"]).get("photos") or []
+            new = json.loads(row["data_json"]).get("photos") or []
+            assert [p["image"] for p in old] == [p["image"] for p in new]
+            assert [p.get("order") for p in old] == [p.get("order") for p in new]
+            assert [unicodedata.normalize("NFKC", p.get("caption") or "") for p in old] == [p.get("caption") or "" for p in new]
+    assert apply_plan(settings, bundle, username=username)["replayed"] is True
+    rollback = rollback_operation(settings, plan["operation_id"], username=username)
+    assert rollback["status"] == "rolled_back"
+    with closing(connect(target_db)) as c:
+        restored = {row["id"]: dict(row) for row in c.execute("SELECT * FROM contents")}
+        for identifier, row in before.items():
+            assert {k: v for k, v in restored[identifier].items() if k not in {"version", "updated_at"}} == {
+                k: v for k, v in row.items() if k not in {"version", "updated_at"}}
+    proof = {"summary": plan["summary"], "apply": result, "rollback": rollback, "all_photos_preserved": True}
+    (tmp_path / "procedure-result.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
+    artifacts = pytestconfig.getoption("--cms-artifacts-dir")
+    if artifacts:
+        (artifacts / "procedure-result.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def source_paths(pytestconfig):
     source_db: Path | None = pytestconfig.getoption("--cms-source-db")
     source_media: Path | None = pytestconfig.getoption("--cms-source-media")
@@ -86,7 +200,7 @@ def reconciled_source(pytestconfig, tmp_path_factory):
     target_media = target_root / "media"
     with readonly_connection(source_db) as source, sqlite3.connect(target) as destination:
         source.backup(destination)
-    shutil.copytree(source_media, target_media, copy_function=os.link)
+    shutil.copytree(source_media, target_media, copy_function=copy_snapshot_file)
     init_database(target)
     settings = Settings(
         root=ROOT,

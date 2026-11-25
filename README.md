@@ -134,6 +134,10 @@ uv run python scripts/run_cms_regression.py --profile smoke
 # Полный автономный набор, включая реестр функциональных регрессий
 uv run python scripts/run_cms_regression.py --profile full
 
+# Мобильная навигация в WebKit (touch-профиль iPhone 13)
+uv run playwright install webkit
+uv run pytest tests/e2e/test_mobile_navigation.py -m e2e --cms-browser webkit
+
 # Проверка копирования и миграции текущих runtime-данных без изменения источника
 uv run python scripts/run_cms_regression.py --profile source-data `
   --source-db data/cms.sqlite3 `

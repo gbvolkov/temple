@@ -6,13 +6,15 @@ import math
 import re
 import sqlite3
 import unicodedata
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .db import connect, transaction
+from .db import connect, transaction, row_to_content
+from .draft_preview import DRAFT_PREVIEW
 from .public_urls import content_path
 
 
@@ -318,6 +320,30 @@ def _match_expression(tokens: list[str]) -> str:
     return " AND ".join(f'"{token.replace(chr(34), chr(34) * 2)}"*' for token in tokens)
 
 
+@contextmanager
+def _public_search_connection(database_path: Path):
+    if not DRAFT_PREVIEW.get():
+        with closing(connect(database_path)) as connection:
+            yield connection
+        return
+    # The private search index is per-request and exists only in memory.
+    # Neither the public FTS index nor any publication pointer is modified.
+    with closing(sqlite3.connect(':memory:')) as memory:
+        memory.row_factory = sqlite3.Row
+        memory.executescript(SEARCH_INDEX_SQL)
+        with closing(connect(database_path)) as source:
+            rows = source.execute("SELECT * FROM contents WHERE status NOT IN ('archived','trash')").fetchall()
+        for row in rows:
+            if row['content_type'] not in SEARCHABLE_TYPES:
+                continue
+            snapshot = row_to_content(row)
+            snapshot['published_version'] = snapshot['version']
+            document = _search_document(snapshot)
+            columns = ','.join(document)
+            memory.execute(f"INSERT INTO content_search({columns}) VALUES({','.join('?' for _ in document)})", tuple(document.values()))
+        yield memory
+
+
 def search_public(
     database_path: Path,
     query_value: str,
@@ -335,7 +361,7 @@ def search_public(
     match = _match_expression(tokens)
     instant = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     visibility = "(content_type!='service' OR visible_until='' OR visible_until>=?)"
-    with connect(database_path) as connection:
+    with _public_search_connection(database_path) as connection:
         params: list[Any] = [match, instant]
         type_sql = ""
         if content_type:
@@ -372,6 +398,8 @@ def search_public(
         item["id"] = item.pop("content_id")
         item["published_version"] = int(item["published_version"])
         item["type_label"] = TYPE_LABELS.get(item["content_type"], item["content_type"])
+        if DRAFT_PREVIEW.get():
+            item['preview'] = True
         item["excerpt"] = _normalize_text(item.get("excerpt") or item.get("summary") or "")
         items.append(item)
     return SearchPage(
